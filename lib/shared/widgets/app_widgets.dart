@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/user_model.dart';
 import '../../models/transaction_model.dart';
 
 enum UserTier { bronze, silver, gold, platinum }
