@@ -1,70 +1,96 @@
+import 'dart:math';
 import '../models/user_model.dart';
 
 class AuthException implements Exception {
   final String message;
-  AuthException(this.message);
-  @override
-  String toString() => message;
+  const AuthException(this.message);
+  @override String toString() => message;
 }
 
 class MockAuthService {
   MockAuthService._();
-  static final instance = MockAuthService._();
+  static final MockAuthService instance = MockAuthService._();
 
   final List<UserModel> _users = [
-    UserModel(
-      id: 'demo-001',
-      name: 'Kasun Perera',
-      email: 'kasun@email.com',
-      phone: '0771234567',
-      totalPoints: 4820,
-    ),
-    UserModel(
-      id: 'emp-001',
-      name: 'Nimal Silva',
-      email: 'nimal@loyaltyhub.lk',
-      phone: '0779876543',
-      role: 'employee',
-    ),
+    UserModel(id:'cust-001', name:'Kasun Perera', email:'kasun@email.com',
+      phone:'0771234567', role:'customer', totalPoints:4820,
+      createdAt:DateTime(2024,1,15)),
+    UserModel(id:'emp-001', name:'Nimal Silva', email:'nimal@loyaltyhub.lk',
+      phone:'0779876543', role:'employee', totalPoints:0,
+      createdAt:DateTime(2024,1,10)),
   ];
 
-  final _otpStore = <String, String>{};
+  final Map<String, String> _otpStore = {};
 
-  Future<UserModel> signInWithPhone(
-      {required String phone, required String password}) async {
+  Future<UserModel> signUpWithEmail({
+    required String name, required String email,
+    required String phone, required String password,
+  }) async {
     await _delay();
-    final user = _users.where((u) => u.phone == phone).firstOrNull;
-    if (user == null) throw AuthException('No account found for that number.');
-    // Mock: any non-empty password works
-    if (password.isEmpty) throw AuthException('Password cannot be empty.');
+    if (_users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
+      throw const AuthException('An account with this email already exists.');
+    }
+    if (_users.any((u) => u.phone.trim() == phone.trim())) {
+      throw const AuthException('This phone number is already registered.');
+    }
+    final user = UserModel(
+      id: _genId(), name: name.trim(),
+      email: email.trim().toLowerCase(), phone: phone.trim(),
+      role: 'customer', totalPoints: 0, createdAt: DateTime.now(),
+    );
+    _users.add(user);
     return user;
   }
 
-  Future<UserModel> signInWithEmail(
-      {required String email, required String password}) async {
+  Future<UserModel> signInWithEmail({
+    required String email, required String password,
+  }) async {
     await _delay();
-    final user =
-        _users.where((u) => u.email == email.toLowerCase()).firstOrNull;
-    if (user == null) throw AuthException('No account found.');
+    final user = _users.where(
+      (u) => u.email.toLowerCase() == email.trim().toLowerCase()
+    ).firstOrNull;
+    if (user == null) throw const AuthException('No account found with this email address.');
+    if (password.isEmpty) throw const AuthException('Password cannot be empty.');
     return user;
   }
 
   Future<void> sendOtp(String phone) async {
     await _delay(ms: 800);
-    _otpStore[phone] = '1234';
+    _otpStore[phone.trim()] = '1234';
   }
 
-  Future<UserModel?> verifyOtp(
-      {required String phone, required String otp}) async {
+  Future<UserModel?> verifyOtp({required String phone, required String otp}) async {
     await _delay(ms: 600);
-    if (_otpStore[phone] != otp) throw AuthException('Invalid OTP.');
-    _otpStore.remove(phone);
-    return _users.where((u) => u.phone == phone).firstOrNull;
+    final stored = _otpStore[phone.trim()];
+    if (stored == null || stored != otp.trim()) {
+      throw const AuthException('Invalid OTP. Please check and try again.');
+    }
+    _otpStore.remove(phone.trim());
+    return _users.where((u) => u.phone.trim() == phone.trim()).firstOrNull;
   }
 
-  UserModel? findUserById(String id) =>
-      _users.where((u) => u.id == id).firstOrNull;
+  Future<UserModel> createAccountWithPhone({
+    required String name, required String email, required String phone,
+  }) async {
+    await _delay();
+    if (_users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
+      throw const AuthException('This email is already in use.');
+    }
+    final user = UserModel(
+      id: _genId(), name: name.trim(),
+      email: email.trim().toLowerCase(), phone: phone.trim(),
+      role: 'customer', totalPoints: 0, createdAt: DateTime.now(),
+    );
+    _users.add(user);
+    return user;
+  }
 
-  Future _delay({int ms = 1000}) =>
-      Future.delayed(Duration(milliseconds: ms));
+  UserModel? findById(String id) => _users.where((u) => u.id == id).firstOrNull;
+  void updateUser(UserModel updated) {
+    final i = _users.indexWhere((u) => u.id == updated.id);
+    if (i != -1) _users[i] = updated;
+  }
+
+  Future<void> _delay({int ms = 1200}) => Future.delayed(Duration(milliseconds: ms));
+  String _genId() => '${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(9999)}';
 }

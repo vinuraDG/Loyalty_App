@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
-import '../../shared/widgets/app_widgets.dart';
-import '../auth/screens/login_screen.dart';
+import 'package:loyalty_app/core/theme/app_theme.dart';
+import 'package:loyalty_app/features/auth/screens/login_screen.dart';
+import 'package:loyalty_app/shared/widgets/app_widgets.dart';
+
 
 class _Slide {
   final IconData icon;
@@ -29,11 +30,11 @@ const _slides = [
     description: 'Use your earned points to get free washes and discounts at our premium laundry service.',
   ),
   _Slide(
-    icon: Icons.sports_golf_rounded,
-    color: AppColors.golfColor,
+    icon: Icons.diamond,
+    color: AppColors.accentGold,
     step: '03 / 03',
-    title: 'Play golf with your rewards',
-    description: 'Enjoy complimentary golf rounds and exclusive club discounts using your loyalty points.',
+    title: 'Shop gold with your rewards',
+    description: 'Redeem your loyalty points for exclusive discounts and special offers at partner gold shops.',
   ),
 ];
 

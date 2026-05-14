@@ -1,40 +1,22 @@
-enum UserTier { bronze, silver, gold, platinum }
-
 class UserModel {
   final String id;
   final String name;
   final String email;
   final String phone;
   final String role;
-  int totalPoints;
+  final int totalPoints;
   final DateTime createdAt;
 
-  UserModel({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.phone,
-    this.role = 'customer',
-    this.totalPoints = 0,
-    DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
-
-  // ── Computed ──────────────────────────────────────────────
-  int get points => totalPoints;
-
-  UserTier get tier {
-    if (totalPoints >= 5000) return UserTier.gold;
-    if (totalPoints >= 1000) return UserTier.silver;
-    return UserTier.bronze;
-  }
+  const UserModel({
+    required this.id, required this.name, required this.email,
+    required this.phone, this.role = 'customer',
+    this.totalPoints = 0, required this.createdAt,
+  });
 
   String get loyaltyTier {
-    switch (tier) {
-      case UserTier.gold:     return 'Gold';
-      case UserTier.silver:   return 'Silver';
-      case UserTier.platinum: return 'Platinum';
-      default:                return 'Bronze';
-    }
+    if (totalPoints >= 5000) return 'Gold';
+    if (totalPoints >= 1000) return 'Silver';
+    return 'Bronze';
   }
 
   int get pointsToNextTier {
@@ -43,20 +25,34 @@ class UserModel {
     return 1000 - totalPoints;
   }
 
-  String get initials {
-    final parts = name.trim().split(' ');
-    return parts.length >= 2
-        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-        : name[0].toUpperCase();
+  double get tierProgress {
+    if (totalPoints >= 5000) return 1.0;
+    if (totalPoints >= 1000) return (totalPoints - 1000) / 4000;
+    return totalPoints / 1000;
   }
 
-  UserModel copyWith({String? name, int? totalPoints}) => UserModel(
-        id: id,
-        email: email,
-        phone: phone,
-        role: role,
-        name: name ?? this.name,
-        totalPoints: totalPoints ?? this.totalPoints,
-        createdAt: createdAt,
-      );
+  String get initials {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  bool get isEmployee => role == 'employee';
+
+  UserModel copyWith({String? name, String? email, String? phone, int? totalPoints}) => UserModel(
+    id: id, role: role, createdAt: createdAt,
+    name: name ?? this.name, email: email ?? this.email,
+    phone: phone ?? this.phone, totalPoints: totalPoints ?? this.totalPoints,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id, 'name': name, 'email': email, 'phone': phone,
+    'role': role, 'totalPoints': totalPoints, 'createdAt': createdAt.toIso8601String(),
+  };
+
+  factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
+    id: j['id'], name: j['name'], email: j['email'], phone: j['phone'],
+    role: j['role'] ?? 'customer', totalPoints: j['totalPoints'] ?? 0,
+    createdAt: DateTime.parse(j['createdAt']),
+  );
 }
