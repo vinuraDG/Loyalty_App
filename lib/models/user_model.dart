@@ -1,5 +1,11 @@
+enum UserTier { bronze, silver, gold, platinum }
+
 class UserModel {
-  final String id, name, email, phone, role;
+  final String id;
+  final String name;
+  final String email;
+  final String phone;
+  final String role;
   int totalPoints;
   final DateTime createdAt;
 
@@ -13,10 +19,28 @@ class UserModel {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  // ── Computed ──────────────────────────────────────────────
+  int get points => totalPoints;
+
+  UserTier get tier {
+    if (totalPoints >= 5000) return UserTier.gold;
+    if (totalPoints >= 1000) return UserTier.silver;
+    return UserTier.bronze;
+  }
+
   String get loyaltyTier {
-    if (totalPoints >= 5000) return 'Gold';
-    if (totalPoints >= 1000) return 'Silver';
-    return 'Bronze';
+    switch (tier) {
+      case UserTier.gold:     return 'Gold';
+      case UserTier.silver:   return 'Silver';
+      case UserTier.platinum: return 'Platinum';
+      default:                return 'Bronze';
+    }
+  }
+
+  int get pointsToNextTier {
+    if (totalPoints >= 5000) return 0;
+    if (totalPoints >= 1000) return 5000 - totalPoints;
+    return 1000 - totalPoints;
   }
 
   String get initials {
