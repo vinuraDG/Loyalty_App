@@ -26,7 +26,7 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboardScreen> {
   final _businesses = const [
     (AppConstants.businessFuel, Icons.local_gas_station_rounded, AppColors.fuelColor),
     (AppConstants.businessLaundry, Icons.local_laundry_service_rounded, AppColors.laundryColor),
-    (AppConstants.businessGolf, Icons.sports_golf_rounded, AppColors.golfColor),
+    (AppConstants.businessGold, Icons.diamond, AppColors.accentGold),
   ];
 
   // Today's mock stats
@@ -51,7 +51,7 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboardScreen> {
               Text('Employee Dashboard',
                 style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
               const SizedBox(height: 2),
-              Text('Nimal Silva', style: AppTextStyles.h4),
+              const Text('Nimal Silva', style: AppTextStyles.h4),
             ]),
             const Spacer(),
             Container(
@@ -95,7 +95,7 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboardScreen> {
                 final selected = _selectedBusiness == b.$1;
                 return Expanded(child: Padding(
                   padding: EdgeInsets.only(
-                    right: b.$1 == AppConstants.businessGolf ? 0 : 8),
+                    right: b.$1 == AppConstants.businessGold ? 0 : 8),
                   child: GestureDetector(
                     onTap: () => setState(() => _selectedBusiness = b.$1),
                     child: AnimatedContainer(
@@ -181,7 +181,7 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboardScreen> {
   int _pointsFor(String b) {
     if (b == AppConstants.businessFuel) return AppConstants.fuelPoints;
     if (b == AppConstants.businessLaundry) return AppConstants.laundryPoints;
-    return AppConstants.golfPoints;
+    return AppConstants.goldPoints;
   }
 
   String _fmtTime(DateTime d) {
@@ -466,9 +466,9 @@ class EmployeeAwardSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: 22),
 
-              Text('Points Awarded!', style: AppTextStyles.h1),
+              const Text('Points Awarded!', style: AppTextStyles.h1),
               const SizedBox(height: 8),
-              Text('Points successfully added to customer account.',
+              const Text('Points successfully added to customer account.',
                 style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
               const SizedBox(height: 28),
 

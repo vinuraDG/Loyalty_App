@@ -8,11 +8,11 @@ class AppConstants {
 
   static const businessFuel    = 'Fuel Station';
   static const businessLaundry = 'Laundry';
-  static const businessGolf    = 'Golf';
+  static const businessGold    = 'Gold';
 
   static const fuelPoints    = 120;
   static const laundryPoints = 80;
-  static const golfPoints    = 200;
+  static const goldPoints    = 200;
 }
 
 class AppRoutes {

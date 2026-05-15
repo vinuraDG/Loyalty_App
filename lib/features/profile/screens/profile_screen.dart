@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/features/profile/screens/edit_profile_screen.dart';
+import 'package:loyalty_app/features/qr/screens/qr_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
+
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -20,13 +23,11 @@ class ProfileScreen extends ConsumerWidget {
           child: Column(children: [
 
             // ── Header ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(children: [
                 Text('My Profile', style: AppTextStyles.h3),
-                const Spacer(),
-                const Icon(Icons.settings_outlined,
-                  color: AppColors.textSecondary, size: 22),
+                Spacer(),
               ]),
             ),
             const SizedBox(height: 20),
@@ -85,7 +86,7 @@ class ProfileScreen extends ConsumerWidget {
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Tier Progress', style: AppTextStyles.labelMedium),
+                  const Text('Tier Progress', style: AppTextStyles.labelMedium),
                   const SizedBox(height: 12),
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     Text(user.loyaltyTier, style: AppTextStyles.caption),
@@ -104,7 +105,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    _TierDot(label: 'Bronze', active: true),
+                    const _TierDot(label: 'Bronze', active: true),
                     _TierDot(label: 'Silver', active: user.totalPoints >= 1000),
                     _TierDot(label: 'Gold',   active: user.totalPoints >= 5000),
                   ]),
@@ -113,42 +114,66 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
-            // ── Menu section ─────────────────────────────────────────
+            // ── Menu section ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(children: [
                 _MenuSection(title: 'Account', items: [
-                  _MenuItem(icon: Icons.qr_code_rounded, label: 'My QR Code',
-                    color: AppColors.primary, onTap: () {}),
-                  _MenuItem(icon: Icons.history_rounded, label: 'Transaction History',
-                    color: AppColors.fuelColor, onTap: () {}),
-                  _MenuItem(icon: Icons.edit_outlined, label: 'Edit Profile',
-                    color: AppColors.accentGold, onTap: () {}),
+                  _MenuItem(
+                    icon: Icons.qr_code_rounded,
+                    label: 'My QR Code',
+                    color: AppColors.primary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const QrScreen()),
+                    ),
+                  ),
+                  _MenuItem(
+                    icon: Icons.edit_outlined,
+                    label: 'Edit Profile',
+                    color: AppColors.accentGold,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                    ),
+                  ),
                 ]),
                 const SizedBox(height: 12),
                 _MenuSection(title: 'Support', items: [
-                  _MenuItem(icon: Icons.help_outline_rounded, label: 'Help & Support',
-                    color: AppColors.golfColor, onTap: () {}),
-                  _MenuItem(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy',
-                    color: AppColors.textSecondary, onTap: () {}),
+                  _MenuItem(
+                    icon: Icons.help_outline_rounded,
+                    label: 'Help & Support',
+                    color: AppColors.golfColor,
+                    onTap: () {},
+                  ),
+                  _MenuItem(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy Policy',
+                    color: AppColors.textSecondary,
+                    onTap: () {},
+                  ),
                 ]),
                 const SizedBox(height: 12),
                 _MenuSection(title: '', items: [
                   _MenuItem(
-                    icon: Icons.logout_rounded, label: 'Sign Out',
-                    color: AppColors.error, textColor: AppColors.error,
-                    onTap: () => _signOut(context, ref),
+                    icon: Icons.logout_rounded,
+                    label: 'Sign Out',
+                    color: AppColors.error,
+                    textColor: AppColors.error,
+                    onTap: () => _signOut(context, ref),  // ✅ ref in scope here
                   ),
                 ]),
+                const SizedBox(height: 24),
               ]),
             ),
 
-         
           ]),
         ),
       ),
     );
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   String _nextTierName(String tier) =>
       tier == 'Bronze' ? 'Silver' : 'Gold';
@@ -160,6 +185,9 @@ class ProfileScreen extends ConsumerWidget {
     'Jul','Aug','Sep','Oct','Nov','Dec'][m];
 
   Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await _showSignOutDialog(context);
+    if (!confirmed) return;
+
     await ref.read(authProvider.notifier).signOut();
     if (!context.mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -168,7 +196,75 @@ class ProfileScreen extends ConsumerWidget {
       (_) => false,
     );
   }
+
+  Future<bool> _showSignOutDialog(BuildContext context) async {
+    return await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 60, height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.logout_rounded, color: AppColors.error, size: 28),
+            ),
+            const SizedBox(height: 16),
+            const Text('Sign out?', style: AppTextStyles.h4,
+              textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text(
+              "You'll need to sign back in to access your loyalty points and rewards.",
+              style: AppTextStyles.caption,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Sign out',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    ) ?? false;
+  }
 }
+
+// ── Subwidgets ────────────────────────────────────────────────────────────────
 
 class _StatCard extends StatelessWidget {
   final String label, value;
@@ -267,7 +363,7 @@ class _MenuItem extends StatelessWidget {
     leading: Container(
       width: 36, height: 36,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(icon, color: color, size: 18),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/features/employee/screens/employee_screens.dart';
 import 'package:loyalty_app/features/home/screens/splash_screen.dart';
 import 'core/theme/app_theme.dart';
 

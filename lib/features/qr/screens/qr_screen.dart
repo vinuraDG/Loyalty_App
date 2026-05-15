@@ -13,7 +13,6 @@ class QrScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
 
-    // QR data payload - in real app: pass to qr_flutter QrImageView
     final qrData = jsonEncode({'userId': user.id, 'name': user.name,
       'ts': DateTime.now().millisecondsSinceEpoch});
 
@@ -21,10 +20,16 @@ class QrScreen extends ConsumerWidget {
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: Column(children: [
-          // Header
+
+          // ── Header with back button ───────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(4, 16, 16, 0),
             child: Row(children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_rounded,
+                  color: AppColors.textPrimary, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
               Text('My QR Code', style: AppTextStyles.h3),
             ]),
           ),
@@ -54,12 +59,10 @@ class QrScreen extends ConsumerWidget {
                     color: Colors.white, borderRadius: BorderRadius.circular(24),
                   ),
                   child: Stack(children: [
-                    // Placeholder QR — replace with QrImageView(data: qrData) from qr_flutter
                     SizedBox(
                       width: 200, height: 200,
                       child: CustomPaint(painter: _MockQrPainter()),
                     ),
-                    // Corner brackets (purple)
                     _Corner(top: 0, left: 0, tl: true),
                     _Corner(top: 0, right: 0, tr: true),
                     _Corner(bottom: 0, left: 0, bl: true),
@@ -92,9 +95,9 @@ class QrScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.08),
+                    color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                   ),
                   child: Row(children: [
                     const Icon(Icons.info_outline, color: AppColors.primaryLight, size: 18),
@@ -106,6 +109,7 @@ class QrScreen extends ConsumerWidget {
                     )),
                   ]),
                 ),
+                const SizedBox(height: 24),
               ]),
             ),
           ),
@@ -124,7 +128,37 @@ class _Corner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderSide = const BorderSide(color: AppColors.primary, width: 3);
+    const borderSide = BorderSide(color: AppColors.primary, width: 3);
+    return Positioned(
+      top: top, left: left, right: right, bottom: bottom,
+      child: SizedBox(
+        width: 22, height: 22,
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              top:    BorderSide.none,
+              bottom: BorderSide.none,
+              left:   BorderSide.none,
+              right:  BorderSide.none,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── _Corner fixed version ─────────────────────────────────────────────────────
+// (kept as separate correct implementation)
+class _CornerBracket extends StatelessWidget {
+  final double? top, left, right, bottom;
+  final bool tl, tr, bl, br;
+  const _CornerBracket({this.top, this.left, this.right, this.bottom,
+    this.tl=false, this.tr=false, this.bl=false, this.br=false});
+
+  @override
+  Widget build(BuildContext context) {
+    const borderSide = BorderSide(color: AppColors.primary, width: 3);
     return Positioned(
       top: top, left: left, right: right, bottom: bottom,
       child: SizedBox(
@@ -144,18 +178,16 @@ class _Corner extends StatelessWidget {
   }
 }
 
-// Mock QR pattern painter — replace with QrImageView when qr_flutter is added
+// Mock QR pattern painter
 class _MockQrPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final p = Paint()..color = const Color(0xFF0F0A1E);
     final bg = Paint()..color = Colors.white;
     canvas.drawRect(Offset.zero & size, bg);
-    // Position squares (finder patterns)
     _drawFinder(canvas, p, 10, 10, 50);
     _drawFinder(canvas, p, size.width - 60, 10, 50);
     _drawFinder(canvas, p, 10, size.height - 60, 50);
-    // Random data modules
     final rng = <Offset>[
       const Offset(70,10), const Offset(80,10), const Offset(90,10),
       const Offset(70,20), const Offset(82,22), const Offset(70,32),
@@ -181,7 +213,8 @@ class _MockQrPainter extends CustomPainter {
   }
 
   void _drawFinder(Canvas canvas, Paint p, double x, double y, double s) {
-    final border = Paint()..color = const Color(0xFF0F0A1E)..style = PaintingStyle.stroke..strokeWidth = 3;
+    final border = Paint()..color = const Color(0xFF0F0A1E)
+      ..style = PaintingStyle.stroke..strokeWidth = 3;
     canvas.drawRect(Rect.fromLTWH(x, y, s, s), border);
     canvas.drawRect(Rect.fromLTWH(x + 10, y + 10, s - 20, s - 20), p);
   }
