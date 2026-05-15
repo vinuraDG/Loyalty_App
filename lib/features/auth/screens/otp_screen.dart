@@ -99,87 +99,91 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(children: [
-            const SizedBox(height: 20),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
 
-            // Icon circle
-            Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-              ),
-              child: const Icon(Icons.sms_outlined, color: AppColors.primary, size: 36),
-            ),
-            const SizedBox(height: 24),
-
-            Text('Verify your number', style: AppTextStyles.h2),
-            const SizedBox(height: 10),
-            Text('We sent a 4-digit OTP to', style: AppTextStyles.bodySmall),
-            const SizedBox(height: 4),
-            Text(phone, style: AppTextStyles.h4),
-            const SizedBox(height: 16),
-
-            // Dev hint
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.accentGold.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.accentGold.withOpacity(0.25)),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.lock_open_outlined, color: AppColors.accentGold, size: 15),
-                const SizedBox(width: 8),
-                Text('Dev mode OTP: 1234',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.accentGold)),
-              ]),
-            ),
-            const SizedBox(height: 36),
-
-            // 4 OTP boxes
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (i) => Padding(
-                padding: EdgeInsets.only(right: i < 3 ? 14 : 0),
-                child: OtpBox(
-                  controller: _ctrls[i],
-                  focusNode: _focus[i],
-                  nextFocus: i < 3 ? _focus[i + 1] : null,
-                  hasError: _hasError,
+              // Icon circle
+              Container(
+                width: 80, height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
-              )),
-            ),
-            const SizedBox(height: 36),
+                child: const Icon(Icons.sms_outlined, color: AppColors.primary, size: 36),
+              ),
+              const SizedBox(height: 24),
 
-            GradientButton(
-              label: 'Verify OTP',
-              isLoading: auth.isLoading,
-              onPressed: _verify,
-            ),
-            const SizedBox(height: 24),
+              Text('Verify your number', style: AppTextStyles.h2),
+              const SizedBox(height: 10),
+              Text('We sent a 4-digit OTP to', style: AppTextStyles.bodySmall),
+              const SizedBox(height: 4),
+              Text(phone, style: AppTextStyles.h4),
+              const SizedBox(height: 16),
 
-            _seconds > 0
-                ? Text('Resend OTP in $_seconds seconds', style: AppTextStyles.bodySmall)
-                : GestureDetector(
-                    onTap: _resend,
-                    child: RichText(text: TextSpan(
-                      style: AppTextStyles.bodySmall,
-                      children: [
-                        const TextSpan(text: "Didn't receive it? "),
-                        TextSpan(text: 'Resend OTP',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.primaryLight, fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppColors.primaryLight,
-                          )),
-                      ],
-                    )),
+              // Dev hint
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.25)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.lock_open_outlined, color: AppColors.accentGold, size: 15),
+                  const SizedBox(width: 8),
+                  Text('Dev mode OTP: 1234',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.accentGold)),
+                ]),
+              ),
+              const SizedBox(height: 36),
+
+              // 4 OTP boxes
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(4, (i) => Padding(
+                  padding: EdgeInsets.only(right: i < 3 ? 14 : 0),
+                  child: OtpBox(
+                    controller: _ctrls[i],
+                    focusNode: _focus[i],
+                    nextFocus: i < 3 ? _focus[i + 1] : null,
+                    hasError: _hasError,
                   ),
-          ]),
+                )),
+              ),
+              const SizedBox(height: 36),
+
+              GradientButton(
+                label: 'Verify OTP',
+                isLoading: auth.isLoading,
+                onPressed: _verify,
+              ),
+              const SizedBox(height: 24),
+
+              _seconds > 0
+                  ? Text('Resend OTP in $_seconds seconds', style: AppTextStyles.bodySmall)
+                  : GestureDetector(
+                      onTap: _resend,
+                      child: RichText(text: TextSpan(
+                        style: AppTextStyles.bodySmall,
+                        children: [
+                          const TextSpan(text: "Didn't receive it? "),
+                          TextSpan(text: 'Resend OTP',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.primaryLight, fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.primaryLight,
+                            )),
+                        ],
+                      )),
+                    ),
+
+              const SizedBox(height: 24), // bottom breathing room
+            ],
+          ),
         ),
       ),
     );
