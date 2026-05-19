@@ -20,6 +20,7 @@ class AuthState {
 
   bool get isLoading      => status == AuthStatus.loading;
   bool get isAuthenticated => status == AuthStatus.authenticated;
+  bool get isEmployee => user?.role == 'employee';
 
   AuthState copyWith({
     AuthStatus? status, UserModel? user,

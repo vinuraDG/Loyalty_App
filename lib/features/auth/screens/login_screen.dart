@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/features/employee/screens/employee_screens.dart';
 import 'package:loyalty_app/features/home/screens/main_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -42,10 +43,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     FocusScope.of(context).unfocus();
     await ref.read(authProvider.notifier).signInWithEmail(_emailCtrl.text, _passCtrl.text);
     if (!mounted) return;
-    if (ref.read(authProvider).isAuthenticated) {
-      Navigator.pushAndRemoveUntil(context,
-        MaterialPageRoute(builder: (_) => const MainScreen()), (_) => false);
-    }
+    final auth = ref.read(authProvider);
+    if (auth.isAuthenticated) _navigateByRole(auth.isEmployee);
+  }
+
+  void _navigateByRole(bool isEmployee) {
+    final page = isEmployee
+        ? const EmployeeDashboardScreen()
+        : const MainScreen();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+      (_) => false,
+    );
   }
 
   Future<void> _sendOtp() async {
