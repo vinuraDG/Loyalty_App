@@ -46,6 +46,9 @@ const _mockAds = [
   ),
 ];
 
+// ── Mock weekly points (Mon–Sun) — replace with real data from your service ──
+const _mockWeeklyPoints = [80, 210, 150, 60, 320, 200, 120];
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -75,30 +78,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(children: [
-
             // ── Header ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(children: [
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Good morning 🌤', style: AppTextStyles.caption),
-                    const SizedBox(height: 2),
-                    Text(user.name, style: AppTextStyles.h3),
-                  ],
-                )),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Good morning 🌤', style: AppTextStyles.caption),
+                      const SizedBox(height: 2),
+                      Text(user.name, style: AppTextStyles.h3),
+                    ],
+                  ),
+                ),
                 Stack(children: [
                   const Icon(Icons.notifications_none_rounded,
                       color: AppColors.textSecondary, size: 26),
                   Positioned(
-                    top: 2, right: 2,
+                    top: 2,
+                    right: 2,
                     child: Container(
-                      width: 8, height: 8,
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
                         color: AppColors.error,
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.bgDark, width: 1.5),
+                        border:
+                            Border.all(color: AppColors.bgDark, width: 1.5),
                       ),
                     ),
                   ),
@@ -112,14 +119,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // ── Advertisement Banner ─────────────────────────────────
             Column(children: [
               Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20, bottom: 10),
+                padding:
+                    const EdgeInsets.only(left: 20, right: 20, bottom: 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Offers for you', style: AppTextStyles.h4),
                     Text('${_adIndex + 1} / ${_mockAds.length}',
-                        style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary)),
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary)),
                   ],
                 ),
               ),
@@ -164,12 +172,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ]),
             const SizedBox(height: 20),
 
-            // ── Points card ─────────────────────────────────────────
+            // ── Points card (monthly total + weekly bar chart) ───────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: AppColors.cardGradient,
@@ -178,43 +186,116 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Total Points', style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.white.withOpacity(0.75))),
-                  const SizedBox(height: 6),
-                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('${user.totalPoints}',
-                        style: AppTextStyles.display.copyWith(fontSize: 46)),
-                    const SizedBox(width: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text('pts', style: AppTextStyles.bodyMedium.copyWith(
-                          color: Colors.white.withOpacity(0.7))),
-                    ),
-                  ]),
-                  const SizedBox(height: 10),
-                  TierBadge(tier: '${user.loyaltyTier} Member'),
-                  if (user.loyaltyTier != 'Gold') ...[
-                    const SizedBox(height: 14),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text(user.loyaltyTier, style: AppTextStyles.caption.copyWith(
-                          color: Colors.white.withOpacity(0.6))),
-                      Text('${user.pointsToNextTier} pts to next tier',
-                          style: AppTextStyles.caption.copyWith(
-                              color: Colors.white.withOpacity(0.6))),
-                    ]),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: user.tierProgress,
-                        minHeight: 5,
-                        backgroundColor: Colors.white.withOpacity(0.15),
-                        valueColor: const AlwaysStoppedAnimation(Colors.white),
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Top row: left monthly hero + right chart ────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left column — monthly points only
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_month_rounded,
+                                    size: 13,
+                                    color: Colors.white.withOpacity(0.55),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'This month',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withOpacity(0.55),
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  // Replace 1240 with user.monthlyPoints
+                                  Text(
+                                    '1,240',
+                                    style: AppTextStyles.display
+                                        .copyWith(fontSize: 42),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 7),
+                                    child: Text(
+                                      'pts',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: Colors.white.withOpacity(0.6),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              // Trend hint
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.trending_up_rounded,
+                                    size: 14,
+                                    color: const Color(0xFFA7F3D0),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '+18% vs last month',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: const Color(0xFFA7F3D0),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        // Right column — weekly bar chart (taller)
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Last 7 days',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white.withOpacity(0.5),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                height: 90,
+                                child: _WeeklyBarChart(
+                                  data: _mockWeeklyPoints,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ]),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -222,47 +303,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // ── Quick actions ───────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Quick actions', style: AppTextStyles.h4),
-                const SizedBox(height: 12),
-                Row(children: [
-                  _QuickAction(
-                    icon: Icons.qr_code_rounded,
-                    label: 'My QR Code',
-                    color: AppColors.fuelColor,
-                    onTap: () => _navTo(context, 2),
-                  ),
-                  const SizedBox(width: 10),
-                  _QuickAction(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'My Points',
-                    color: AppColors.primary,
-                    onTap: () => _navTo(context, 1),
-                  ),
-                  const SizedBox(width: 10),
-                  _QuickAction(
-                    icon: Icons.card_giftcard_rounded,
-                    label: 'Redeem',
-                    color: AppColors.accent,
-                    onTap: () => _navTo(context, 3),
-                  ),
-                ]),
-              ]),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Quick actions', style: AppTextStyles.h4),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    _QuickAction(
+                      icon: Icons.qr_code_rounded,
+                      label: 'My QR Code',
+                      color: AppColors.fuelColor,
+                      onTap: () => _navTo(context, 2),
+                    ),
+                    const SizedBox(width: 10),
+                    _QuickAction(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'My Points',
+                      color: AppColors.primary,
+                      onTap: () => _navTo(context, 1),
+                    ),
+                    const SizedBox(width: 10),
+                  ]),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
 
             // ── Recent activity ─────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('Recent activity', style: AppTextStyles.h4),
-                GestureDetector(
-                  onTap: () => _navTo(context, 1),
-                  child: Text('See all',
-                      style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.primary)),
-                ),
-              ]),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Recent activity', style: AppTextStyles.h4),
+                  GestureDetector(
+                    onTap: () => _navTo(context, 1),
+                    child: Text('See all',
+                        style: AppTextStyles.labelSmall
+                            .copyWith(color: AppColors.primary)),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -275,10 +356,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             else
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(children: txs.map((tx) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _TxTile(tx: tx),
-                )).toList()),
+                child: Column(
+                  children: txs
+                      .map((tx) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _TxTile(tx: tx),
+                          ))
+                      .toList(),
+                ),
               ),
             const SizedBox(height: 20),
           ]),
@@ -293,6 +378,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
+// ── Weekly Bar Chart ──────────────────────────────────────────────────────────
+class _WeeklyBarChart extends StatelessWidget {
+  /// 7 int values, index 0 = Monday … index 6 = Sunday
+  final List<int> data;
+  const _WeeklyBarChart({required this.data});
+
+  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    final maxVal =
+        data.reduce((a, b) => a > b ? a : b).toDouble();
+    // Today's weekday: DateTime.monday == 1, so subtract 1 for 0-based index
+    final todayIdx = DateTime.now().weekday - 1;
+
+    return Column(
+      children: [
+        // Bars
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(7, (i) {
+              final ratio =
+                  maxVal > 0 ? (data[i] / maxVal).clamp(0.08, 1.0) : 0.08;
+              final isToday = i == todayIdx;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                  child: Tooltip(
+                    message: '${data[i]} pts',
+                    child: FractionallySizedBox(
+                      alignment: Alignment.bottomCenter,
+                      heightFactor: ratio,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isToday
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.30),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 5),
+        // Day labels
+        Row(
+          children: List.generate(7, (i) {
+            final isToday = i == DateTime.now().weekday - 1;
+            return Expanded(
+              child: Text(
+                _dayLabels[i],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: isToday
+                      ? Colors.white.withOpacity(0.9)
+                      : Colors.white.withOpacity(0.4),
+                  fontWeight:
+                      isToday ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Ad Card Widget ────────────────────────────────────────────────────────────
 class _AdCard extends StatelessWidget {
   final _AdItem ad;
@@ -300,52 +459,54 @@ class _AdCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () {}, // wire up ad tap action here
-    child: Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: ad.gradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Tag pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(20),
+        onTap: () {},
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: ad.gradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: Text(ad.tag,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: ad.tagColor)),
+            borderRadius: BorderRadius.circular(20),
           ),
-          // Title + subtitle
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(ad.title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    height: 1.3)),
-            const SizedBox(height: 2),
-            Text(ad.subtitle,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withOpacity(0.65))),
-          ]),
-        ],
-      ),
-    ),
-  );
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(ad.tag,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: ad.tagColor)),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(ad.title,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          height: 1.3)),
+                  const SizedBox(height: 2),
+                  Text(ad.subtitle,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withOpacity(0.65))),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 // ── Quick Action Widget ───────────────────────────────────────────────────────
@@ -364,33 +525,34 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-    child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(children: [
-          Container(
-            width: 40, height: 40,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.bgCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Column(children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 8),
+              Text(label,
+                  style: AppTextStyles.caption.copyWith(
+                      fontSize: 11, color: AppColors.textSecondary),
+                  textAlign: TextAlign.center),
+            ]),
           ),
-          const SizedBox(height: 8),
-          Text(label,
-              style: AppTextStyles.caption.copyWith(
-                  fontSize: 11, color: AppColors.textSecondary),
-              textAlign: TextAlign.center),
-        ]),
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 // ── Transaction Tile Widget ───────────────────────────────────────────────────
@@ -400,27 +562,30 @@ class _TxTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: AppColors.bgCard,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.border),
-    ),
-    child: Row(children: [
-      BusinessIcon(business: tx.business, size: 42),
-      const SizedBox(width: 12),
-      Expanded(child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(tx.business, style: AppTextStyles.labelMedium),
-          const SizedBox(height: 2),
-          Text(tx.isEarned ? 'Earned' : 'Redeemed',
-              style: AppTextStyles.caption),
-        ],
-      )),
-      Text(tx.displayPoints,
-          style: AppTextStyles.labelMedium.copyWith(
-              color: tx.isEarned ? AppColors.success : AppColors.error)),
-    ]),
-  );
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          BusinessIcon(business: tx.business, size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tx.business, style: AppTextStyles.labelMedium),
+                const SizedBox(height: 2),
+                Text(tx.isEarned ? 'Earned' : 'Redeemed',
+                    style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+          Text(tx.displayPoints,
+              style: AppTextStyles.labelMedium.copyWith(
+                  color:
+                      tx.isEarned ? AppColors.success : AppColors.error)),
+        ]),
+      );
 }
