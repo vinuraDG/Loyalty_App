@@ -4,7 +4,6 @@ import 'package:loyalty_app/models/user_model.dart';
 import 'package:loyalty_app/services/mock_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 
 class AuthState {
@@ -15,26 +14,33 @@ class AuthState {
 
   const AuthState({
     this.status = AuthStatus.initial,
-    this.user, this.errorMessage, this.pendingPhone,
+    this.user,
+    this.errorMessage,
+    this.pendingPhone,
   });
 
-  bool get isLoading      => status == AuthStatus.loading;
+  bool get isLoading => status == AuthStatus.loading;
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isEmployee => user?.role == 'employee';
 
   AuthState copyWith({
-    AuthStatus? status, UserModel? user,
-    String? errorMessage, String? pendingPhone,
-  }) => AuthState(
-    status: status ?? this.status,
-    user: user ?? this.user,
-    errorMessage: errorMessage,
-    pendingPhone: pendingPhone ?? this.pendingPhone,
-  );
+    AuthStatus? status,
+    UserModel? user,
+    String? errorMessage,
+    String? pendingPhone,
+  }) =>
+      AuthState(
+        status: status ?? this.status,
+        user: user ?? this.user,
+        errorMessage: errorMessage,
+        pendingPhone: pendingPhone ?? this.pendingPhone,
+      );
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState()) { _restoreSession(); }
+  AuthNotifier() : super(const AuthState()) {
+    _restoreSession();
+  }
 
   final _auth = MockAuthService.instance;
 
@@ -43,7 +49,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
     final loggedIn = prefs.getBool(AppConstants.prefIsLoggedIn) ?? false;
-    final userId   = prefs.getString(AppConstants.prefUserId);
+    final userId = prefs.getString(AppConstants.prefUserId);
     if (loggedIn && userId != null) {
       final user = _auth.findById(userId);
       if (user != null) {
@@ -73,30 +79,45 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signInWithEmail(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      final user = await _auth.signInWithEmail(email: email, password: password);
+      final user =
+          await _auth.signInWithEmail(email: email, password: password);
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
-      state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: e.message);
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated, errorMessage: e.message);
     } catch (_) {
-      state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: 'Something went wrong.');
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          errorMessage: 'Something went wrong.');
     }
   }
 
   Future<void> signUpWithEmail({
-    required String name, required String email,
-    required String phone, required String password,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password, // ← removed 'required String name' from here
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       final user = await _auth.signUpWithEmail(
-        name: name, email: email, phone: phone, password: password);
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        phone: phone,
+        password: password,
+      );
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
-      state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: e.message);
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated, errorMessage: e.message);
     } catch (_) {
-      state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: 'Something went wrong.');
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          errorMessage: 'Something went wrong.');
     }
   }
 
@@ -106,9 +127,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       await _auth.sendOtp(phone);
-      state = state.copyWith(status: AuthStatus.unauthenticated, pendingPhone: phone);
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated, pendingPhone: phone);
     } catch (_) {
-      state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: 'Failed to send OTP.');
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          errorMessage: 'Failed to send OTP.');
     }
   }
 
@@ -125,25 +149,85 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       return user;
     } on AuthException catch (e) {
-      state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: e.message);
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated, errorMessage: e.message);
       return null;
     }
   }
 
-  Future<void> createAccountWithPhone(String name, String email) async {
+  Future<void> createAccountWithPhone(
+      String firstName, String lastName, String email) async {
     if (state.pendingPhone == null) return;
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       final user = await _auth.createAccountWithPhone(
-        name: name, email: email, phone: state.pendingPhone!);
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        phone: state.pendingPhone!,
+      );
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
-      state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: e.message);
+      state = state.copyWith(
+          status: AuthStatus.unauthenticated, errorMessage: e.message);
     }
   }
 
-  // ── Sign out ──────────────────────────────────────────────────
+  // ── Profile update ────────────────────────────────────────────
+
+  Future<void> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String address,
+  }) async {
+    if (state.user == null) return;
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final updated = await _auth.updateProfile(
+        id: state.user!.id,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        address: address,
+      );
+      await _saveSession(updated);
+      state = state.copyWith(status: AuthStatus.authenticated, user: updated);
+    } on AuthException catch (e) {
+      state = state.copyWith(
+          status: AuthStatus.authenticated, errorMessage: e.message);
+    } catch (_) {
+      state = state.copyWith(
+          status: AuthStatus.authenticated,
+          errorMessage: 'Something went wrong.');
+    }
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (state.user == null) return;
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.changePassword(
+        id: state.user!.id,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      state = state.copyWith(status: AuthStatus.authenticated);
+    } on AuthException catch (e) {
+      state = state.copyWith(
+          status: AuthStatus.authenticated, errorMessage: e.message);
+    } catch (_) {
+      state = state.copyWith(
+          status: AuthStatus.authenticated,
+          errorMessage: 'Something went wrong.');
+    }
+  }
+
+  // ── Misc ──────────────────────────────────────────────────────
 
   Future<void> signOut() async {
     await _clearSession();

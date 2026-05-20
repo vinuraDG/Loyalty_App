@@ -31,7 +31,6 @@ class MainScreenState extends State<MainScreen> {
     HomeScreen(),
     PointsScreen(),
     QrScreen(),
-    RedeemScreen(),
     ProfileScreen(),
   ];
 

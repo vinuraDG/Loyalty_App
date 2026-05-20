@@ -373,7 +373,6 @@ class AppBottomNav extends StatelessWidget {
       (Icons.home_rounded, 'Home'),
       (Icons.bar_chart_rounded, 'Points'),
       (Icons.qr_code_rounded, 'My QR'),
-      (Icons.card_giftcard_rounded, 'Redeem'),
       (Icons.person_rounded, 'Profile'),
     ];
     return Container(

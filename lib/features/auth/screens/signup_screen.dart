@@ -14,17 +14,19 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  final _formKey    = GlobalKey<FormState>();
-  final _nameCtrl   = TextEditingController();
-  final _emailCtrl  = TextEditingController();
-  final _phoneCtrl  = TextEditingController();
-  final _passCtrl   = TextEditingController();
-  final _confCtrl   = TextEditingController();
+  final _formKey       = GlobalKey<FormState>();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl  = TextEditingController();
+  final _emailCtrl     = TextEditingController();
+  final _phoneCtrl     = TextEditingController();
+  final _passCtrl      = TextEditingController();
+  final _confCtrl      = TextEditingController();
   bool _agreed = false;
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _emailCtrl.dispose(); _phoneCtrl.dispose();
+    _firstNameCtrl.dispose(); _lastNameCtrl.dispose();
+    _emailCtrl.dispose(); _phoneCtrl.dispose();
     _passCtrl.dispose(); _confCtrl.dispose();
     super.dispose();
   }
@@ -38,8 +40,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
     FocusScope.of(context).unfocus();
     await ref.read(authProvider.notifier).signUpWithEmail(
-      name: _nameCtrl.text, email: _emailCtrl.text,
-      phone: _phoneCtrl.text, password: _passCtrl.text,
+      firstName: _firstNameCtrl.text.trim(),
+      lastName:  _lastNameCtrl.text.trim(),
+      email:     _emailCtrl.text.trim(),
+      phone:     _phoneCtrl.text.trim(),
+      password:  _passCtrl.text,
     );
     if (!mounted) return;
     if (ref.read(authProvider).isAuthenticated) {
@@ -87,16 +92,36 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ])),
               const SizedBox(height: 28),
 
-              AppTextField(
-                label: 'Full name', hint: 'Kasun Perera',
-                controller: _nameCtrl, keyboardType: TextInputType.name,
-                prefixIconData: Icons.person_outline,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Name is required';
-                  if (v.trim().length < 3) return 'Min 3 characters';
-                  return null;
-                },
-              ),
+              // First name + Last name side by side
+              Row(children: [
+                Expanded(
+                  child: AppTextField(
+                    label: 'First name', hint: 'Kasun',
+                    controller: _firstNameCtrl,
+                    keyboardType: TextInputType.name,
+                    prefixIconData: Icons.person_outline,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (v.trim().length < 2) return 'Too short';
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AppTextField(
+                    label: 'Last name', hint: 'Perera',
+                    controller: _lastNameCtrl,
+                    keyboardType: TextInputType.name,
+                    prefixIconData: Icons.person_outline,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (v.trim().length < 2) return 'Too short';
+                      return null;
+                    },
+                  ),
+                ),
+              ]),
               const SizedBox(height: 16),
 
               AppTextField(
