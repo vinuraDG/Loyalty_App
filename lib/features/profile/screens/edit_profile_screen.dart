@@ -260,29 +260,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         const SizedBox(height: 28),
 
                         // ── Loyalty Info (read-only) ───────────────
-                        _SectionLabel(label: 'Loyalty Info'),
-                        const SizedBox(height: 12),
-                        _ReadOnlyInfoRow(
-                          icon: Icons.stars_rounded,
-                          color: AppColors.primary,
-                          label: 'Total Points',
-                          value: '${user.totalPoints} pts',
-                        ),
-                        const SizedBox(height: 10),
-                        _ReadOnlyInfoRow(
-                          icon: Icons.emoji_events_rounded,
-                          color: AppColors.accentGold,
-                          label: 'Current Tier',
-                          value: user.loyaltyTier,
-                        ),
-                        const SizedBox(height: 10),
-                        _ReadOnlyInfoRow(
-                          icon: Icons.military_tech_rounded,
-                          color: AppColors.fuelColor,
-                          label: 'Points to Next Tier',
-                          value: '${user.pointsToNextTier} pts',
-                        ),
-                        const SizedBox(height: 28),
+                        
 
                         // ── Save button ───────────────────────────
                         GradientButton(
