@@ -41,21 +41,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Future<void> _signIn() async {
     if (!_emailFormKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    await ref.read(authProvider.notifier).signInWithEmail(_emailCtrl.text, _passCtrl.text);
+    await ref.read(authProvider.notifier).signInWithEmail(
+      _emailCtrl.text, _passCtrl.text);
     if (!mounted) return;
     final auth = ref.read(authProvider);
-    if (auth.isAuthenticated) _navigateByRole(auth.isEmployee);
+    if (auth.isAuthenticated) _navigateByRole(auth);
   }
 
-  void _navigateByRole(bool isEmployee) {
-    final page = isEmployee
-        ? const EmployeeDashboardScreen()
-        : const MainScreen();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => page),
-      (_) => false,
-    );
+  void _navigateByRole(dynamic auth) {
+    if (auth.isEmployee) {
+      // Pass the actual employee UserModel to the dashboard
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) =>
+          EmployeeDashboardScreen(employee: auth.user)),
+        (_) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (_) => false,
+      );
+    }
   }
 
   Future<void> _sendOtp() async {
@@ -64,7 +72,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     await ref.read(authProvider.notifier).sendOtp(_phoneCtrl.text.trim());
     if (!mounted) return;
     if (ref.read(authProvider).errorMessage == null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const OtpScreen()));
+      Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const OtpScreen()));
     }
   }
 
@@ -161,7 +170,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton(onPressed: () {}, child: const Text('Forgot password?')),
+                      child: TextButton(
+                        onPressed: () {},
+                        child: const Text('Forgot password?')),
                     ),
                     GradientButton(
                       label: 'Sign In', isLoading: auth.isLoading,
@@ -195,12 +206,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         border: Border.all(color: AppColors.primary.withOpacity(0.25)),
                       ),
                       child: Row(children: [
-                        const Icon(Icons.info_outline, color: AppColors.primaryLight, size: 16),
+                        const Icon(Icons.info_outline,
+                          color: AppColors.primaryLight, size: 16),
                         const SizedBox(width: 10),
                         Expanded(child: Text(
                           'A 4-digit OTP will be sent to your number.',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.primaryLight),
-                        )),
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primaryLight))),
                       ]),
                     ),
                     const SizedBox(height: 20),
