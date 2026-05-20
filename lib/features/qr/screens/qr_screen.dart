@@ -86,27 +86,7 @@ class QrScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
 
                 // Points summary bar
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(children: [
-                    Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Total points', style: AppTextStyles.caption),
-                          Text('${user.totalPoints} pts',
-                              style: AppTextStyles.h3),
-                        ]),
-                    const Spacer(),
-                    TierBadge(tier: user.loyaltyTier),
-                  ]),
-                ),
-                const SizedBox(height: 14),
+              
 
                 // Info box
                 Container(
