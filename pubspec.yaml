@@ -18,13 +18,13 @@ dependencies:
   go_router: ^13.2.0
 
   # Local storage
-  shared_preferences: ^2.2.3
+  shared_preferences: ^2.3.2  # upgraded: 2.2.3 → 2.3.2 (built-in Kotlin support)
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
   # QR features
   qr_flutter: ^4.1.0
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^6.0.3      # upgraded: 5.2.3 → 6.0.3 (fixes KGP warning)
 
   # Utils
   intl: ^0.19.0
@@ -50,12 +50,9 @@ flutter:
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf
           weight: 400
-
         - asset: assets/fonts/Poppins-Medium.ttf
           weight: 500
-
         - asset: assets/fonts/Poppins-SemiBold.ttf
           weight: 600
-
         - asset: assets/fonts/Poppins-Bold.ttf
           weight: 700

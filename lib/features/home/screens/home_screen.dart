@@ -6,11 +6,65 @@ import 'package:loyalty_app/services/mock_points_service.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'main_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+// ── Mock ad data ─────────────────────────────────────────────────────────────
+class _AdItem {
+  final String tag;
+  final String title;
+  final String subtitle;
+  final List<Color> gradient;
+  final Color tagColor;
+  const _AdItem({
+    required this.tag,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.tagColor,
+  });
+}
+
+const _mockAds = [
+  _AdItem(
+    tag: '2× Points',
+    title: 'Double points this weekend',
+    subtitle: 'At all fuel stations',
+    gradient: [Color(0xFF2D1B69), Color(0xFF7C3AED)],
+    tagColor: Color(0xFFE9D5FF),
+  ),
+  _AdItem(
+    tag: 'New',
+    title: 'Earn at Gold Shops now',
+    subtitle: '+200 pts on every visit',
+    gradient: [Color(0xFF064E3B), Color(0xFF059669)],
+    tagColor: Color(0xFFA7F3D0),
+  ),
+  _AdItem(
+    tag: 'Limited',
+    title: 'Laundry free wash promo',
+    subtitle: 'Redeem 150 pts today',
+    gradient: [Color(0xFF7C2D12), Color(0xFFEA580C)],
+    tagColor: Color(0xFFFED7AA),
+  ),
+];
+
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final PageController _adController = PageController(viewportFraction: 0.82);
+  int _adIndex = 0;
+
+  @override
+  void dispose() {
+    _adController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
     final svc = MockPointsService.instance;
@@ -26,20 +80,24 @@ class HomeScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Good morning 🌤', style: AppTextStyles.caption),
-                  const SizedBox(height: 2),
-                  Text(user.name, style: AppTextStyles.h3),
-                ])),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Good morning 🌤', style: AppTextStyles.caption),
+                    const SizedBox(height: 2),
+                    Text(user.name, style: AppTextStyles.h3),
+                  ],
+                )),
                 Stack(children: [
                   const Icon(Icons.notifications_none_rounded,
-                    color: AppColors.textSecondary, size: 26),
+                      color: AppColors.textSecondary, size: 26),
                   Positioned(
                     top: 2, right: 2,
                     child: Container(
                       width: 8, height: 8,
                       decoration: BoxDecoration(
-                        color: AppColors.error, shape: BoxShape.circle,
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
                         border: Border.all(color: AppColors.bgDark, width: 1.5),
                       ),
                     ),
@@ -51,6 +109,61 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
+            // ── Advertisement Banner ─────────────────────────────────
+            Column(children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, bottom: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Offers for you', style: AppTextStyles.h4),
+                    Text('${_adIndex + 1} / ${_mockAds.length}',
+                        style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 110,
+                child: PageView.builder(
+                  controller: _adController,
+                  itemCount: _mockAds.length,
+                  onPageChanged: (i) => setState(() => _adIndex = i),
+                  itemBuilder: (context, index) {
+                    final ad = _mockAds[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        left: index == 0 ? 16 : 6,
+                        right: index == _mockAds.length - 1 ? 16 : 6,
+                      ),
+                      child: _AdCard(ad: ad),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              // ── Page indicator dots ──────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_mockAds.length, (i) {
+                  final active = i == _adIndex;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: active ? 18 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? AppColors.primary
+                          : AppColors.textSecondary.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  );
+                }),
+              ),
+            ]),
+            const SizedBox(height: 20),
+
             // ── Points card ─────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -60,22 +173,23 @@ class HomeScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: AppColors.cardGradient,
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Total Points', style: AppTextStyles.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.75))),
+                      color: Colors.white.withOpacity(0.75))),
                   const SizedBox(height: 6),
                   Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text('${user.totalPoints}',
-                      style: AppTextStyles.display.copyWith(fontSize: 46)),
+                        style: AppTextStyles.display.copyWith(fontSize: 46)),
                     const SizedBox(width: 8),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Text('pts', style: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.white.withOpacity(0.7))),
+                          color: Colors.white.withOpacity(0.7))),
                     ),
                   ]),
                   const SizedBox(height: 10),
@@ -84,9 +198,10 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 14),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Text(user.loyaltyTier, style: AppTextStyles.caption.copyWith(
-                        color: Colors.white.withOpacity(0.6))),
+                          color: Colors.white.withOpacity(0.6))),
                       Text('${user.pointsToNextTier} pts to next tier',
-                        style: AppTextStyles.caption.copyWith(color: Colors.white.withOpacity(0.6))),
+                          style: AppTextStyles.caption.copyWith(
+                              color: Colors.white.withOpacity(0.6))),
                     ]),
                     const SizedBox(height: 6),
                     ClipRRect(
@@ -144,7 +259,8 @@ class HomeScreen extends ConsumerWidget {
                 GestureDetector(
                   onTap: () => _navTo(context, 1),
                   child: Text('See all',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
+                      style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.primary)),
                 ),
               ]),
             ),
@@ -153,7 +269,8 @@ class HomeScreen extends ConsumerWidget {
             if (txs.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('No transactions yet.', style: AppTextStyles.bodySmall),
+                child: Text('No transactions yet.',
+                    style: AppTextStyles.bodySmall),
               )
             else
               Padding(
@@ -176,43 +293,107 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+// ── Ad Card Widget ────────────────────────────────────────────────────────────
+class _AdCard extends StatelessWidget {
+  final _AdItem ad;
+  const _AdCard({required this.ad});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () {}, // wire up ad tap action here
+    child: Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: ad.gradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Tag pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(ad.tag,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: ad.tagColor)),
+          ),
+          // Title + subtitle
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(ad.title,
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1.3)),
+            const SizedBox(height: 2),
+            Text(ad.subtitle,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withOpacity(0.65))),
+          ]),
+        ],
+      ),
+    ),
+  );
+}
+
+// ── Quick Action Widget ───────────────────────────────────────────────────────
 class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
 
-  const _QuickAction({required this.icon, required this.label,
-    required this.color, required this.onTap});
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) => Expanded(child: GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color, size: 22),
+  Widget build(BuildContext context) => Expanded(
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
         ),
-        const SizedBox(height: 8),
-        Text(label, style: AppTextStyles.caption.copyWith(
-          fontSize: 11, color: AppColors.textSecondary),
-          textAlign: TextAlign.center),
-      ]),
+        child: Column(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(label,
+              style: AppTextStyles.caption.copyWith(
+                  fontSize: 11, color: AppColors.textSecondary),
+              textAlign: TextAlign.center),
+        ]),
+      ),
     ),
-  ));
+  );
 }
 
+// ── Transaction Tile Widget ───────────────────────────────────────────────────
 class _TxTile extends StatelessWidget {
   final dynamic tx;
   const _TxTile({required this.tx});
@@ -228,16 +409,18 @@ class _TxTile extends StatelessWidget {
     child: Row(children: [
       BusinessIcon(business: tx.business, size: 42),
       const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(tx.business, style: AppTextStyles.labelMedium),
-        const SizedBox(height: 2),
-        Text(tx.isEarned ? 'Earned' : 'Redeemed', style: AppTextStyles.caption),
-      ])),
-      Text(
-        tx.displayPoints,
-        style: AppTextStyles.labelMedium.copyWith(
-          color: tx.isEarned ? AppColors.success : AppColors.error),
-      ),
+      Expanded(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(tx.business, style: AppTextStyles.labelMedium),
+          const SizedBox(height: 2),
+          Text(tx.isEarned ? 'Earned' : 'Redeemed',
+              style: AppTextStyles.caption),
+        ],
+      )),
+      Text(tx.displayPoints,
+          style: AppTextStyles.labelMedium.copyWith(
+              color: tx.isEarned ? AppColors.success : AppColors.error)),
     ]),
   );
 }
