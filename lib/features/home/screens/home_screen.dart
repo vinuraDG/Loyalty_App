@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
+import 'package:loyalty_app/features/points/screens/points_history_screen.dart';
 import 'package:loyalty_app/services/mock_points_service.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'main_screen.dart';
@@ -72,6 +73,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (user == null) return const SizedBox.shrink();
     final svc = MockPointsService.instance;
     final txs = svc.getForUser(user.id).take(3).toList();
+
+    // ── Derive total points from all transactions ──────────────────────────
+    final allTxs = svc.getForUser(user.id).toList();
+    final totalPoints = allTxs.fold<int>(0, (sum, tx) {
+      return sum + (tx.isEarned ? tx.points as int : -(tx.points as int));
+    });
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -172,129 +179,139 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ]),
             const SizedBox(height: 20),
 
-            // ── Points card (monthly total + weekly bar chart) ───────
+            // ── Points card (TOTAL points + weekly bar chart) ────────
+            // Tapping navigates to PointsHistoryScreen
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: AppColors.cardGradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PointsHistoryScreen(userId: user.id),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: AppColors.cardGradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Top row: left monthly hero + right chart ────
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left column — monthly points only
-                        Expanded(
-                          flex: 5,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_month_rounded,
-                                    size: 13,
-                                    color: Colors.white.withValues(alpha: 0.55),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'This month',
-                                    style: TextStyle(
-                                      fontSize: 12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Top row: left total hero + right chart ────
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left column — total points
+                          Expanded(
+                            flex: 5,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.star_rounded,
+                                      size: 13,
                                       color: Colors.white.withValues(alpha: 0.55),
-                                      fontWeight: FontWeight.w400,
-                                      letterSpacing: 0.2,
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  // Replace 1240 with user.monthlyPoints
-                                  Text(
-                                    '1,240',
-                                    style: AppTextStyles.display
-                                        .copyWith(fontSize: 42),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 7),
-                                    child: Text(
-                                      'pts',
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Total points',
                                       style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.white.withValues(alpha: 0.6),
-                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                        color: Colors.white.withValues(alpha: 0.55),
+                                        fontWeight: FontWeight.w400,
+                                        letterSpacing: 0.2,
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              // Trend hint
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.trending_up_rounded,
-                                    size: 14,
-                                    color: Color(0xFFA7F3D0),
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    '+18% vs last month',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFFA7F3D0),
-                                      fontWeight: FontWeight.w500,
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      _formatPoints(totalPoints),
+                                      style: AppTextStyles.display
+                                          .copyWith(fontSize: 42),
                                     ),
+                                    const SizedBox(width: 6),
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 7),
+                                      child: Text(
+                                        'pts',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          color: Colors.white.withValues(alpha: 0.6),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                // "Tap to view history" hint
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.history_rounded,
+                                      size: 13,
+                                      color: Color(0xFFA7F3D0),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Tap to view history',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // Right column — weekly bar chart
+                          Expanded(
+                            flex: 5,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Last 7 days',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    letterSpacing: 0.3,
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        // Right column — weekly bar chart (taller)
-                        Expanded(
-                          flex: 5,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Last 7 days',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  letterSpacing: 0.3,
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              const SizedBox(
-                                height: 90,
-                                child: _WeeklyBarChart(
-                                  data: _mockWeeklyPoints,
+                                const SizedBox(height: 6),
+                                const SizedBox(
+                                  height: 90,
+                                  child: _WeeklyBarChart(
+                                    data: _mockWeeklyPoints,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -372,6 +389,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Format points with comma separator, e.g. 12340 → "12,340"
+  String _formatPoints(int pts) {
+    final str = pts.abs().toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(str[i]);
+    }
+    return pts < 0 ? '-${buffer.toString()}' : buffer.toString();
+  }
+
   void _navTo(BuildContext context, int idx) {
     final state = context.findAncestorStateOfType<MainScreenState>();
     state?.setIndex(idx);
@@ -390,12 +418,10 @@ class _WeeklyBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final maxVal =
         data.reduce((a, b) => a > b ? a : b).toDouble();
-    // Today's weekday: DateTime.monday == 1, so subtract 1 for 0-based index
     final todayIdx = DateTime.now().weekday - 1;
 
     return Column(
       children: [
-        // Bars
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -427,7 +453,6 @@ class _WeeklyBarChart extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        // Day labels
         Row(
           children: List.generate(7, (i) {
             final isToday = i == DateTime.now().weekday - 1;

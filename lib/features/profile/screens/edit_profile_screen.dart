@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'change_password_screen.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -12,8 +13,7 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
-  final _formKey        = GlobalKey<FormState>();
-  final _passwordFormKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _firstNameCtrl;
   late final TextEditingController _lastNameCtrl;
@@ -21,17 +21,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _addressCtrl;
 
-  // Password change controllers
-  final TextEditingController _currentPassCtrl  = TextEditingController();
-  final TextEditingController _newPassCtrl       = TextEditingController();
-  final TextEditingController _confirmPassCtrl   = TextEditingController();
-
-  bool _isSaving         = false;
-  bool _isChangingPass   = false;
-  bool _hasChanges       = false;
-  bool _showCurrentPass  = false;
-  bool _showNewPass      = false;
-  bool _showConfirmPass  = false;
+  bool _isSaving   = false;
+  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -53,7 +44,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     for (final c in [
       _firstNameCtrl, _lastNameCtrl, _emailCtrl,
       _phoneCtrl, _addressCtrl,
-      _currentPassCtrl, _newPassCtrl, _confirmPassCtrl,
     ]) {
       c.dispose();
     }
@@ -70,14 +60,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (changed != _hasChanges) setState(() => _hasChanges = changed);
   }
 
-  // ── Build initials from first + last name ─────────────────────────────────
   String get _initials {
     final f = _firstNameCtrl.text.isNotEmpty
-        ? _firstNameCtrl.text[0].toUpperCase()
-        : '';
+        ? _firstNameCtrl.text[0].toUpperCase() : '';
     final l = _lastNameCtrl.text.isNotEmpty
-        ? _lastNameCtrl.text[0].toUpperCase()
-        : '';
+        ? _lastNameCtrl.text[0].toUpperCase() : '';
     return '$f$l';
   }
 
@@ -86,7 +73,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isSaving = true);
     FocusScope.of(context).unfocus();
 
-    // TODO: wire to authProvider.updateProfile(firstName, lastName, email, address)
+    // TODO: wire to authProvider.updateProfile(...)
     await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
@@ -97,22 +84,33 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     Navigator.pop(context);
   }
 
-  Future<void> _changePassword() async {
-    if (!_passwordFormKey.currentState!.validate()) return;
-    setState(() => _isChangingPass = true);
-    FocusScope.of(context).unfocus();
-
-    // TODO: wire to authProvider.changePassword(_currentPassCtrl.text, _newPassCtrl.text)
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (!mounted) return;
-    setState(() => _isChangingPass = false);
-    _currentPassCtrl.clear();
-    _newPassCtrl.clear();
-    _confirmPassCtrl.clear();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Password changed successfully!')),
+  Future<void> _confirmDiscard(BuildContext context) async {
+    if (!_hasChanges) { Navigator.pop(context); return; }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Discard changes?', style: AppTextStyles.h4),
+        content: const Text(
+          'You have unsaved changes. Are you sure you want to go back?',
+          style: AppTextStyles.bodySmall,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Keep editing',
+                style: AppTextStyles.caption.copyWith(color: AppColors.primaryLight)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Discard',
+                style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+          ),
+        ],
+      ),
     );
+    if (discard == true && context.mounted) Navigator.pop(context);
   }
 
   @override
@@ -154,81 +152,64 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // ── Avatar — always initials, no photo change ────
+                  // ── Avatar ────────────────────────────────────────
                   Center(
                     child: AnimatedBuilder(
-                      animation: Listenable.merge(
-                          [_firstNameCtrl, _lastNameCtrl]),
+                      animation: Listenable.merge([_firstNameCtrl, _lastNameCtrl]),
                       builder: (_, __) =>
                           InitialsAvatar(initials: _initials, size: 80),
                     ),
                   ),
                   const SizedBox(height: 32),
 
-                  // ── Personal Info ────────────────────────────────
+                  // ── Personal Info Form ────────────────────────────
                   Form(
                     key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _SectionLabel(label: 'Personal Info'),
+                        const _SectionLabel(label: 'PERSONAL INFO'),
                         const SizedBox(height: 12),
 
-                        // First Name
                         _ProfileField(
                           controller: _firstNameCtrl,
                           label: 'First Name',
                           icon: Icons.person_outline_rounded,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'First name is required';
-                            }
-                            if (v.trim().length < 2) {
-                              return 'Too short';
-                            }
+                            if (v == null || v.trim().isEmpty) return 'First name is required';
+                            if (v.trim().length < 2) return 'Too short';
                             return null;
                           },
                         ),
                         const SizedBox(height: 14),
 
-                        // Last Name
                         _ProfileField(
                           controller: _lastNameCtrl,
                           label: 'Last Name',
                           icon: Icons.person_outline_rounded,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Last name is required';
-                            }
-                            if (v.trim().length < 2) {
-                              return 'Too short';
-                            }
+                            if (v == null || v.trim().isEmpty) return 'Last name is required';
+                            if (v.trim().length < 2) return 'Too short';
                             return null;
                           },
                         ),
                         const SizedBox(height: 14),
 
-                        // Email
                         _ProfileField(
                           controller: _emailCtrl,
                           label: 'Email Address',
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Email is required';
-                            }
+                            if (v == null || v.trim().isEmpty) return 'Email is required';
                             final emailRegex =
                                 RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-                            if (!emailRegex.hasMatch(v.trim())) {
-                              return 'Enter a valid email';
-                            }
+                            if (!emailRegex.hasMatch(v.trim())) return 'Enter a valid email';
                             return null;
                           },
                         ),
                         const SizedBox(height: 14),
 
-                        // Phone — read-only
                         _ProfileField(
                           controller: _phoneCtrl,
                           label: 'Phone Number',
@@ -247,98 +228,45 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             Text(
                               'Phone verified — cannot be changed here',
                               style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.textMuted,
-                                  fontSize: 11),
+                                  color: AppColors.textMuted, fontSize: 11),
                             ),
                           ]),
                         ),
                         const SizedBox(height: 14),
 
-                        // Address
                         _ProfileField(
                           controller: _addressCtrl,
                           label: 'Address',
                           icon: Icons.location_on_outlined,
                           keyboardType: TextInputType.streetAddress,
                           maxLines: 2,
-                          validator: (_) => null, // optional field
+                          validator: (_) => null,
                         ),
                         const SizedBox(height: 28),
 
-                        // ── Loyalty Info (read-only) ───────────────
-                        
-
-                        // ── Save button ───────────────────────────
                         GradientButton(
                           label: 'Save Changes',
                           isLoading: _isSaving,
                           onPressed: _hasChanges ? _save : null,
                         ),
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
 
-                  // ── Change Password section ──────────────────────
-                  const _SectionLabel(label: 'Change Password'),
+                  // ── Change Password button ────────────────────────
+                  const _SectionLabel(label: 'SECURITY'),
                   const SizedBox(height: 12),
 
-                  Form(
-                    key: _passwordFormKey,
-                    child: Column(children: [
-                      _PasswordField(
-                        controller: _currentPassCtrl,
-                        label: 'Current Password',
-                        visible: _showCurrentPass,
-                        onToggle: () => setState(
-                            () => _showCurrentPass = !_showCurrentPass),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Enter your current password';
-                          }
-                          return null;
-                        },
+                  _ChangePasswordTile(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordScreen(),
                       ),
-                      const SizedBox(height: 14),
-                      _PasswordField(
-                        controller: _newPassCtrl,
-                        label: 'New Password',
-                        visible: _showNewPass,
-                        onToggle: () =>
-                            setState(() => _showNewPass = !_showNewPass),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Enter a new password';
-                          }
-                          if (v.length < 8) {
-                            return 'Password must be at least 8 characters';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      _PasswordField(
-                        controller: _confirmPassCtrl,
-                        label: 'Confirm New Password',
-                        visible: _showConfirmPass,
-                        onToggle: () => setState(
-                            () => _showConfirmPass = !_showConfirmPass),
-                        validator: (v) {
-                          if (v != _newPassCtrl.text) {
-                            return 'Passwords do not match';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      GradientButton(
-                        label: 'Update Password',
-                        isLoading: _isChangingPass,
-                        onPressed: _changePassword,
-                      ),
-                      const SizedBox(height: 32),
-                    ]),
+                    ),
                   ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -347,40 +275,52 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ),
     );
   }
-
-  Future<void> _confirmDiscard(BuildContext context) async {
-    if (!_hasChanges) { Navigator.pop(context); return; }
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18)),
-        title: const Text('Discard changes?', style: AppTextStyles.h4),
-        content: const Text(
-            'You have unsaved changes. Are you sure you want to go back?',
-            style: AppTextStyles.bodySmall),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Keep editing',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.primaryLight)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Discard',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-    if (discard == true && context.mounted) Navigator.pop(context);
-  }
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
+// ── Change Password Tile ──────────────────────────────────────────────────────
+
+class _ChangePasswordTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ChangePasswordTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(children: [
+        Container(
+          width: 38, height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.lock_outline_rounded,
+              color: AppColors.primary, size: 18),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Change Password', style: AppTextStyles.labelMedium),
+            const SizedBox(height: 2),
+            Text('Update your account password',
+                style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMuted)),
+          ]),
+        ),
+        const Icon(Icons.arrow_forward_ios_rounded,
+            size: 14, color: AppColors.textSecondary),
+      ]),
+    ),
+  );
+}
+
+// ── Shared sub-widgets ────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String label;
@@ -388,8 +328,8 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(label,
-      style: AppTextStyles.caption
-          .copyWith(color: AppColors.textMuted, letterSpacing: 0.5));
+      style: AppTextStyles.caption.copyWith(
+          color: AppColors.textMuted, letterSpacing: 0.8));
 }
 
 class _ProfileField extends StatelessWidget {
@@ -421,16 +361,12 @@ class _ProfileField extends StatelessWidget {
     maxLines: maxLines,
     validator: validator,
     style: AppTextStyles.bodyMedium.copyWith(
-        color: readOnly
-            ? AppColors.textSecondary
-            : AppColors.textPrimary),
+        color: readOnly ? AppColors.textSecondary : AppColors.textPrimary),
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
-      hintStyle:
-          AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-      labelStyle:
-          AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+      hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+      labelStyle: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
       prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
       suffixIcon: readOnly
           ? const Icon(Icons.lock_outline_rounded,
@@ -446,8 +382,7 @@ class _ProfileField extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.primary, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -455,112 +390,9 @@ class _ProfileField extends StatelessWidget {
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.error, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
-  );
-}
-
-class _PasswordField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final bool visible;
-  final VoidCallback onToggle;
-  final String? Function(String?) validator;
-
-  const _PasswordField({
-    required this.controller,
-    required this.label,
-    required this.visible,
-    required this.onToggle,
-    required this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) => TextFormField(
-    controller: controller,
-    obscureText: !visible,
-    validator: validator,
-    style: AppTextStyles.bodyMedium
-        .copyWith(color: AppColors.textPrimary),
-    decoration: InputDecoration(
-      labelText: label,
-      labelStyle:
-          AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-      prefixIcon: const Icon(Icons.lock_outline_rounded,
-          color: AppColors.primary, size: 20),
-      suffixIcon: IconButton(
-        icon: Icon(
-          visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-          color: AppColors.textSecondary,
-          size: 18,
-        ),
-        onPressed: onToggle,
-      ),
-      filled: true,
-      fillColor: AppColors.bgCard,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.primary, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.error),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.error, width: 1.5),
-      ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    ),
-  );
-}
-
-class _ReadOnlyInfoRow extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label, value;
-  const _ReadOnlyInfoRow({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    decoration: BoxDecoration(
-      color: AppColors.bgCard,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.border),
-    ),
-    child: Row(children: [
-      Container(
-        width: 34, height: 34,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 17),
-      ),
-      const SizedBox(width: 14),
-      Text(label, style: AppTextStyles.caption),
-      const Spacer(),
-      Text(value,
-          style:
-              AppTextStyles.labelMedium.copyWith(fontSize: 13)),
-    ]),
   );
 }

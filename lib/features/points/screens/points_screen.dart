@@ -25,7 +25,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
       'July','August','September','October','November','December',
     ];
     return List.generate(6, (i) {
-      // Safe arithmetic: subtract months without going below 1
       int m = now.month - i;
       int y = now.year;
       while (m <= 0) { m += 12; y -= 1; }
@@ -41,7 +40,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
   final _months = _buildMonths();
 
-  // Open a bottom-sheet month picker
   void _pickMonth(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -104,19 +102,16 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     final svc    = MockPointsService.instance;
     final allTxs = svc.getForUser(user.id);
 
-    // Month-filtered transactions
     final sel          = _months[_monthIdx];
     final int tMonth   = sel['month'] as int;
     final int tYear    = sel['year']  as int;
     final monthTxs     = allTxs.where((t) =>
         t.date.month == tMonth && t.date.year == tYear).toList();
 
-    // Monthly stats
     final monthEarned   = monthTxs.where((t) =>  t.isEarned).fold<int>(0, (s, t) => s + t.points);
     final monthRedeemed = monthTxs.where((t) => !t.isEarned).fold<int>(0, (s, t) => s + t.points);
     final monthTotal    = monthEarned - monthRedeemed;
 
-    // Today stats (always current day regardless of month picker)
     final today      = DateTime.now();
     final todayTxs   = allTxs.where((t) =>
         t.date.year == today.year &&
@@ -125,12 +120,10 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     final todayEarned   = todayTxs.where((t) =>  t.isEarned).fold<int>(0, (s, t) => s + t.points);
     final todayRedeemed = todayTxs.where((t) => !t.isEarned).fold<int>(0, (s, t) => s + t.points);
 
-    // Business filter applied on month txs
     final txs = _filter == 'All'
         ? monthTxs
         : monthTxs.where((t) => t.business == _filter).toList();
 
-    // Monthly earned per business (only earned transactions for selected month)
     final byBiz = <String, int>{};
     for (final t in monthTxs.where((t) => t.isEarned)) {
       byBiz[t.business] = (byBiz[t.business] ?? 0) + t.points;
@@ -141,7 +134,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
       body: SafeArea(
         child: Column(children: [
 
-          // ── AppBar ───────────────────────────────────────────────
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(children: [
@@ -167,7 +159,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // Month label
                   Row(children: [
                     Icon(Icons.calendar_month_rounded,
                       size: 13, color: Colors.white.withValues(alpha: 0.6)),
@@ -178,7 +169,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   ]),
                   const SizedBox(height: 8),
 
-                  // Big monthly total
                   Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text('$monthTotal',
                       style: AppTextStyles.display.copyWith(fontSize: 48)),
@@ -192,11 +182,9 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   ]),
                   const SizedBox(height: 16),
 
-                  // Thin divider
                   Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
                   const SizedBox(height: 14),
 
-                  // Today earned / redeemed
                   Row(children: [
                     Expanded(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -240,7 +228,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Transaction History', style: AppTextStyles.h4),
-                  // Month selector button — opens bottom sheet
                   GestureDetector(
                     onTap: () => _pickMonth(context),
                     child: Container(
@@ -268,7 +255,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
               ),
               const SizedBox(height: 12),
 
-              // ── Business filter — icon tabs (single row, no overflow) ──
+              // ── Business filter ───────────────────────────────────
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.bgCard,
@@ -481,6 +468,12 @@ class _TxCard extends StatelessWidget {
                   icon: Icons.store_rounded,
                   label: 'Business',
                   value: tx.business,
+                ),
+                _Divider(),
+                _DetailRow(
+                  icon: Icons.receipt_outlined,
+                  label: 'Bill No',
+                  value: tx.billNo ?? '-',        // ← NEW
                 ),
                 _Divider(),
                 _DetailRow(

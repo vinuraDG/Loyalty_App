@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -19,13 +18,20 @@ class _ScannedMember {
   });
 }
 
-// Simulated QR decode result
 const _mockScannedMember = _ScannedMember(
   name: 'Amal Perera',
   memberId: 'AP2024X1',
   tier: 'Gold',
   currentPoints: 3420,
 );
+
+// ── Mock data ─────────────────────────────────────────────────────────────────
+
+// Weekly commission data (Mon–Sun) — used for the bar chart
+const _mockWeeklyCommission = [1240, 3800, 2650, 4200, 5100, 3200, 800];
+
+// Monthly commission total in LKR (replace with real value from your service)
+const double _mockMonthlyCommission = 1240.00; // LKR 87,450
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -38,23 +44,18 @@ class EmployeeHomePage extends StatefulWidget {
 }
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
-  // Recent scans list — grows as employee completes transactions
   final List<_ScanEntry> _recentScans = [
-    const _ScanEntry(memberName: 'Nimal Silva',       litres: 15.5, points: 180, time: '10:15 AM'),
-    const _ScanEntry(memberName: 'Kamani Fernando',   litres: 45.0, points: 320, time: '9:58 AM'),
-    const _ScanEntry(memberName: 'Ruwan Jayawardena', litres: 20.0, points: 150, time: '9:40 AM'),
-    const _ScanEntry(memberName: 'Dilini Ratnayake',  litres: 60.0, points: 400, time: '9:22 AM'),
+    const _ScanEntry(memberName: 'Nimal Silva',       saleAmount: 3565,  points: 180, time: '10:15 AM'),
+    const _ScanEntry(memberName: 'Kamani Fernando',   saleAmount: 10350, points: 320, time: '9:58 AM'),
+    const _ScanEntry(memberName: 'Ruwan Jayawardena', saleAmount: 4600,  points: 150, time: '9:40 AM'),
+    const _ScanEntry(memberName: 'Dilini Ratnayake',  saleAmount: 13800, points: 400, time: '9:22 AM'),
   ];
 
-  int get _totalScans   => _recentScans.length;
-  int get _totalPoints  => _recentScans.fold(0, (s, e) => s + e.points);
-  int get _memberCount  => _recentScans.map((e) => e.memberName).toSet().length;
+  double get _weeklyCommissionTotal =>
+      _mockWeeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
 
   @override
   Widget build(BuildContext context) {
-    final rawId  = widget.employee.id.toUpperCase();
-    final shortId = rawId.substring(0, rawId.length.clamp(0, 8));
-
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
@@ -88,7 +89,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             ]),
             const SizedBox(height: 24),
 
-            // ── Employee ID card ─────────────────────────────────────
+            // ── Commission card ──────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -100,25 +101,119 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.badge_outlined, color: Colors.white70, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Employee ID',
-                      style: AppTextStyles.caption.copyWith(color: Colors.white70)),
-                ]),
-                const SizedBox(height: 8),
-                Text('#$shortId',
-                    style: AppTextStyles.h3
-                        .copyWith(color: Colors.white, letterSpacing: 2)),
-                const SizedBox(height: 4),
-                Text(widget.employee.name,
-                    style: AppTextStyles.bodySmall.copyWith(color: Colors.white60)),
-              ]),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  // ── Left: monthly commission total ─────────────────
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        // Label row — Flexible is correct here (inside Row)
+                        Row(children: [
+                          Icon(Icons.payments_outlined,
+                              size: 13,
+                              color: Colors.white.withValues(alpha: 0.55)),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              "This month's commission",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.55),
+                                fontWeight: FontWeight.w400,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 6),
+
+                        // Monthly amount — plain Text inside Column, no Flexible needed
+                        Text(
+                          'LKR ${_mockMonthlyCommission.toStringAsFixed(0)}',
+                          style: AppTextStyles.h3.copyWith(color: Colors.white),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        const SizedBox(height: 6),
+
+                        // Subtle divider
+                        Container(
+                          height: 1,
+                          width: 80,
+                          color: Colors.white.withValues(alpha: 0.15),
+                        ),
+                        const SizedBox(height: 6),
+
+                        // Weekly sub-total row — Flexible is correct here (inside Row)
+                        Row(children: [
+                          Icon(Icons.calendar_view_week_rounded,
+                              size: 11,
+                              color: Colors.white.withValues(alpha: 0.45)),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'This week  LKR ${_weeklyCommissionTotal.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.5),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 3),
+
+                        // Transaction count — plain Text inside Column
+                        Text(
+                          '${_recentScans.length} transactions · 2% rate',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.45),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // ── Right: weekly bar chart ────────────────────────
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Last 7 days',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const SizedBox(
+                          height: 80,
+                          child: _WeeklyCommissionChart(
+                            data: _mockWeeklyCommission,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
 
-            // ── Scan Member button (only action) ─────────────────────
+            // ── Scan Member button ───────────────────────────────────
             const Text('Quick Actions', style: AppTextStyles.h4),
             const SizedBox(height: 14),
             GestureDetector(
@@ -159,28 +254,21 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             ),
             const SizedBox(height: 24),
 
-            // ── Today's stats ────────────────────────────────────────
-            const Text("Today's Activity", style: AppTextStyles.h4),
+            // ── Today's scan history ─────────────────────────────────
+            const Text("Today's Scans", style: AppTextStyles.h4),
             const SizedBox(height: 14),
-            Row(children: [
-              Expanded(child: _StatCard(
-                  label: 'Scans', value: '$_totalScans',
-                  icon: Icons.qr_code_rounded)),
-              const SizedBox(width: 12),
-              Expanded(child: _StatCard(
-                  label: 'Points Given', value: '$_totalPoints',
-                  icon: Icons.stars_rounded)),
-              const SizedBox(width: 12),
-              Expanded(child: _StatCard(
-                  label: 'Members', value: '$_memberCount',
-                  icon: Icons.people_outline_rounded)),
-            ]),
-            const SizedBox(height: 24),
+            if (_recentScans.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text('No scans yet today.',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textMuted)),
+                ),
+              )
+            else
+              ..._recentScans.map((s) => _TodayScanTile(scan: s)),
 
-            // ── Recent scans ─────────────────────────────────────────
-            const Text('Recent Scans', style: AppTextStyles.h4),
-            const SizedBox(height: 14),
-            ..._recentScans.map((s) => _RecentScanTile(scan: s)),
             const SizedBox(height: 8),
           ]),
         ),
@@ -218,7 +306,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           const Text('Scan Member QR', style: AppTextStyles.h4),
           const SizedBox(height: 8),
           const Text(
-            'Point the camera at the member\'s QR code to identify them.',
+            "Point the camera at the member's QR code to identify them.",
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
           ),
@@ -228,7 +316,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             icon: Icons.camera_alt_outlined,
             onPressed: () {
               Navigator.pop(context);
-              // Simulate QR decode — show customer info sheet
               Future.delayed(const Duration(milliseconds: 300), () {
                 if (context.mounted) _showCustomerSheet(context);
               });
@@ -259,8 +346,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   color: AppColors.border,
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
-
-          // Success indicator
           Container(
             width: 52, height: 52,
             decoration: BoxDecoration(
@@ -273,8 +358,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           const SizedBox(height: 12),
           const Text('Member Identified', style: AppTextStyles.h4),
           const SizedBox(height: 20),
-
-          // Member info card
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -307,7 +390,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             ]),
           ),
           const SizedBox(height: 20),
-
           Row(children: [
             Expanded(
               child: OutlinedButton(
@@ -345,10 +427,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
   // ── Step 3: Fuel amount entry sheet ───────────────────────────────────────
   void _showFuelEntry(BuildContext context, _ScannedMember member) {
-    final litresCtrl  = TextEditingController();
-    final amountCtrl  = TextEditingController();
-
-    // Points rate: 1 point per LKR 10 of fuel
+    final amountCtrl = TextEditingController();
     const double pointsPerLkr = 0.1;
 
     showModalBottomSheet(
@@ -361,7 +440,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => StatefulBuilder(
         builder: (sheetCtx, setSheet) {
-          final litres = double.tryParse(litresCtrl.text) ?? 0;
           final amount = double.tryParse(amountCtrl.text) ?? 0;
           final points = (amount * pointsPerLkr).toInt();
 
@@ -389,18 +467,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                       .copyWith(color: AppColors.textMuted)),
               const SizedBox(height: 20),
 
-              // Litres field
-              AppTextField(
-                label: 'Litres',
-                hint: 'e.g. 30.5',
-                controller: litresCtrl,
-                prefixIconData: Icons.water_drop_outlined,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (_) => setSheet(() {}),
-              ),
-              const SizedBox(height: 14),
-
-              // Sale amount field
               AppTextField(
                 label: 'Sale Amount (LKR)',
                 hint: 'e.g. 7015',
@@ -411,7 +477,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               ),
               const SizedBox(height: 16),
 
-              // Live points preview
               if (amount > 0)
                 Container(
                   width: double.infinity,
@@ -461,11 +526,11 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   child: GradientButton(
                     label: 'Confirm & Award',
                     icon: Icons.check_rounded,
-                    onPressed: (litres > 0 && amount > 0)
+                    onPressed: amount > 0
                         ? () {
                             Navigator.pop(sheetCtx);
                             _onTransactionComplete(
-                                context, member, litres, amount, points);
+                                context, member, amount, points);
                           }
                         : null,
                   ),
@@ -480,8 +545,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
   // ── Step 4: Complete + update state ───────────────────────────────────────
   void _onTransactionComplete(BuildContext context, _ScannedMember member,
-      double litres, double amount, int points) {
-    // Add to recent scans
+      double amount, int points) {
     final now = TimeOfDay.now();
     final timeStr =
         '${now.hourOfPeriod}:${now.minute.toString().padLeft(2, '0')} ${now.period.name.toUpperCase()}';
@@ -491,14 +555,13 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
         0,
         _ScanEntry(
           memberName: member.name,
-          litres: litres,
+          saleAmount: amount,
           points: points,
           time: timeStr,
         ),
       );
     });
 
-    // Success snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: AppColors.bgCard,
@@ -520,54 +583,91 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   }
 }
 
-// ── Supporting widgets ────────────────────────────────────────────────────────
+// ── Weekly commission bar chart ───────────────────────────────────────────────
+
+class _WeeklyCommissionChart extends StatelessWidget {
+  final List<int> data;
+  const _WeeklyCommissionChart({required this.data});
+
+  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    final maxVal = data.reduce((a, b) => a > b ? a : b).toDouble();
+    final todayIdx = DateTime.now().weekday - 1;
+
+    return Column(
+      children: [
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(7, (i) {
+              final ratio =
+                  maxVal > 0 ? (data[i] / maxVal).clamp(0.08, 1.0) : 0.08;
+              final isToday = i == todayIdx;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.bottomCenter,
+                    heightFactor: ratio,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isToday
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.30),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Row(
+          children: List.generate(7, (i) {
+            final isToday = i == DateTime.now().weekday - 1;
+            return Expanded(
+              child: Text(
+                _dayLabels[i],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: isToday
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : Colors.white.withValues(alpha: 0.4),
+                  fontWeight:
+                      isToday ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Supporting models & widgets ───────────────────────────────────────────────
 
 class _ScanEntry {
   final String memberName;
-  final double litres;
+  final double saleAmount;
   final int points;
   final String time;
   const _ScanEntry({
     required this.memberName,
-    required this.litres,
+    required this.saleAmount,
     required this.points,
     required this.time,
   });
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  const _StatCard(
-      {required this.label, required this.value, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(children: [
-        Icon(icon, color: AppColors.primaryLight, size: 20),
-        const SizedBox(height: 6),
-        Text(value,
-            style: AppTextStyles.h4.copyWith(color: AppColors.textPrimary)),
-        const SizedBox(height: 2),
-        Text(label,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-            textAlign: TextAlign.center),
-      ]),
-    );
-  }
-}
-
-class _RecentScanTile extends StatelessWidget {
+class _TodayScanTile extends StatelessWidget {
   final _ScanEntry scan;
-  const _RecentScanTile({required this.scan});
+  const _TodayScanTile({required this.scan});
 
   @override
   Widget build(BuildContext context) {
@@ -595,12 +695,16 @@ class _RecentScanTile extends StatelessWidget {
           Text(scan.memberName, style: AppTextStyles.labelMedium),
           const SizedBox(height: 2),
           Row(children: [
-            const Icon(Icons.water_drop_outlined,
+            const Icon(Icons.payments_outlined,
                 size: 12, color: AppColors.textMuted),
             const SizedBox(width: 3),
-            Text('${scan.litres.toStringAsFixed(1)} L  •  ${scan.time}',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textMuted)),
+            Flexible(
+              child: Text(
+                'LKR ${scan.saleAmount.toStringAsFixed(0)}  •  ${scan.time}',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ]),
         ])),
         Container(
