@@ -166,14 +166,14 @@ class ProfileScreen extends ConsumerWidget {
                     color: AppColors.error.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.logout_rounded,
+                  child: const Icon(Icons.logout_rounded,
                       color: AppColors.error, size: 28),
                 ),
                 const SizedBox(height: 16),
                 const Text('Sign out?',
                     style: AppTextStyles.h4, textAlign: TextAlign.center),
                 const SizedBox(height: 6),
-                Text(
+                const Text(
                   "You'll need to sign back in to access your loyalty points and rewards.",
                   style: AppTextStyles.caption,
                   textAlign: TextAlign.center,
@@ -203,7 +203,7 @@ class ProfileScreen extends ConsumerWidget {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: AppColors.border),
+                      side: const BorderSide(color: AppColors.border),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),

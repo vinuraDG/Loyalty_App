@@ -2,7 +2,6 @@ import 'dart:math';
 import 'package:loyalty_app/models/offer_models.dart';
 
 import '../models/transaction_model.dart';
-import '../models/user_model.dart';
 import 'mock_auth_service.dart';
 
 class MockPointsService {

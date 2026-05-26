@@ -98,16 +98,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             const SizedBox(height: 24),
 
             // Logo row
-            Row(children: [
-              const AppLogo(size: 38),
-              const SizedBox(width: 10),
+            const Row(children: [
+              AppLogo(size: 38),
+              SizedBox(width: 10),
               Text('LoyaltyHub', style: AppTextStyles.h4),
             ]),
             const SizedBox(height: 28),
 
-            Text('Welcome back', style: AppTextStyles.h1),
+            const Text('Welcome back', style: AppTextStyles.h1),
             const SizedBox(height: 6),
-            Text('Sign in to access your points and rewards',
+            const Text('Sign in to access your points and rewards',
               style: AppTextStyles.bodySmall),
             const SizedBox(height: 24),
 
@@ -201,9 +201,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.08),
+                        color: AppColors.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
                       ),
                       child: Row(children: [
                         const Icon(Icons.info_outline,

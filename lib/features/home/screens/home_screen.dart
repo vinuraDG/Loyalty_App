@@ -86,7 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Good morning 🌤', style: AppTextStyles.caption),
+                      const Text('Good morning 🌤', style: AppTextStyles.caption),
                       const SizedBox(height: 2),
                       Text(user.name, style: AppTextStyles.h3),
                     ],
@@ -124,7 +124,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Offers for you', style: AppTextStyles.h4),
+                    const Text('Offers for you', style: AppTextStyles.h4),
                     Text('${_adIndex + 1} / ${_mockAds.length}',
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.textSecondary)),
@@ -163,7 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     decoration: BoxDecoration(
                       color: active
                           ? AppColors.primary
-                          : AppColors.textSecondary.withOpacity(0.4),
+                          : AppColors.textSecondary.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   );
@@ -204,14 +204,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   Icon(
                                     Icons.calendar_month_rounded,
                                     size: 13,
-                                    color: Colors.white.withOpacity(0.55),
+                                    color: Colors.white.withValues(alpha: 0.55),
                                   ),
                                   const SizedBox(width: 5),
                                   Text(
                                     'This month',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.white.withOpacity(0.55),
+                                      color: Colors.white.withValues(alpha: 0.55),
                                       fontWeight: FontWeight.w400,
                                       letterSpacing: 0.2,
                                     ),
@@ -235,7 +235,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       'pts',
                                       style: TextStyle(
                                         fontSize: 15,
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: Colors.white.withValues(alpha: 0.6),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -244,19 +244,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                               const SizedBox(height: 10),
                               // Trend hint
-                              Row(
+                              const Row(
                                 children: [
                                   Icon(
                                     Icons.trending_up_rounded,
                                     size: 14,
-                                    color: const Color(0xFFA7F3D0),
+                                    color: Color(0xFFA7F3D0),
                                   ),
-                                  const SizedBox(width: 4),
+                                  SizedBox(width: 4),
                                   Text(
                                     '+18% vs last month',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: const Color(0xFFA7F3D0),
+                                      color: Color(0xFFA7F3D0),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -278,12 +278,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 'Last 7 days',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.white.withOpacity(0.5),
+                                  color: Colors.white.withValues(alpha: 0.5),
                                   letterSpacing: 0.3,
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              SizedBox(
+                              const SizedBox(
                                 height: 90,
                                 child: _WeeklyBarChart(
                                   data: _mockWeeklyPoints,
@@ -306,7 +306,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Quick actions', style: AppTextStyles.h4),
+                  const Text('Quick actions', style: AppTextStyles.h4),
                   const SizedBox(height: 12),
                   Row(children: [
                     _QuickAction(
@@ -335,7 +335,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Recent activity', style: AppTextStyles.h4),
+                  const Text('Recent activity', style: AppTextStyles.h4),
                   GestureDetector(
                     onTap: () => _navTo(context, 1),
                     child: Text('See all',
@@ -348,8 +348,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 12),
 
             if (txs.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
+              const Padding(
+                padding: EdgeInsets.all(24),
                 child: Text('No transactions yet.',
                     style: AppTextStyles.bodySmall),
               )
@@ -415,7 +415,7 @@ class _WeeklyBarChart extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: isToday
                               ? Colors.white
-                              : Colors.white.withOpacity(0.30),
+                              : Colors.white.withValues(alpha: 0.30),
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),
@@ -438,8 +438,8 @@ class _WeeklyBarChart extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   color: isToday
-                      ? Colors.white.withOpacity(0.9)
-                      : Colors.white.withOpacity(0.4),
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : Colors.white.withValues(alpha: 0.4),
                   fontWeight:
                       isToday ? FontWeight.w700 : FontWeight.w400,
                 ),
@@ -478,7 +478,7 @@ class _AdCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
+                  color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(ad.tag,
@@ -500,7 +500,7 @@ class _AdCard extends StatelessWidget {
                   Text(ad.subtitle,
                       style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withOpacity(0.65))),
+                          color: Colors.white.withValues(alpha: 0.65))),
                 ],
               ),
             ],
@@ -539,7 +539,7 @@ class _QuickAction extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),

@@ -49,7 +49,7 @@ class _EmployeeDashboardScreenState
       backgroundColor: AppColors.bgDark,
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.bgCard,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),

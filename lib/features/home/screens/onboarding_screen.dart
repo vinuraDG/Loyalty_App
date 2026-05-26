@@ -97,11 +97,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   Container(
                     width: 220, height: 220,
                     decoration: BoxDecoration(
-                      color: slide.color.withOpacity(0.1),
+                      color: slide.color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                   ),
-                  Icon(slide.icon, size: 110, color: slide.color.withOpacity(0.9)),
+                  Icon(slide.icon, size: 110, color: slide.color.withValues(alpha: 0.9)),
                 ]),
               ),
 

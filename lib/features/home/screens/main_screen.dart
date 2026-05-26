@@ -3,7 +3,6 @@ import 'package:loyalty_app/features/home/screens/home_screen.dart';
 import 'package:loyalty_app/features/points/screens/points_screen.dart';
 import 'package:loyalty_app/features/profile/screens/profile_screen.dart';
 import 'package:loyalty_app/features/qr/screens/qr_screen.dart';
-import 'package:loyalty_app/features/redeem/screens/redeem_screen.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 
 class MainScreen extends StatefulWidget {

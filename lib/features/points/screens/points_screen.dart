@@ -60,8 +60,8 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
             child: Text('Select Month', style: AppTextStyles.h4),
           ),
           const SizedBox(height: 8),
@@ -82,7 +82,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 ),
               ),
               trailing: sel
-                  ? Icon(Icons.check_rounded, color: AppColors.primary, size: 20)
+                  ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20)
                   : null,
               onTap: () {
                 setState(() { _monthIdx = i; _filter = 'All'; });
@@ -142,8 +142,8 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
         child: Column(children: [
 
           // ── AppBar ───────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(children: [
               Text('My Points', style: AppTextStyles.h3),
             ]),
@@ -170,11 +170,11 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   // Month label
                   Row(children: [
                     Icon(Icons.calendar_month_rounded,
-                      size: 13, color: Colors.white.withOpacity(0.6)),
+                      size: 13, color: Colors.white.withValues(alpha: 0.6)),
                     const SizedBox(width: 5),
                     Text(sel['label'] as String,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.white.withOpacity(0.7))),
+                        color: Colors.white.withValues(alpha: 0.7))),
                   ]),
                   const SizedBox(height: 8),
 
@@ -187,13 +187,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text('pts',
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: Colors.white.withOpacity(0.7), fontSize: 16)),
+                          color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
                     ),
                   ]),
                   const SizedBox(height: 16),
 
                   // Thin divider
-                  Container(height: 1, color: Colors.white.withOpacity(0.12)),
+                  Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
                   const SizedBox(height: 14),
 
                   // Today earned / redeemed
@@ -202,19 +202,19 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('Today earned',
                         style: AppTextStyles.caption.copyWith(
-                          color: Colors.white.withOpacity(0.6))),
+                          color: Colors.white.withValues(alpha: 0.6))),
                       const SizedBox(height: 4),
                       Text(todayEarned > 0 ? '+$todayEarned' : '+0',
                         style: AppTextStyles.h3.copyWith(
                           color: AppColors.success, fontSize: 22)),
                     ])),
                     Container(width: 1, height: 36,
-                      color: Colors.white.withOpacity(0.12)),
+                      color: Colors.white.withValues(alpha: 0.12)),
                     Expanded(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end, children: [
                       Text('Today redeemed',
                         style: AppTextStyles.caption.copyWith(
-                          color: Colors.white.withOpacity(0.6))),
+                          color: Colors.white.withValues(alpha: 0.6))),
                       const SizedBox(height: 4),
                       Text(todayRedeemed > 0 ? '-$todayRedeemed' : '-0',
                         style: AppTextStyles.h3.copyWith(
@@ -239,7 +239,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Transaction History', style: AppTextStyles.h4),
+                  const Text('Transaction History', style: AppTextStyles.h4),
                   // Month selector button — opens bottom sheet
                   GestureDetector(
                     onTap: () => _pickMonth(context),
@@ -252,14 +252,14 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.calendar_today_rounded,
+                        const Icon(Icons.calendar_today_rounded,
                           size: 13, color: AppColors.primary),
                         const SizedBox(width: 6),
                         Text(sel['short'] as String,
                           style: AppTextStyles.labelSmall.copyWith(
                             color: AppColors.primary)),
                         const SizedBox(width: 4),
-                        Icon(Icons.keyboard_arrow_down_rounded,
+                        const Icon(Icons.keyboard_arrow_down_rounded,
                           size: 16, color: AppColors.primary),
                       ]),
                     ),
@@ -309,7 +309,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 Center(child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Column(children: [
-                    Icon(Icons.receipt_long_outlined,
+                    const Icon(Icons.receipt_long_outlined,
                       color: AppColors.textSecondary, size: 40),
                     const SizedBox(height: 8),
                     Text(
@@ -358,7 +358,7 @@ class _BizCard extends StatelessWidget {
     decoration: BoxDecoration(
       color: AppColors.bgCard,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: _color.withOpacity(0.5)),
+      border: Border.all(color: _color.withValues(alpha: 0.5)),
     ),
     child: Column(children: [
       Text(_shortName,
@@ -366,7 +366,7 @@ class _BizCard extends StatelessWidget {
           color: _color, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       Text('$pts', style: AppTextStyles.h4),
-      Text('pts', style: AppTextStyles.caption),
+      const Text('pts', style: AppTextStyles.caption),
     ]),
   ));
 }
@@ -400,7 +400,7 @@ class _TxCard extends StatelessWidget {
             style: AppTextStyles.labelMedium.copyWith(
               color: tx.isEarned ? AppColors.success : AppColors.error)),
           const SizedBox(width: 6),
-          Icon(Icons.chevron_right_rounded,
+          const Icon(Icons.chevron_right_rounded,
             size: 16, color: AppColors.textSecondary),
         ]),
       ]),
@@ -440,7 +440,7 @@ class _TxCard extends StatelessWidget {
             Container(
               width: 56, height: 56,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -458,7 +458,7 @@ class _TxCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(

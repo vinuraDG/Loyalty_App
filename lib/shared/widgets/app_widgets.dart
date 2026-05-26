@@ -163,8 +163,9 @@ class OtpBox extends StatelessWidget {
         ),
       ),
       onChanged: (val) {
-        if (val.length == 1 && nextFocus != null) FocusScope.of(context).requestFocus(nextFocus);
-        else if (val.isEmpty) FocusScope.of(context).previousFocus();
+        if (val.length == 1 && nextFocus != null) {
+          FocusScope.of(context).requestFocus(nextFocus);
+        } else if (val.isEmpty) FocusScope.of(context).previousFocus();
       },
     ),
   );
@@ -246,22 +247,22 @@ class BusinessIcon extends StatelessWidget {
     Color bg; Color fg; IconData icon;
     switch (business) {
       case 'Fuel Station':
-        bg = AppColors.fuelColor.withOpacity(0.15);
+        bg = AppColors.fuelColor.withValues(alpha: 0.15);
         fg = AppColors.fuelColor;
         icon = Icons.local_gas_station;
         break;
       case 'Laundry':
-        bg = AppColors.laundryColor.withOpacity(0.15);
+        bg = AppColors.laundryColor.withValues(alpha: 0.15);
         fg = AppColors.laundryColor;
         icon = Icons.local_laundry_service;
         break;
       case 'Gold Shop':
-        bg = AppColors.golfColor.withOpacity(0.15);
+        bg = AppColors.golfColor.withValues(alpha: 0.15);
         fg = AppColors.golfColor;
         icon = Icons.diamond_rounded;  // ← diamond icon
         break;
       default:
-        bg = AppColors.primary.withOpacity(0.15);
+        bg = AppColors.primary.withValues(alpha: 0.15);
         fg = AppColors.primary;
         icon = Icons.star;
     }
@@ -283,9 +284,9 @@ class TierBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.accentGold.withOpacity(0.15),
+        color: AppColors.accentGold.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accentGold.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.military_tech_rounded, color: AppColors.accentGold, size: 14),
@@ -304,9 +305,9 @@ class DemoHintBox extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: AppColors.accentGold.withOpacity(0.08),
+      color: AppColors.accentGold.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.accentGold.withOpacity(0.25)),
+      border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.25)),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
@@ -315,9 +316,9 @@ class DemoHintBox extends StatelessWidget {
         Text('Demo credentials', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentGold)),
       ]),
       const SizedBox(height: 7),
-      Text('Email: kasun@email.com\nPassword: any 6+ characters\nPhone: 0771234567  ·  OTP: 1234',
+      Text('Employee Email: employee@gmail.com\nCustomer Email: customer@gmail.com\nPassword: any 6+ characters\nPhone: 0771234567  ·  OTP: 1234',
         style: AppTextStyles.caption.copyWith(
-          color: AppColors.accentGold.withOpacity(0.85), height: 1.7)),
+          color: AppColors.accentGold.withValues(alpha: 0.85), height: 1.7)),
     ]),
   );
 }
@@ -331,9 +332,9 @@ class ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: AppColors.error.withOpacity(0.1),
+      color: AppColors.error.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.error.withOpacity(0.4)),
+      border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
     ),
     child: Row(children: [
       const Icon(Icons.error_outline, color: AppColors.error, size: 17),

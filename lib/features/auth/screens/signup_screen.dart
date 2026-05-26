@@ -82,11 +82,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
               // Header
-              Center(child: Column(children: [
-                const AppLogo(size: 60),
-                const SizedBox(height: 14),
+              const Center(child: Column(children: [
+                AppLogo(size: 60),
+                SizedBox(height: 14),
                 Text('Join LoyaltyHub', style: AppTextStyles.h2),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text('Earn points at fuel stations, laundry & golf',
                   style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
               ])),

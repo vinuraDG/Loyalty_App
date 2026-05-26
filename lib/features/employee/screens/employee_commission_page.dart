@@ -100,9 +100,9 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Commission', style: AppTextStyles.h3),
+                  const Text('Commission', style: AppTextStyles.h3),
                   const SizedBox(height: 2),
-                  Text('Per-sale earnings breakdown',
+                  const Text('Per-sale earnings breakdown',
                       style: AppTextStyles.bodySmall),
                   const SizedBox(height: 20),
 

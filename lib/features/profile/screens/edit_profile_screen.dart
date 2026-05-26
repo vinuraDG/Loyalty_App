@@ -134,7 +134,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     color: AppColors.textPrimary, size: 20),
                 onPressed: () => _confirmDiscard(context),
               ),
-              Text('Edit Profile', style: AppTextStyles.h3),
+              const Text('Edit Profile', style: AppTextStyles.h3),
               const Spacer(),
               if (_hasChanges)
                 TextButton(
@@ -171,7 +171,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _SectionLabel(label: 'Personal Info'),
+                        const _SectionLabel(label: 'Personal Info'),
                         const SizedBox(height: 12),
 
                         // First Name
@@ -180,10 +180,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           label: 'First Name',
                           icon: Icons.person_outline_rounded,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'First name is required';
-                            if (v.trim().length < 2)
+                            }
+                            if (v.trim().length < 2) {
                               return 'Too short';
+                            }
                             return null;
                           },
                         ),
@@ -195,10 +197,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           label: 'Last Name',
                           icon: Icons.person_outline_rounded,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Last name is required';
-                            if (v.trim().length < 2)
+                            }
+                            if (v.trim().length < 2) {
                               return 'Too short';
+                            }
                             return null;
                           },
                         ),
@@ -211,12 +215,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Email is required';
+                            }
                             final emailRegex =
                                 RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-                            if (!emailRegex.hasMatch(v.trim()))
+                            if (!emailRegex.hasMatch(v.trim())) {
                               return 'Enter a valid email';
+                            }
                             return null;
                           },
                         ),
@@ -274,7 +280,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
 
                   // ── Change Password section ──────────────────────
-                  _SectionLabel(label: 'Change Password'),
+                  const _SectionLabel(label: 'Change Password'),
                   const SizedBox(height: 12),
 
                   Form(
@@ -287,8 +293,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         onToggle: () => setState(
                             () => _showCurrentPass = !_showCurrentPass),
                         validator: (v) {
-                          if (v == null || v.isEmpty)
+                          if (v == null || v.isEmpty) {
                             return 'Enter your current password';
+                          }
                           return null;
                         },
                       ),
@@ -300,10 +307,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         onToggle: () =>
                             setState(() => _showNewPass = !_showNewPass),
                         validator: (v) {
-                          if (v == null || v.isEmpty)
+                          if (v == null || v.isEmpty) {
                             return 'Enter a new password';
-                          if (v.length < 8)
+                          }
+                          if (v.length < 8) {
                             return 'Password must be at least 8 characters';
+                          }
                           return null;
                         },
                       ),
@@ -315,8 +324,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         onToggle: () => setState(
                             () => _showConfirmPass = !_showConfirmPass),
                         validator: (v) {
-                          if (v != _newPassCtrl.text)
+                          if (v != _newPassCtrl.text) {
                             return 'Passwords do not match';
+                          }
                           return null;
                         },
                       ),
@@ -346,8 +356,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         backgroundColor: AppColors.bgCard,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18)),
-        title: Text('Discard changes?', style: AppTextStyles.h4),
-        content: Text(
+        title: const Text('Discard changes?', style: AppTextStyles.h4),
+        content: const Text(
             'You have unsaved changes. Are you sure you want to go back?',
             style: AppTextStyles.bodySmall),
         actions: [

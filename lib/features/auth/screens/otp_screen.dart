@@ -30,8 +30,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _ctrls) c.dispose();
-    for (final f in _focus) f.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    for (final f in _focus) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -65,7 +69,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final phone = ref.read(authProvider).pendingPhone;
     if (phone == null) return;
     await ref.read(authProvider.notifier).sendOtp(phone);
-    for (final c in _ctrls) c.clear();
+    for (final c in _ctrls) {
+      c.clear();
+    }
     _focus[0].requestFocus();
     _startTimer();
     if (mounted) {
@@ -82,7 +88,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     ref.listen(authProvider, (_, next) {
       if (next.errorMessage != null) {
         setState(() => _hasError = true);
-        for (final c in _ctrls) c.clear();
+        for (final c in _ctrls) {
+          c.clear();
+        }
         _focus[0].requestFocus();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage!)));
@@ -117,9 +125,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               ),
               const SizedBox(height: 24),
 
-              Text('Verify your number', style: AppTextStyles.h2),
+              const Text('Verify your number', style: AppTextStyles.h2),
               const SizedBox(height: 10),
-              Text('We sent a 4-digit OTP to', style: AppTextStyles.bodySmall),
+              const Text('We sent a 4-digit OTP to', style: AppTextStyles.bodySmall),
               const SizedBox(height: 4),
               Text(phone, style: AppTextStyles.h4),
               const SizedBox(height: 16),

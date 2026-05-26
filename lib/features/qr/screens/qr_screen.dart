@@ -37,7 +37,7 @@ class QrScreen extends ConsumerWidget {
                     color: AppColors.textPrimary, size: 20),
                 onPressed: () => Navigator.pop(context),
               ),
-              Text('My QR Code', style: AppTextStyles.h3),
+              const Text('My QR Code', style: AppTextStyles.h3),
             ]),
           ),
           const SizedBox(height: 8),
@@ -46,7 +46,7 @@ class QrScreen extends ConsumerWidget {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(children: [
-                Text('Show this to staff to earn your points',
+                const Text('Show this to staff to earn your points',
                     style: AppTextStyles.bodySmall,
                     textAlign: TextAlign.center),
                 const SizedBox(height: 20),
@@ -75,14 +75,14 @@ class QrScreen extends ConsumerWidget {
                       height: 200,
                       child: CustomPaint(painter: _MockQrPainter()),
                     ),
-                    _CornerBracket(top: 0, left: 0, tl: true),
-                    _CornerBracket(top: 0, right: 0, tr: true),
-                    _CornerBracket(bottom: 0, left: 0, bl: true),
-                    _CornerBracket(bottom: 0, right: 0, br: true),
+                    const _CornerBracket(top: 0, left: 0, tl: true),
+                    const _CornerBracket(top: 0, right: 0, tr: true),
+                    const _CornerBracket(bottom: 0, left: 0, bl: true),
+                    const _CornerBracket(bottom: 0, right: 0, br: true),
                   ]),
                 ),
                 const SizedBox(height: 8),
-                Text('Tap to refresh', style: AppTextStyles.caption),
+                const Text('Tap to refresh', style: AppTextStyles.caption),
                 const SizedBox(height: 20),
 
                 // Points summary bar

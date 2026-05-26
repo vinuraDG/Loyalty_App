@@ -69,7 +69,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Welcome back,', style: AppTextStyles.caption),
+                  const Text('Welcome back,', style: AppTextStyles.caption),
                   Text(widget.employee.name, style: AppTextStyles.h4),
                 ],
               )),
@@ -119,7 +119,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             const SizedBox(height: 24),
 
             // ── Scan Member button (only action) ─────────────────────
-            Text('Quick Actions', style: AppTextStyles.h4),
+            const Text('Quick Actions', style: AppTextStyles.h4),
             const SizedBox(height: 14),
             GestureDetector(
               onTap: () => _startScanFlow(context),
@@ -145,7 +145,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Scan Member QR', style: AppTextStyles.labelMedium),
+                      const Text('Scan Member QR', style: AppTextStyles.labelMedium),
                       const SizedBox(height: 2),
                       Text('Scan QR code to identify member and add fuel',
                           style: AppTextStyles.caption
@@ -160,7 +160,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             const SizedBox(height: 24),
 
             // ── Today's stats ────────────────────────────────────────
-            Text("Today's Activity", style: AppTextStyles.h4),
+            const Text("Today's Activity", style: AppTextStyles.h4),
             const SizedBox(height: 14),
             Row(children: [
               Expanded(child: _StatCard(
@@ -178,7 +178,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             const SizedBox(height: 24),
 
             // ── Recent scans ─────────────────────────────────────────
-            Text('Recent Scans', style: AppTextStyles.h4),
+            const Text('Recent Scans', style: AppTextStyles.h4),
             const SizedBox(height: 14),
             ..._recentScans.map((s) => _RecentScanTile(scan: s)),
             const SizedBox(height: 8),
@@ -215,9 +215,9 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                 color: AppColors.primaryLight, size: 44),
           ),
           const SizedBox(height: 18),
-          Text('Scan Member QR', style: AppTextStyles.h4),
+          const Text('Scan Member QR', style: AppTextStyles.h4),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Point the camera at the member\'s QR code to identify them.',
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
@@ -242,7 +242,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
   // ── Step 2: Customer identified sheet ─────────────────────────────────────
   void _showCustomerSheet(BuildContext context) {
-    final member = _mockScannedMember;
+    const member = _mockScannedMember;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgCard,
@@ -271,7 +271,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                 color: Colors.greenAccent, size: 30),
           ),
           const SizedBox(height: 12),
-          Text('Member Identified', style: AppTextStyles.h4),
+          const Text('Member Identified', style: AppTextStyles.h4),
           const SizedBox(height: 20),
 
           // Member info card
@@ -313,7 +313,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               child: OutlinedButton(
                 onPressed: () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppColors.border),
+                  side: const BorderSide(color: AppColors.border),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -377,10 +377,10 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                       borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 20),
 
-              Row(children: [
-                const Icon(Icons.local_gas_station_rounded,
+              const Row(children: [
+                Icon(Icons.local_gas_station_rounded,
                     color: AppColors.primaryLight, size: 22),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Text('Add Fuel Details', style: AppTextStyles.h4),
               ]),
               const SizedBox(height: 6),
@@ -445,7 +445,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(sheetCtx),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: AppColors.border),
+                      side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),

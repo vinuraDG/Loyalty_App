@@ -34,7 +34,7 @@ class EmployeeProfilePage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Header ────────────────────────────────────────────
-              Text('Profile', style: AppTextStyles.h3),
+              const Text('Profile', style: AppTextStyles.h3),
               const SizedBox(height: 24),
 
               // ── Avatar + name card ────────────────────────────────
@@ -74,7 +74,7 @@ class EmployeeProfilePage extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // ── Account section ───────────────────────────────────
-              Text('Account', style: AppTextStyles.h4),
+              const Text('Account', style: AppTextStyles.h4),
               const SizedBox(height: 12),
               _ProfileTile(
                 icon: Icons.person_outline_rounded,
@@ -86,7 +86,7 @@ class EmployeeProfilePage extends ConsumerWidget {
                 label: 'Employee ID',
                 value: '#$shortId',
               ),
-              _ProfileTile(
+              const _ProfileTile(
                 icon: Icons.work_outline_rounded,
                 label: 'Role',
                 value: 'Staff Member',
@@ -94,9 +94,9 @@ class EmployeeProfilePage extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // ── App section ───────────────────────────────────────
-              Text('App', style: AppTextStyles.h4),
+              const Text('App', style: AppTextStyles.h4),
               const SizedBox(height: 12),
-              _ProfileTile(
+              const _ProfileTile(
                 icon: Icons.info_outline_rounded,
                 label: 'Version',
                 value: '1.0.0',

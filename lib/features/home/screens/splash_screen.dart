@@ -107,7 +107,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       width: 36, height: 36,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppColors.primary.withOpacity(0.5),
+                        color: AppColors.primary.withValues(alpha: 0.5),
                       ),
                     ),
                   ]),

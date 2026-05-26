@@ -22,8 +22,8 @@ class RedeemScreen extends ConsumerWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
           // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Text('Redeem Points', style: AppTextStyles.h3),
           ),
           const SizedBox(height: 16),
@@ -44,7 +44,7 @@ class RedeemScreen extends ConsumerWidget {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Available to redeem',
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.white.withOpacity(0.75))),
+                      color: Colors.white.withValues(alpha: 0.75))),
                   const SizedBox(height: 4),
                   Text('${user.totalPoints} pts', style: AppTextStyles.h2),
                 ]),
@@ -56,8 +56,8 @@ class RedeemScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
             child: Text('Available offers', style: AppTextStyles.h4),
           ),
           const SizedBox(height: 12),
@@ -200,7 +200,7 @@ class _ConfirmSheet extends ConsumerWidget {
               valueColor: AppColors.error),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Divider(color: AppColors.border.withOpacity(0.6), height: 1),
+              child: Divider(color: AppColors.border.withValues(alpha: 0.6), height: 1),
             ),
             _SummaryRow(label: 'After redemption', value: '$after pts',
               valueColor: AppColors.success, bold: true),
@@ -276,16 +276,16 @@ class RedeemSuccessScreen extends StatelessWidget {
           Container(
             width: 90, height: 90,
             decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.12),
+              color: AppColors.success.withValues(alpha: 0.12),
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.success.withOpacity(0.35), width: 2),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.35), width: 2),
             ),
             child: const Icon(Icons.check_rounded,
               color: AppColors.success, size: 44),
           ),
           const SizedBox(height: 22),
 
-          Text('Redeemed!', style: AppTextStyles.h1),
+          const Text('Redeemed!', style: AppTextStyles.h1),
           const SizedBox(height: 10),
           Text(
             'Your ${offer.title.toLowerCase()} has been confirmed.\nShow the code below to the staff.',
@@ -309,12 +309,12 @@ class RedeemSuccessScreen extends StatelessWidget {
               const SizedBox(height: 6),
               Text(offer.business, style: AppTextStyles.caption),
               const SizedBox(height: 20),
-              Text('Redemption code', style: AppTextStyles.caption),
+              const Text('Redemption code', style: AppTextStyles.caption),
               const SizedBox(height: 8),
               Text(code, style: AppTextStyles.h1.copyWith(
                 color: AppColors.primary, letterSpacing: 6, fontSize: 30)),
               const SizedBox(height: 8),
-              Text('Valid for 24 hours', style: AppTextStyles.caption),
+              const Text('Valid for 24 hours', style: AppTextStyles.caption),
             ]),
           ),
           const SizedBox(height: 28),
