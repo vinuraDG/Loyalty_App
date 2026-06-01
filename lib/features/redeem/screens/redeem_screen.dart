@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/models/offer_models.dart';
+import 'package:loyalty_app/services/mock_points_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../services/mock_points_service.dart';
 
 
 class RedeemScreen extends ConsumerWidget {

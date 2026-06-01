@@ -1,54 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
+import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
 import 'package:loyalty_app/features/points/screens/points_history_screen.dart';
 import 'package:loyalty_app/services/mock_points_service.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'main_screen.dart';
-
-// ── Mock ad data ─────────────────────────────────────────────────────────────
-class _AdItem {
-  final String tag;
-  final String title;
-  final String subtitle;
-  final List<Color> gradient;
-  final Color tagColor;
-  const _AdItem({
-    required this.tag,
-    required this.title,
-    required this.subtitle,
-    required this.gradient,
-    required this.tagColor,
-  });
-}
-
-const _mockAds = [
-  _AdItem(
-    tag: '2× Points',
-    title: 'Double points this weekend',
-    subtitle: 'At all fuel stations',
-    gradient: [Color(0xFF2D1B69), Color(0xFF7C3AED)],
-    tagColor: Color(0xFFE9D5FF),
-  ),
-  _AdItem(
-    tag: 'New',
-    title: 'Earn at Gold Shops now',
-    subtitle: '+200 pts on every visit',
-    gradient: [Color(0xFF064E3B), Color(0xFF059669)],
-    tagColor: Color(0xFFA7F3D0),
-  ),
-  _AdItem(
-    tag: 'Limited',
-    title: 'Laundry free wash promo',
-    subtitle: 'Redeem 150 pts today',
-    gradient: [Color(0xFF7C2D12), Color(0xFFEA580C)],
-    tagColor: Color(0xFFFED7AA),
-  ),
-];
-
-// ── Mock weekly points (Mon–Sun) — replace with real data from your service ──
-const _mockWeeklyPoints = [80, 210, 150, 60, 320, 200, 120];
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -71,20 +29,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
-    final svc = MockPointsService.instance;
-    final txs = svc.getForUser(user.id).take(3).toList();
 
-    // ── Derive total points from all transactions ──────────────────────────
-    final allTxs = svc.getForUser(user.id).toList();
-    final totalPoints = allTxs.fold<int>(0, (sum, tx) {
-      return sum + (tx.isEarned ? tx.points as int : -(tx.points as int));
-    });
+    final svc         = MockPointsService.instance;
+    final txs         = svc.getForUser(user.id).take(3).toList();
+    final weeklyPts   = svc.getWeeklyPoints(user.id);
+    final totalPoints = user.totalPoints;
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(children: [
+
             // ── Header ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -103,16 +59,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const Icon(Icons.notifications_none_rounded,
                       color: AppColors.textSecondary, size: 26),
                   Positioned(
-                    top: 2,
-                    right: 2,
+                    top: 2, right: 2,
                     child: Container(
-                      width: 8,
-                      height: 8,
+                      width: 8, height: 8,
                       decoration: BoxDecoration(
                         color: AppColors.error,
                         shape: BoxShape.circle,
-                        border:
-                            Border.all(color: AppColors.bgDark, width: 1.5),
+                        border: Border.all(color: AppColors.bgDark, width: 1.5),
                       ),
                     ),
                   ),
@@ -126,13 +79,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // ── Advertisement Banner ─────────────────────────────────
             Column(children: [
               Padding(
-                padding:
-                    const EdgeInsets.only(left: 20, right: 20, bottom: 10),
+                padding: const EdgeInsets.only(left: 20, right: 20, bottom: 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Offers for you', style: AppTextStyles.h4),
-                    Text('${_adIndex + 1} / ${_mockAds.length}',
+                    Text('${_adIndex + 1} / ${kMockAds.length}',
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.textSecondary)),
                   ],
@@ -142,14 +94,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 height: 110,
                 child: PageView.builder(
                   controller: _adController,
-                  itemCount: _mockAds.length,
+                  itemCount: kMockAds.length,
                   onPageChanged: (i) => setState(() => _adIndex = i),
                   itemBuilder: (context, index) {
-                    final ad = _mockAds[index];
+                    final ad = kMockAds[index];
                     return Padding(
                       padding: EdgeInsets.only(
-                        left: index == 0 ? 16 : 6,
-                        right: index == _mockAds.length - 1 ? 16 : 6,
+                        left:  index == 0 ? 16 : 6,
+                        right: index == kMockAds.length - 1 ? 16 : 6,
                       ),
                       child: _AdCard(ad: ad),
                     );
@@ -157,10 +109,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // ── Page indicator dots ──────────────────────────────
+              // Page indicator dots
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_mockAds.length, (i) {
+                children: List.generate(kMockAds.length, (i) {
                   final active = i == _adIndex;
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
@@ -179,19 +131,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ]),
             const SizedBox(height: 20),
 
-            // ── Points card (TOTAL points + weekly bar chart) ────────
-            // Tapping navigates to PointsHistoryScreen
+            // ── Points card ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PointsHistoryScreen(userId: user.id),
-                    ),
-                  );
-                },
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => PointsHistoryScreen(userId: user.id)),
+                ),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -203,112 +151,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Top row: left total hero + right chart ────
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Left column — total points
-                          Expanded(
-                            flex: 5,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.star_rounded,
-                                      size: 13,
+                      // Left — total points hero
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Icon(Icons.star_rounded,
+                                  size: 13,
+                                  color: Colors.white.withValues(alpha: 0.55)),
+                              const SizedBox(width: 5),
+                              Text('Total points',
+                                  style: TextStyle(
+                                      fontSize: 12,
                                       color: Colors.white.withValues(alpha: 0.55),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      'Total points',
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0.2)),
+                            ]),
+                            const SizedBox(height: 6),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(_formatPoints(totalPoints),
+                                    style: AppTextStyles.display
+                                        .copyWith(fontSize: 42)),
+                                const SizedBox(width: 6),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 7),
+                                  child: Text('pts',
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white.withValues(alpha: 0.55),
-                                        fontWeight: FontWeight.w400,
-                                        letterSpacing: 0.2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      _formatPoints(totalPoints),
-                                      style: AppTextStyles.display
-                                          .copyWith(fontSize: 42),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 7),
-                                      child: Text(
-                                        'pts',
-                                        style: TextStyle(
                                           fontSize: 15,
-                                          color: Colors.white.withValues(alpha: 0.6),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                // "Tap to view history" hint
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.history_rounded,
-                                      size: 13,
-                                      color: Color(0xFFA7F3D0),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Tap to view history',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white.withValues(alpha: 0.5),
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                    ),
-                                  ],
+                                          color: Colors.white
+                                              .withValues(alpha: 0.6),
+                                          fontWeight: FontWeight.w500)),
                                 ),
                               ],
                             ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          // Right column — weekly bar chart
-                          Expanded(
-                            flex: 5,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Last 7 days',
+                            const SizedBox(height: 10),
+                            Row(children: [
+                              const Icon(Icons.history_rounded,
+                                  size: 13, color: Color(0xFFA7F3D0)),
+                              const SizedBox(width: 4),
+                              Text('Tap to view history',
                                   style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white.withValues(alpha: 0.5),
+                                      fontWeight: FontWeight.w400)),
+                            ]),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // Right — weekly bar chart from service
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Last 7 days',
+                                style: TextStyle(
                                     fontSize: 10,
                                     color: Colors.white.withValues(alpha: 0.5),
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                const SizedBox(
-                                  height: 90,
-                                  child: _WeeklyBarChart(
-                                    data: _mockWeeklyPoints,
-                                  ),
-                                ),
-                              ],
+                                    letterSpacing: 0.3)),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              height: 90,
+                              child: _WeeklyBarChart(data: weeklyPts),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -389,7 +306,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  /// Format points with comma separator, e.g. 12340 → "12,340"
   String _formatPoints(int pts) {
     final str = pts.abs().toString();
     final buffer = StringBuffer();
@@ -408,7 +324,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 // ── Weekly Bar Chart ──────────────────────────────────────────────────────────
 class _WeeklyBarChart extends StatelessWidget {
-  /// 7 int values, index 0 = Monday … index 6 = Sunday
   final List<int> data;
   const _WeeklyBarChart({required this.data});
 
@@ -416,122 +331,125 @@ class _WeeklyBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxVal =
-        data.reduce((a, b) => a > b ? a : b).toDouble();
+    final maxVal = data.reduce((a, b) => a > b ? a : b).toDouble();
     final todayIdx = DateTime.now().weekday - 1;
 
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(7, (i) {
-              final ratio =
-                  maxVal > 0 ? (data[i] / maxVal).clamp(0.08, 1.0) : 0.08;
-              final isToday = i == todayIdx;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
-                  child: Tooltip(
-                    message: '${data[i]} pts',
-                    child: FractionallySizedBox(
-                      alignment: Alignment.bottomCenter,
-                      heightFactor: ratio,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isToday
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.30),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
+    return Column(children: [
+      Expanded(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(7, (i) {
+            final ratio =
+                maxVal > 0 ? (data[i] / maxVal).clamp(0.08, 1.0) : 0.08;
+            final isToday = i == todayIdx;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                child: Tooltip(
+                  message: '${data[i]} pts',
+                  child: FractionallySizedBox(
+                    alignment: Alignment.bottomCenter,
+                    heightFactor: ratio,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isToday
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.30),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
-        ),
-        const SizedBox(height: 5),
-        Row(
-          children: List.generate(7, (i) {
-            final isToday = i == DateTime.now().weekday - 1;
-            return Expanded(
-              child: Text(
-                _dayLabels[i],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: isToday
-                      ? Colors.white.withValues(alpha: 0.9)
-                      : Colors.white.withValues(alpha: 0.4),
-                  fontWeight:
-                      isToday ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
             );
           }),
         ),
-      ],
-    );
+      ),
+      const SizedBox(height: 5),
+      Row(
+        children: List.generate(7, (i) {
+          final isToday = i == DateTime.now().weekday - 1;
+          return Expanded(
+            child: Text(
+              _dayLabels[i],
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 9,
+                color: isToday
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.white.withValues(alpha: 0.4),
+                fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          );
+        }),
+      ),
+    ]);
   }
 }
 
 // ── Ad Card Widget ────────────────────────────────────────────────────────────
 class _AdCard extends StatelessWidget {
-  final _AdItem ad;
+  final Map<String, dynamic> ad;
   const _AdCard({required this.ad});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: () {},
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: ad.gradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
+  Widget build(BuildContext context) {
+    final gradient = [
+      Color(ad['gradientStart'] as int),
+      Color(ad['gradientEnd'] as int),
+    ];
+    final tagColor = Color(ad['tagColor'] as int);
+
+    return GestureDetector(
+      onTap: () {},
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: gradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(ad.tag,
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: ad.tagColor)),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(ad.title,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          height: 1.3)),
-                  const SizedBox(height: 2),
-                  Text(ad.subtitle,
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.65))),
-                ],
-              ),
-            ],
-          ),
+          borderRadius: BorderRadius.circular(20),
         ),
-      );
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(ad['tag'] as String,
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: tagColor)),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(ad['title'] as String,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.3)),
+                const SizedBox(height: 2),
+                Text(ad['subtitle'] as String,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.65))),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Quick Action Widget ───────────────────────────────────────────────────────
@@ -561,8 +479,7 @@ class _QuickAction extends StatelessWidget {
             ),
             child: Column(children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 40, height: 40,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -609,8 +526,7 @@ class _TxTile extends StatelessWidget {
           ),
           Text(tx.displayPoints,
               style: AppTextStyles.labelMedium.copyWith(
-                  color:
-                      tx.isEarned ? AppColors.success : AppColors.error)),
+                  color: tx.isEarned ? AppColors.success : AppColors.error)),
         ]),
       );
 }

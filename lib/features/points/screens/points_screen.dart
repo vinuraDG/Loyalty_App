@@ -1,34 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/app_widgets.dart';
+import 'package:loyalty_app/core/theme/app_theme.dart';
+import 'package:loyalty_app/data/mock_data.dart';
+import 'package:loyalty_app/features/points/data/points_api_service.dart';
+import 'package:loyalty_app/features/points/data/points_mock_service.dart';
+import 'package:loyalty_app/models/transaction_model.dart';
+import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../services/mock_points_service.dart';
-import '../../../models/transaction_model.dart';
 
 class PointsScreen extends ConsumerStatefulWidget {
-  const PointsScreen({super.key});
+  final IPointsService? service; // injectable for testing
+  const PointsScreen({super.key, this.service});
+
   @override
   ConsumerState<PointsScreen> createState() => _PointsScreenState();
 }
 
 class _PointsScreenState extends ConsumerState<PointsScreen> {
+  // 'All' | business name from AppConstants
   String _filter   = 'All';
   int    _monthIdx = 0; // 0 = current month
 
-  final _filters = ['All', 'Fuel Station', 'Laundry', 'Gold'];
+  IPointsService get _svc =>
+      widget.service ?? PointsMockService.instance;
+
+  static const _filterLabels = [
+    'All',
+    kBusinessFuel,
+    kBusinessLaundry,
+    kBusinessGold,
+  ];
 
   static List<Map<String, dynamic>> _buildMonths() {
     final now = DateTime.now();
     const names = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December',
+      'January', 'February', 'March',     'April',   'May',      'June',
+      'July',    'August',   'September', 'October', 'November', 'December',
     ];
     return List.generate(6, (i) {
       int m = now.month - i;
       int y = now.year;
       while (m <= 0) { m += 12; y -= 1; }
-      final dt = DateTime(y, m, 1);
+      final dt = DateTime(y, m);
       return {
         'label': i == 0 ? 'This month' : '${names[dt.month - 1]} ${dt.year}',
         'short': i == 0 ? 'This month' : '${names[dt.month - 1].substring(0, 3)} ${dt.year}',
@@ -39,6 +52,23 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   }
 
   final _months = _buildMonths();
+
+  Future<List<TransactionModel>>? _txFuture;
+  String? _loadedUserId;
+
+  // Called on first build and whenever an inherited dependency changes
+  // (e.g. the auth provider notifies). Safer than initState because
+  // ref.read is legal here, and safer than build() because it avoids
+  // triggering a setState inside the build phase.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId != null && userId != _loadedUserId) {
+      _loadedUserId = userId;
+      _txFuture = _svc.getTransactions(userId);
+    }
+  }
 
   void _pickMonth(BuildContext context) {
     showModalBottomSheet(
@@ -80,10 +110,14 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 ),
               ),
               trailing: sel
-                  ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20)
+                  ? const Icon(Icons.check_rounded,
+                      color: AppColors.primary, size: 20)
                   : null,
               onTap: () {
-                setState(() { _monthIdx = i; _filter = 'All'; });
+                setState(() {
+                  _monthIdx = i;
+                  _filter   = 'All';
+                });
                 Navigator.pop(context);
               },
             );
@@ -94,46 +128,18 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     );
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
-    if (user == null) return const SizedBox.shrink();
-
-    final svc    = MockPointsService.instance;
-    final allTxs = svc.getForUser(user.id);
-
-    final sel          = _months[_monthIdx];
-    final int tMonth   = sel['month'] as int;
-    final int tYear    = sel['year']  as int;
-    final monthTxs     = allTxs.where((t) =>
-        t.date.month == tMonth && t.date.year == tYear).toList();
-
-    final monthEarned   = monthTxs.where((t) =>  t.isEarned).fold<int>(0, (s, t) => s + t.points);
-    final monthRedeemed = monthTxs.where((t) => !t.isEarned).fold<int>(0, (s, t) => s + t.points);
-    final monthTotal    = monthEarned - monthRedeemed;
-
-    final today      = DateTime.now();
-    final todayTxs   = allTxs.where((t) =>
-        t.date.year == today.year &&
-        t.date.month == today.month &&
-        t.date.day   == today.day).toList();
-    final todayEarned   = todayTxs.where((t) =>  t.isEarned).fold<int>(0, (s, t) => s + t.points);
-    final todayRedeemed = todayTxs.where((t) => !t.isEarned).fold<int>(0, (s, t) => s + t.points);
-
-    final txs = _filter == 'All'
-        ? monthTxs
-        : monthTxs.where((t) => t.business == _filter).toList();
-
-    final byBiz = <String, int>{};
-    for (final t in monthTxs.where((t) => t.isEarned)) {
-      byBiz[t.business] = (byBiz[t.business] ?? 0) + t.points;
-    }
+    // Watch so the widget rebuilds when the user changes; the future itself
+    // is assigned in didChangeDependencies — never inside build().
+    ref.watch(currentUserProvider);
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: Column(children: [
-
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(children: [
@@ -142,179 +148,346 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
           ),
           const SizedBox(height: 16),
 
-          Expanded(child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-              // ── Balance card ─────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: AppColors.cardGradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Icon(Icons.calendar_month_rounded,
-                      size: 13, color: Colors.white.withValues(alpha: 0.6)),
-                    const SizedBox(width: 5),
-                    Text(sel['label'] as String,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7))),
-                  ]),
-                  const SizedBox(height: 8),
-
-                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('$monthTotal',
-                      style: AppTextStyles.display.copyWith(fontSize: 48)),
-                    const SizedBox(width: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text('pts',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
+          Expanded(
+            child: FutureBuilder<List<TransactionModel>>(
+              future: _txFuture,
+              builder: (context, snapshot) {
+                // _txFuture is null only when user is not yet available.
+                if (_txFuture == null ||
+                    snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Could not load transactions.\n${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textSecondary),
                     ),
-                  ]),
-                  const SizedBox(height: 16),
+                  );
+                }
 
-                  Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-                  const SizedBox(height: 14),
+                final allTxs = snapshot.data ?? [];
 
-                  Row(children: [
-                    Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Today earned',
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white.withValues(alpha: 0.6))),
-                      const SizedBox(height: 4),
-                      Text(todayEarned > 0 ? '+$todayEarned' : '+0',
-                        style: AppTextStyles.h3.copyWith(
-                          color: AppColors.success, fontSize: 22)),
-                    ])),
-                    Container(width: 1, height: 36,
-                      color: Colors.white.withValues(alpha: 0.12)),
-                    Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      Text('Today redeemed',
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white.withValues(alpha: 0.6))),
-                      const SizedBox(height: 4),
-                      Text(todayRedeemed > 0 ? '-$todayRedeemed' : '-0',
-                        style: AppTextStyles.h3.copyWith(
-                          color: AppColors.error, fontSize: 22)),
-                    ])),
-                  ]),
-                ]),
-              ),
-              const SizedBox(height: 16),
+                // ── Month slice ────────────────────────────────────────────
+                final sel        = _months[_monthIdx];
+                final int tMonth = sel['month'] as int;
+                final int tYear  = sel['year']  as int;
 
-              // ── Per-business breakdown ────────────────────────────
-              Row(children: [
-                _BizCard(business: 'Fuel Station', pts: byBiz['Fuel Station'] ?? 0),
-                const SizedBox(width: 8),
-                _BizCard(business: 'Laundry', pts: byBiz['Laundry'] ?? 0),
-                const SizedBox(width: 8),
-                _BizCard(business: 'Gold', pts: byBiz['Gold'] ?? 0),
-              ]),
-              const SizedBox(height: 24),
+                final monthTxs = allTxs
+                    .where((t) =>
+                        t.date.month == tMonth && t.date.year == tYear)
+                    .toList();
 
-              // ── Transaction History header ────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Transaction History', style: AppTextStyles.h4),
-                  GestureDetector(
-                    onTap: () => _pickMonth(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgCard,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.calendar_today_rounded,
-                          size: 13, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(sel['short'] as String,
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: AppColors.primary)),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down_rounded,
-                          size: 16, color: AppColors.primary),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+                final monthEarned = monthTxs
+                    .where((t) => t.isEarned)
+                    .fold<int>(0, (s, t) => s + t.points);
+                final monthRedeemed = monthTxs
+                    .where((t) => !t.isEarned)
+                    .fold<int>(0, (s, t) => s + t.points);
+                final monthTotal = monthEarned - monthRedeemed;
 
-              // ── Business filter ───────────────────────────────────
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgCard,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Row(children: _filters.map((f) {
-                  final sel = _filter == f;
-                  return Expanded(child: GestureDetector(
-                    onTap: () => setState(() => _filter = f),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      decoration: BoxDecoration(
-                        gradient: sel
-                            ? const LinearGradient(colors: AppColors.buttonGradient)
-                            : null,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        f == 'Fuel Station' ? 'Fuel' : f,
-                        style: AppTextStyles.caption.copyWith(
-                          color: sel ? Colors.white : AppColors.textSecondary,
-                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                          fontSize: 11,
+                // ── Today slice ────────────────────────────────────────────
+                final today     = DateTime.now();
+                final todayTxs  = allTxs.where((t) =>
+                    t.date.year  == today.year  &&
+                    t.date.month == today.month &&
+                    t.date.day   == today.day).toList();
+                final todayEarned = todayTxs
+                    .where((t) => t.isEarned)
+                    .fold<int>(0, (s, t) => s + t.points);
+                final todayRedeemed = todayTxs
+                    .where((t) => !t.isEarned)
+                    .fold<int>(0, (s, t) => s + t.points);
+
+                // ── Per-business breakdown (earned only) ───────────────────
+                final byBiz = <String, int>{};
+                for (final t in monthTxs.where((t) => t.isEarned)) {
+                  byBiz[t.business] =
+                      (byBiz[t.business] ?? 0) + t.points;
+                }
+
+                // ── Business-filtered list ──────────────────────────────────
+                final txs = _filter == 'All'
+                    ? monthTxs
+                    : monthTxs
+                        .where((t) => t.business == _filter)
+                        .toList();
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Balance card ────────────────────────────────────
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: AppColors.cardGradient,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Icon(Icons.calendar_month_rounded,
+                                  size: 13,
+                                  color: Colors.white.withValues(alpha: 0.6)),
+                              const SizedBox(width: 5),
+                              Text(
+                                sel['label'] as String,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color:
+                                      Colors.white.withValues(alpha: 0.7)),
+                              ),
+                            ]),
+                            const SizedBox(height: 8),
+
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '$monthTotal',
+                                  style: AppTextStyles.display
+                                      .copyWith(fontSize: 48),
+                                ),
+                                const SizedBox(width: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    'pts',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: Colors.white
+                                          .withValues(alpha: 0.7),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            Container(
+                                height: 1,
+                                color: Colors.white.withValues(alpha: 0.12)),
+                            const SizedBox(height: 14),
+
+                            Row(children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Today earned',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      todayEarned > 0
+                                          ? '+$todayEarned'
+                                          : '+0',
+                                      style: AppTextStyles.h3.copyWith(
+                                        color: AppColors.success,
+                                        fontSize: 22,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                  width: 1,
+                                  height: 36,
+                                  color: Colors.white
+                                      .withValues(alpha: 0.12)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Today redeemed',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      todayRedeemed > 0
+                                          ? '-$todayRedeemed'
+                                          : '-0',
+                                      style: AppTextStyles.h3.copyWith(
+                                        color: AppColors.error,
+                                        fontSize: 22,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ]),
+                          ],
                         ),
                       ),
-                    ),
-                  ));
-                }).toList()),
-              ),
-              const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
-              // ── Transaction list ──────────────────────────────────
-              if (txs.isEmpty)
-                Center(child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(children: [
-                    const Icon(Icons.receipt_long_outlined,
-                      color: AppColors.textSecondary, size: 40),
-                    const SizedBox(height: 8),
-                    Text(
-                      'No transactions for ${sel['label']}.',
-                      style: AppTextStyles.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ]),
-                ))
-              else
-                ...txs.map((tx) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _TxCard(tx: tx),
-                )),
+                      // ── Per-business breakdown ──────────────────────────
+                      Row(children: [
+                        _BizCard(
+                            business: kBusinessFuel,
+                            pts: byBiz[kBusinessFuel] ?? 0),
+                        const SizedBox(width: 8),
+                        _BizCard(
+                            business: kBusinessLaundry,
+                            pts: byBiz[kBusinessLaundry] ?? 0),
+                        const SizedBox(width: 8),
+                        _BizCard(
+                            business: kBusinessGold,
+                            pts: byBiz[kBusinessGold] ?? 0),
+                      ]),
+                      const SizedBox(height: 24),
 
-              const SizedBox(height: 20),
-            ]),
-          )),
+                      // ── Transaction history header ──────────────────────
+                      Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Transaction History',
+                              style: AppTextStyles.h4),
+                          GestureDetector(
+                            onTap: () => _pickMonth(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgCard,
+                                borderRadius:
+                                    BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: AppColors.border),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 13,
+                                      color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Text(sel['short'] as String,
+                                      style: AppTextStyles.labelSmall
+                                          .copyWith(
+                                              color:
+                                                  AppColors.primary)),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                      Icons
+                                          .keyboard_arrow_down_rounded,
+                                      size: 16,
+                                      color: AppColors.primary),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── Business filter tabs ───────────────────────────
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.bgCard,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: Row(
+                          children: _filterLabels.map((f) {
+                            final isSelected = _filter == f;
+                            // Shorten 'Fuel Station' → 'Fuel' to fit
+                            final displayLabel =
+                                f == kBusinessFuel ? 'Fuel' : f;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _filter = f),
+                                child: AnimatedContainer(
+                                  duration: const Duration(
+                                      milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 9),
+                                  decoration: BoxDecoration(
+                                    gradient: isSelected
+                                        ? const LinearGradient(
+                                            colors: AppColors
+                                                .buttonGradient)
+                                        : null,
+                                    borderRadius:
+                                        BorderRadius.circular(10),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    displayLabel,
+                                    style:
+                                        AppTextStyles.caption.copyWith(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.textSecondary,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // ── Transaction list ───────────────────────────────
+                      if (txs.isEmpty)
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(children: [
+                              const Icon(Icons.receipt_long_outlined,
+                                  color: AppColors.textSecondary,
+                                  size: 40),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No transactions for '
+                                '${sel['label']}.',
+                                style: AppTextStyles.bodySmall,
+                                textAlign: TextAlign.center,
+                              ),
+                            ]),
+                          ),
+                        )
+                      else
+                        ...txs.map((tx) => Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: 10),
+                              child: _TxCard(tx: tx),
+                            )),
+
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         ]),
       ),
     );
@@ -325,37 +498,39 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
 class _BizCard extends StatelessWidget {
   final String business;
-  final int pts;
+  final int    pts;
   const _BizCard({required this.business, required this.pts});
 
   Color get _color {
-    if (business == 'Fuel Station') return AppColors.fuelColor;
-    if (business == 'Laundry') return AppColors.laundryColor;
+    if (business == kBusinessFuel)    return AppColors.fuelColor;
+    if (business == kBusinessLaundry) return AppColors.laundryColor;
     return AppColors.accentGold;
   }
 
   String get _shortName {
-    if (business == 'Fuel Station') return 'Fuel';
+    if (business == kBusinessFuel) return 'Fuel';
     return business;
   }
 
   @override
-  Widget build(BuildContext context) => Expanded(child: Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: AppColors.bgCard,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: _color.withValues(alpha: 0.5)),
-    ),
-    child: Column(children: [
-      Text(_shortName,
-        style: AppTextStyles.caption.copyWith(
-          color: _color, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 6),
-      Text('$pts', style: AppTextStyles.h4),
-      const Text('pts', style: AppTextStyles.caption),
-    ]),
-  ));
+  Widget build(BuildContext context) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.bgCard,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _color.withValues(alpha: 0.5)),
+          ),
+          child: Column(children: [
+            Text(_shortName,
+                style: AppTextStyles.caption.copyWith(
+                    color: _color, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text('$pts', style: AppTextStyles.h4),
+            const Text('pts', style: AppTextStyles.caption),
+          ]),
+        ),
+      );
 }
 
 class _TxCard extends StatelessWidget {
@@ -364,35 +539,46 @@ class _TxCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => _showDetail(context),
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(children: [
-        BusinessIcon(business: tx.business, size: 44),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tx.business, style: AppTextStyles.labelMedium),
-          const SizedBox(height: 2),
-          Text(
-            '${tx.isEarned ? 'Earned' : 'Redeemed'} · ${_fmtRelative(tx.date)}',
-            style: AppTextStyles.caption),
-        ])),
-        Row(children: [
-          Text(tx.displayPoints,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: tx.isEarned ? AppColors.success : AppColors.error)),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded,
-            size: 16, color: AppColors.textSecondary),
-        ]),
-      ]),
-    ),
-  );
+        onTap: () => _showDetail(context),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.bgCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(children: [
+            BusinessIcon(business: tx.business, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tx.business, style: AppTextStyles.labelMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${tx.isEarned ? 'Earned' : 'Redeemed'} · '
+                    '${_fmtRelative(tx.date)}',
+                    style: AppTextStyles.caption,
+                  ),
+                ],
+              ),
+            ),
+            Row(children: [
+              Text(
+                tx.displayPoints,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color:
+                      tx.isEarned ? AppColors.success : AppColors.error,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 16, color: AppColors.textSecondary),
+            ]),
+          ]),
+        ),
+      );
 
   void _showDetail(BuildContext context) {
     final isEarned = tx.isEarned;
@@ -408,14 +594,16 @@ class _TxCard extends StatelessWidget {
       builder: (_) => SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            left: 24, right: 24, top: 16,
+            left: 24,
+            right: 24,
+            top: 16,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-
-            // Handle
+            // Handle bar
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
@@ -425,7 +613,8 @@ class _TxCard extends StatelessWidget {
 
             // Icon + amount hero
             Container(
-              width: 56, height: 56,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
@@ -439,11 +628,12 @@ class _TxCard extends StatelessWidget {
             Text(
               tx.displayPoints,
               style: AppTextStyles.display.copyWith(
-                fontSize: 34, color: color),
+                  fontSize: 34, color: color),
             ),
             const SizedBox(height: 4),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
@@ -451,7 +641,7 @@ class _TxCard extends StatelessWidget {
               child: Text(
                 isEarned ? 'Points Earned' : 'Points Redeemed',
                 style: AppTextStyles.caption.copyWith(
-                  color: color, fontWeight: FontWeight.w600),
+                    color: color, fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 16),
@@ -469,32 +659,32 @@ class _TxCard extends StatelessWidget {
                   label: 'Business',
                   value: tx.business,
                 ),
-                _Divider(),
+                _TxDivider(),
                 _DetailRow(
                   icon: Icons.receipt_outlined,
                   label: 'Bill No',
-                  value: tx.billNo ?? '-',        // ← NEW
+                  value: tx.billNo ?? '-',
                 ),
-                _Divider(),
+                _TxDivider(),
                 _DetailRow(
                   icon: Icons.calendar_today_rounded,
                   label: 'Date',
                   value: _fmtDate(tx.date),
                 ),
-                _Divider(),
+                _TxDivider(),
                 _DetailRow(
                   icon: Icons.access_time_rounded,
                   label: 'Time',
                   value: _fmtTime(tx.date),
                 ),
-                _Divider(),
+                _TxDivider(),
                 _DetailRow(
                   icon: Icons.toll_rounded,
                   label: 'Points',
                   value: tx.displayPoints,
                   valueColor: color,
                 ),
-                _Divider(),
+                _TxDivider(),
                 _DetailRow(
                   icon: Icons.swap_horiz_rounded,
                   label: 'Type',
@@ -514,13 +704,15 @@ class _TxCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: AppColors.buttonGradient),
+                        colors: AppColors.buttonGradient),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   alignment: Alignment.center,
-                  child: Text('Close',
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: Colors.white)),
+                  child: Text(
+                    'Close',
+                    style: AppTextStyles.labelMedium
+                        .copyWith(color: Colors.white),
+                  ),
                 ),
               ),
             ),
@@ -530,30 +722,32 @@ class _TxCard extends StatelessWidget {
     );
   }
 
+  // ── Formatters ────────────────────────────────────────────────────────────
+
   String _fmtRelative(DateTime d) {
     final diff = DateTime.now().difference(d);
     if (diff.inHours < 24) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays == 1)  return 'Yesterday';
     return '${diff.inDays} days ago';
   }
 
   String _fmtDate(DateTime d) {
     const months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
   String _fmtTime(DateTime d) {
-    final h  = d.hour;
-    final m  = d.minute.toString().padLeft(2, '0');
-    final period = h >= 12 ? 'PM' : 'AM';
-    final hour12 = h % 12 == 0 ? 12 : h % 12;
-    return '$hour12:$m $period';
+    final period = d.hour >= 12 ? 'PM' : 'AM';
+    final h      = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final m      = d.minute.toString().padLeft(2, '0');
+    return '$h:$m $period';
   }
 }
 
+// ── Detail row ─────────────────────────────────────────────────────────────────
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String   label;
@@ -569,27 +763,29 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-    child: Row(children: [
-      Icon(icon, size: 16, color: AppColors.textSecondary),
-      const SizedBox(width: 10),
-      Text(label,
-        style: AppTextStyles.caption.copyWith(
-          color: AppColors.textSecondary)),
-      const Spacer(),
-      Text(value,
-        style: AppTextStyles.labelMedium.copyWith(
-          color: valueColor ?? AppColors.textPrimary,
-          fontSize: 13)),
-    ]),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          Icon(icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 10),
+          Text(label,
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary)),
+          const Spacer(),
+          Text(value,
+              style: AppTextStyles.labelMedium.copyWith(
+                color: valueColor ?? AppColors.textPrimary,
+                fontSize: 13,
+              )),
+        ]),
+      );
 }
 
-class _Divider extends StatelessWidget {
+// ── Thin divider used inside detail sheet ────────────────────────────────────
+class _TxDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-    height: 1,
-    margin: const EdgeInsets.symmetric(horizontal: 16),
-    color: AppColors.border,
-  );
+        height: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: AppColors.border,
+      );
 }

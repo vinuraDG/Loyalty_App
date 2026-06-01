@@ -4,6 +4,7 @@ import 'package:loyalty_app/models/user_model.dart';
 import 'package:loyalty_app/services/mock_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 
 class AuthState {

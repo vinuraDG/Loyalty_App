@@ -1,49 +1,41 @@
 import 'dart:math';
+import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/models/offer_models.dart';
-
-import '../models/transaction_model.dart';
-import 'mock_auth_service.dart';
+import 'package:loyalty_app/models/transaction_model.dart';
+import 'package:loyalty_app/services/mock_auth_service.dart';
 
 class MockPointsService {
   MockPointsService._();
   static final MockPointsService instance = MockPointsService._();
 
-  final List<TransactionModel> _transactions = [
-    TransactionModel(id:'t1', userId:'cust-001', business:'Fuel Station',
-      points:120, type:TransactionType.earned,
-      date:DateTime.now().subtract(const Duration(hours:3))),
-    TransactionModel(id:'t2', userId:'cust-001', business:'Laundry',
-      points:200, type:TransactionType.redeemed,
-      date:DateTime.now().subtract(const Duration(days:1))),
-    TransactionModel(id:'t3', userId:'cust-001', business:'Gold Shop',
-      points:200, type:TransactionType.earned,
-      date:DateTime.now().subtract(const Duration(days:3))),
-    TransactionModel(id:'t4', userId:'cust-001', business:'Fuel Station',
-      points:120, type:TransactionType.earned,
-      date:DateTime.now().subtract(const Duration(days:5))),
-    TransactionModel(id:'t5', userId:'cust-001', business:'Laundry',
-      points:80, type:TransactionType.earned,
-      date:DateTime.now().subtract(const Duration(days:7))),
-    TransactionModel(id:'t6', userId:'cust-001', business:'Gold Shop',
-      points:200, type:TransactionType.earned,
-      date:DateTime.now().subtract(const Duration(days:10))),
-    TransactionModel(id:'t7', userId:'cust-001', business:'Fuel Station',
-      points:120, type:TransactionType.earned,
-      date:DateTime.now().subtract(const Duration(days:12))),
-  ];
+  // Seeded from mock_data.dart — single source of truth for demo transactions
+  final List<TransactionModel> _transactions = kMockTransactions.map((m) {
+    final Duration ago = m.containsKey('hoursAgo')
+        ? Duration(hours: m['hoursAgo'] as int)
+        : Duration(days: m['daysAgo'] as int);
+    return TransactionModel(
+      id: m['id'] as String,
+      userId: m['userId'] as String,
+      business: m['business'] as String,
+      points: m['points'] as int,
+      type: (m['isEarned'] as bool)
+          ? TransactionType.earned
+          : TransactionType.redeemed,
+      date: DateTime.now().subtract(ago),
+      note: m['note'] as String?,
+    );
+  }).toList();
 
-  final List<OfferModel> _offers = const [
-    OfferModel(id:'o1', title:'Free wash service', description:'Any 1 load of laundry, any size',
-      business:'Laundry', pointsCost:200),
-    OfferModel(id:'o2', title:'10% fuel discount', description:'Per fill-up, any fuel type',
-      business:'Fuel Station', pointsCost:150),
-    OfferModel(id:'o3', title:'Free gold jewellery polish', description:'Professional polish for any gold item',
-      business:'Gold Shop', pointsCost:500),
-    OfferModel(id:'o4', title:'Premium wash + iron', description:'Full laundry + ironing service',
-      business:'Laundry', pointsCost:350),
-    OfferModel(id:'o5', title:'Gold valuation service', description:'Free gold item valuation',
-      business:'Gold Shop', pointsCost:300),
-  ];
+  // Seeded from mock_data.dart — single source of truth for demo offers
+  final List<OfferModel> _offers = kMockOffers
+      .map((m) => OfferModel(
+            id: m['id'] as String,
+            title: m['title'] as String,
+            description: m['description'] as String,
+            business: m['business'] as String,
+            pointsCost: m['pointsCost'] as int,
+          ))
+      .toList();
 
   // ── Transactions ──────────────────────────────────────────────
 
@@ -54,8 +46,11 @@ class MockPointsService {
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
-  List<TransactionModel> getForUserByBusiness(String userId, String business) {
-    return getForUser(userId).where((t) => t.business == business).toList();
+  List<TransactionModel> getForUserByBusiness(
+      String userId, String business) {
+    return getForUser(userId)
+        .where((t) => t.business == business)
+        .toList();
   }
 
   Map<String, int> getEarnedByBusiness(String userId) {
@@ -68,16 +63,21 @@ class MockPointsService {
   }
 
   int getTotalEarned(String userId) => getForUser(userId)
-      .where((t) => t.isEarned).fold(0, (sum, t) => sum + t.points);
+      .where((t) => t.isEarned)
+      .fold(0, (sum, t) => sum + t.points);
 
   int getTotalRedeemed(String userId) => getForUser(userId)
-      .where((t) => !t.isEarned).fold(0, (sum, t) => sum + t.points);
+      .where((t) => !t.isEarned)
+      .fold(0, (sum, t) => sum + t.points);
 
   void awardPoints(String userId, String business, int points) {
     _transactions.add(TransactionModel(
       id: '${DateTime.now().millisecondsSinceEpoch}',
-      userId: userId, business: business, points: points,
-      type: TransactionType.earned, date: DateTime.now(),
+      userId: userId,
+      business: business,
+      points: points,
+      type: TransactionType.earned,
+      date: DateTime.now(),
     ));
     final user = MockAuthService.instance.findById(userId);
     if (user != null) {
@@ -102,12 +102,27 @@ class MockPointsService {
     );
     _transactions.add(TransactionModel(
       id: '${DateTime.now().millisecondsSinceEpoch}',
-      userId: userId, business: offer.business,
-      points: offer.pointsCost, type: TransactionType.redeemed,
-      date: DateTime.now(), note: offer.title,
+      userId: userId,
+      business: offer.business,
+      points: offer.pointsCost,
+      type: TransactionType.redeemed,
+      date: DateTime.now(),
+      note: offer.title,
     ));
     return _genCode();
   }
+
+  // ── Weekly points (for home screen chart) ─────────────────────
+
+  /// Returns the 7-day point totals [Mon…Sun] for the given user.
+  /// Falls back to all-zeros if the user has no entry in kMockWeeklyPoints.
+  List<int> getWeeklyPoints(String userId) {
+    return List<int>.from(
+      kMockWeeklyPoints[userId] ?? List.filled(7, 0),
+    );
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────
 
   String _genCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
+import 'package:loyalty_app/features/employee/screens/employee_dashboard_screen.dart';
 import 'package:loyalty_app/features/employee/screens/employee_screens.dart';
 import 'package:loyalty_app/features/home/screens/main_screen.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';

@@ -1,19 +1,15 @@
+
+
 import 'dart:math';
 import 'package:loyalty_app/data/mock_data.dart';
+import 'package:loyalty_app/features/auth/data/auth_api_service.dart';
 import 'package:loyalty_app/models/user_model.dart';
 
-class AuthException implements Exception {
-  final String message;
-  const AuthException(this.message);
-  @override
-  String toString() => message;
-}
+class AuthMockService implements IAuthService {
+  AuthMockService._();
+  static final AuthMockService instance = AuthMockService._();
 
-class MockAuthService {
-  MockAuthService._();
-  static final MockAuthService instance = MockAuthService._();
-
-  // Seeded from mock_data.dart — single source of truth for demo accounts
+  // Seeded once at startup from mock_data.dart
   final List<UserModel> _users = kMockUsers
       .map((m) => UserModel(
             id: m['id'] as String,
@@ -30,8 +26,9 @@ class MockAuthService {
 
   final Map<String, String> _otpStore = {};
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
+  // ── Sign up ───────────────────────────────────────────────────────────────
 
+  @override
   Future<UserModel> signUpWithEmail({
     required String firstName,
     required String lastName,
@@ -40,8 +37,7 @@ class MockAuthService {
     required String password,
   }) async {
     await _delay();
-    if (_users.any(
-        (u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
+    if (_users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
       throw const AuthException('An account with this email already exists.');
     }
     if (_users.any((u) => u.phone.trim() == phone.trim())) {
@@ -61,6 +57,9 @@ class MockAuthService {
     return user;
   }
 
+  // ── Sign in ───────────────────────────────────────────────────────────────
+
+  @override
   Future<UserModel> signInWithEmail({
     required String email,
     required String password,
@@ -75,8 +74,8 @@ class MockAuthService {
     if (password.isEmpty) {
       throw const AuthException('Password cannot be empty.');
     }
-    // Check against kMockPasswords; newly registered users (no entry) accept
-    // any non-empty password.
+    // Passwords stored in kMockPasswords in mock_data.dart.
+    // Newly registered users (no entry) accept any non-empty password.
     final stored = kMockPasswords[user.id];
     if (stored != null && password != stored) {
       throw const AuthException('Incorrect password. Please try again.');
@@ -84,13 +83,15 @@ class MockAuthService {
     return user;
   }
 
-  // ── OTP ────────────────────────────────────────────────────────────────────
+  // ── OTP ───────────────────────────────────────────────────────────────────
 
+  @override
   Future<void> sendOtp(String phone) async {
     await _delay(ms: 800);
-    _otpStore[phone.trim()] = kMockOtp; // from mock_data.dart
+    _otpStore[phone.trim()] = kMockOtp; // kMockOtp from mock_data.dart
   }
 
+  @override
   Future<UserModel?> verifyOtp({
     required String phone,
     required String otp,
@@ -104,6 +105,7 @@ class MockAuthService {
     return _users.where((u) => u.phone.trim() == phone.trim()).firstOrNull;
   }
 
+  @override
   Future<UserModel> createAccountWithPhone({
     required String firstName,
     required String lastName,
@@ -111,8 +113,7 @@ class MockAuthService {
     required String phone,
   }) async {
     await _delay();
-    if (_users.any(
-        (u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
+    if (_users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
       throw const AuthException('This email is already in use.');
     }
     final user = UserModel(
@@ -129,8 +130,9 @@ class MockAuthService {
     return user;
   }
 
-  // ── Profile update ─────────────────────────────────────────────────────────
+  // ── Profile ───────────────────────────────────────────────────────────────
 
+  @override
   Future<UserModel> updateProfile({
     required String id,
     required String firstName,
@@ -142,12 +144,10 @@ class MockAuthService {
     final i = _users.indexWhere((u) => u.id == id);
     if (i == -1) throw const AuthException('User not found.');
     final emailTaken = _users.any(
-      (u) => u.id != id &&
-          u.email.toLowerCase() == email.trim().toLowerCase(),
+      (u) => u.id != id && u.email.toLowerCase() == email.trim().toLowerCase(),
     );
     if (emailTaken) {
-      throw const AuthException(
-          'This email is already used by another account.');
+      throw const AuthException('This email is already used by another account.');
     }
     final updated = _users[i].copyWith(
       firstName: firstName.trim(),
@@ -159,6 +159,7 @@ class MockAuthService {
     return updated;
   }
 
+  @override
   Future<void> changePassword({
     required String id,
     required String currentPassword,
@@ -171,7 +172,7 @@ class MockAuthService {
     // Mock: always succeeds when fields are non-empty.
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Helpers (mock-only, used by auth_provider.dart) ───────────────────────
 
   UserModel? findById(String id) =>
       _users.where((u) => u.id == id).firstOrNull;

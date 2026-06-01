@@ -5,10 +5,11 @@ import 'package:loyalty_app/features/home/screens/main_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
-
+import 'new_user_phone_screen.dart'; // create-account screen for new phone users
 
 class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});
+
   @override
   ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
@@ -24,18 +25,15 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   void initState() {
     super.initState();
     _startTimer();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focus[0].requestFocus());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _focus[0].requestFocus());
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _ctrls) {
-      c.dispose();
-    }
-    for (final f in _focus) {
-      f.dispose();
-    }
+    for (final c in _ctrls) c.dispose();
+    for (final f in _focus) f.dispose();
     super.dispose();
   }
 
@@ -57,11 +55,23 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     }
     setState(() => _hasError = false);
     FocusScope.of(context).unfocus();
+
     final user = await ref.read(authProvider.notifier).verifyOtp(_otp);
     if (!mounted) return;
+
     if (user != null) {
-      Navigator.pushAndRemoveUntil(context,
-        MaterialPageRoute(builder: (_) => const MainScreen()), (_) => false);
+      // Existing user — go home
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (_) => false,
+      );
+    } else if (ref.read(authProvider).errorMessage == null) {
+      // OTP valid but phone not registered — collect name/email
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const NewUserPhoneScreen()),
+      );
     }
   }
 
@@ -69,9 +79,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final phone = ref.read(authProvider).pendingPhone;
     if (phone == null) return;
     await ref.read(authProvider.notifier).sendOtp(phone);
-    for (final c in _ctrls) {
-      c.clear();
-    }
+    for (final c in _ctrls) c.clear();
     _focus[0].requestFocus();
     _startTimer();
     if (mounted) {
@@ -85,12 +93,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final auth = ref.watch(authProvider);
     final phone = auth.pendingPhone ?? '';
 
-    ref.listen(authProvider, (_, next) {
+    ref.listen<AuthState>(authProvider, (_, next) {
       if (next.errorMessage != null) {
         setState(() => _hasError = true);
-        for (final c in _ctrls) {
-          c.clear();
-        }
+        for (final c in _ctrls) c.clear();
         _focus[0].requestFocus();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage!)));
@@ -115,36 +121,46 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
               // Icon circle
               Container(
-                width: 80, height: 80,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
-                child: const Icon(Icons.sms_outlined, color: AppColors.primary, size: 36),
+                child: const Icon(Icons.sms_outlined,
+                    color: AppColors.primary, size: 36),
               ),
               const SizedBox(height: 24),
 
               const Text('Verify your number', style: AppTextStyles.h2),
               const SizedBox(height: 10),
-              const Text('We sent a 4-digit OTP to', style: AppTextStyles.bodySmall),
+              const Text('We sent a 4-digit OTP to',
+                  style: AppTextStyles.bodySmall),
               const SizedBox(height: 4),
               Text(phone, style: AppTextStyles.h4),
               const SizedBox(height: 16),
 
               // Dev hint
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.accentGold.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.25)),
+                  border: Border.all(
+                      color: AppColors.accentGold.withValues(alpha: 0.25)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.lock_open_outlined, color: AppColors.accentGold, size: 15),
+                  const Icon(Icons.lock_open_outlined,
+                      color: AppColors.accentGold, size: 15),
                   const SizedBox(width: 8),
-                  Text('Dev mode OTP: 1234',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.accentGold)),
+                  Text(
+                    'Dev mode OTP: 1234',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.accentGold),
+                  ),
                 ]),
               ),
               const SizedBox(height: 36),
@@ -172,24 +188,30 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               const SizedBox(height: 24),
 
               _seconds > 0
-                  ? Text('Resend OTP in $_seconds seconds', style: AppTextStyles.bodySmall)
+                  ? Text('Resend OTP in $_seconds seconds',
+                      style: AppTextStyles.bodySmall)
                   : GestureDetector(
                       onTap: _resend,
-                      child: RichText(text: TextSpan(
-                        style: AppTextStyles.bodySmall,
-                        children: [
-                          const TextSpan(text: "Didn't receive it? "),
-                          TextSpan(text: 'Resend OTP',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.primaryLight, fontWeight: FontWeight.w600,
-                              decoration: TextDecoration.underline,
-                              decorationColor: AppColors.primaryLight,
-                            )),
-                        ],
-                      )),
+                      child: RichText(
+                        text: TextSpan(
+                          style: AppTextStyles.bodySmall,
+                          children: [
+                            const TextSpan(text: "Didn't receive it? "),
+                            TextSpan(
+                              text: 'Resend OTP',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.primaryLight,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppColors.primaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
 
-              const SizedBox(height: 24), // bottom breathing room
+              const SizedBox(height: 24),
             ],
           ),
         ),
