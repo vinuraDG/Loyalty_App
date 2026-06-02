@@ -1,6 +1,5 @@
 
 import 'dart:math';
-import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/data/auth_mock_service.dart';
 import 'package:loyalty_app/features/redeem/data/redeem_api_service.dart';
 import 'package:loyalty_app/models/offer_models.dart';

@@ -367,7 +367,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                                     children: [
                                       _HistoryTile(tx: items[i]),
                                       if (!isLast)
-                                        Divider(
+                                        const Divider(
                                           height: 1,
                                           indent: 62,
                                           endIndent: 16,

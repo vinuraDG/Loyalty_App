@@ -306,7 +306,7 @@ class _ChangePasswordTile extends StatelessWidget {
         const SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Change Password', style: AppTextStyles.labelMedium),
+            const Text('Change Password', style: AppTextStyles.labelMedium),
             const SizedBox(height: 2),
             Text('Update your account password',
                 style: AppTextStyles.caption.copyWith(

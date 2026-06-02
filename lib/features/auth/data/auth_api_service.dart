@@ -14,7 +14,6 @@
 // 4. Done. Screens and providers need zero changes.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/models/user_model.dart';
 
 // ── Shared exception ──────────────────────────────────────────────────────────

@@ -1,4 +1,21 @@
+// lib/features/employee/data/emp_profile_api_service.dart
+//
+// Contains:
+//   • EmployeeProfileInfo    — extra info shown on the profile page
+//   • IEmpProfileService     — interface both mock and real services implement
+//   • EmpProfileApiService   — real backend stubs (fill in TODOs when ready)
+//
+// ─── How to go live ───────────────────────────────────────────────────────────
+// 1. Set kBaseUrl in lib/data/mock_data.dart.
+// 2. Fill in the TODO below.
+// 3. In emp_profile_provider.dart swap:
+//      final _svc = EmpProfileMockService.instance;  // ← remove
+//      final _svc = EmpProfileApiService.instance;   // ← add
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'package:loyalty_app/data/mock_data.dart';
+
+// ── Data model ────────────────────────────────────────────────────────────────
 
 class EmployeeProfileInfo {
   final String appVersion;
@@ -10,12 +27,24 @@ class EmployeeProfileInfo {
     required this.department,
     required this.joinedDate,
   });
+
+  factory EmployeeProfileInfo.fromJson(Map<String, dynamic> json) {
+    return EmployeeProfileInfo(
+      appVersion: json['appVersion'] as String,
+      department: json['department'] as String,
+      joinedDate: DateTime.parse(json['joinedDate'] as String),
+    );
+  }
 }
 
+// ── Interface ─────────────────────────────────────────────────────────────────
+
 abstract class IEmpProfileService {
-  /// Extra profile info shown on the employee profile page.
+  /// Extra profile data displayed on the employee profile page.
   Future<EmployeeProfileInfo> getProfileInfo(String employeeId);
 }
+
+// ── Real API service (stubs) ──────────────────────────────────────────────────
 
 class EmpProfileApiService implements IEmpProfileService {
   EmpProfileApiService._();
@@ -24,8 +53,10 @@ class EmpProfileApiService implements IEmpProfileService {
   @override
   Future<EmployeeProfileInfo> getProfileInfo(String employeeId) async {
     // TODO: GET $kBaseUrl/employees/$employeeId/profile
-    // expect → { "appVersion": "1.0.0", "department": "Fuel Station", "joinedDate": "2024-01-10" }
+    // Headers → { "Authorization": "Bearer <token>" }
+    // 200 → { "appVersion": "1.0.0", "department": "Fuel Station",
+    //          "joinedDate": "2023-01-10" }
     throw UnimplementedError(
-        'Backend not connected yet: GET $kBaseUrl/employees/$employeeId/profile');
+        'Backend not connected: GET $kBaseUrl/employees/$employeeId/profile');
   }
 }

@@ -32,8 +32,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _ctrls) c.dispose();
-    for (final f in _focus) f.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    for (final f in _focus) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -79,7 +83,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final phone = ref.read(authProvider).pendingPhone;
     if (phone == null) return;
     await ref.read(authProvider.notifier).sendOtp(phone);
-    for (final c in _ctrls) c.clear();
+    for (final c in _ctrls) {
+      c.clear();
+    }
     _focus[0].requestFocus();
     _startTimer();
     if (mounted) {
@@ -96,7 +102,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     ref.listen<AuthState>(authProvider, (_, next) {
       if (next.errorMessage != null) {
         setState(() => _hasError = true);
-        for (final c in _ctrls) c.clear();
+        for (final c in _ctrls) {
+          c.clear();
+        }
         _focus[0].requestFocus();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage!)));

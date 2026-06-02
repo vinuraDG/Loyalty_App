@@ -1,3 +1,5 @@
+// lib/features/employee/screens/employee_profile_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
@@ -5,25 +7,50 @@ import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
+import '../data/emp_profile_api_service.dart';
+import '../data/emp_profile_mock_service.dart';
 
-class EmployeeProfilePage extends ConsumerWidget {
+class EmployeeProfilePage extends ConsumerStatefulWidget {
   final UserModel employee;
   const EmployeeProfilePage({super.key, required this.employee});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rawId = employee.id.toUpperCase();
-    final shortId = rawId.substring(0, rawId.length.clamp(0, 8));
+  ConsumerState<EmployeeProfilePage> createState() =>
+      _EmployeeProfilePageState();
+}
 
-    Future<void> signOut() async {
-      await ref.read(authProvider.notifier).signOut();
-      if (!context.mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (_) => false,
-      );
-    }
+class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
+  // ── Service (swap to EmpProfileApiService.instance when backend ready) ─────
+  final _svc = EmpProfileMockService.instance;
+
+  EmployeeProfileInfo? _info;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final info = await _svc.getProfileInfo(widget.employee.id);
+    if (!mounted) return;
+    setState(() => _info = info);
+  }
+
+  Future<void> _signOut() async {
+    await ref.read(authProvider.notifier).signOut();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rawId = widget.employee.id.toUpperCase();
+    final shortId = rawId.substring(0, rawId.length.clamp(0, 8));
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -33,11 +60,11 @@ class EmployeeProfilePage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ────────────────────────────────────────────
+              // ── Header ──────────────────────────────────────────────────
               const Text('Profile', style: AppTextStyles.h3),
               const SizedBox(height: 24),
 
-              // ── Avatar + name card ────────────────────────────────
+              // ── Avatar + name card ───────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -47,22 +74,25 @@ class EmployeeProfilePage extends ConsumerWidget {
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Column(children: [
-                  InitialsAvatar(initials: employee.initials, size: 64),
+                  InitialsAvatar(
+                      initials: widget.employee.initials, size: 64),
                   const SizedBox(height: 12),
-                  Text(employee.name, style: AppTextStyles.h4),
+                  Text(widget.employee.name, style: AppTextStyles.h4),
                   const SizedBox(height: 4),
                   Text('Employee ID: #$shortId',
-                      style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textMuted)),
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textMuted)),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
+                      color:
+                          AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3)),
+                          color: AppColors.primary
+                              .withValues(alpha: 0.3)),
                     ),
                     child: Text('Staff Member',
                         style: AppTextStyles.caption.copyWith(
@@ -73,39 +103,46 @@ class EmployeeProfilePage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // ── Account section ───────────────────────────────────
+              // ── Account section ──────────────────────────────────────────
               const Text('Account', style: AppTextStyles.h4),
               const SizedBox(height: 12),
               _ProfileTile(
                 icon: Icons.person_outline_rounded,
                 label: 'Full Name',
-                value: employee.name,
+                value: widget.employee.name,
               ),
               _ProfileTile(
                 icon: Icons.badge_outlined,
                 label: 'Employee ID',
                 value: '#$shortId',
               ),
-              const _ProfileTile(
+              _ProfileTile(
                 icon: Icons.work_outline_rounded,
-                label: 'Role',
-                value: 'Staff Member',
+                label: 'Department',
+                value: _info?.department ?? '—',
+              ),
+              _ProfileTile(
+                icon: Icons.calendar_today_outlined,
+                label: 'Joined',
+                value: _info != null
+                    ? _formatDate(_info!.joinedDate)
+                    : '—',
               ),
               const SizedBox(height: 24),
 
-              // ── App section ───────────────────────────────────────
+              // ── App section ──────────────────────────────────────────────
               const Text('App', style: AppTextStyles.h4),
               const SizedBox(height: 12),
-              const _ProfileTile(
+              _ProfileTile(
                 icon: Icons.info_outline_rounded,
                 label: 'Version',
-                value: '1.0.0',
+                value: _info?.appVersion ?? '—',
               ),
               const SizedBox(height: 24),
 
-              // ── Sign out ──────────────────────────────────────────
+              // ── Sign out ─────────────────────────────────────────────────
               GestureDetector(
-                onTap: signOut,
+                onTap: _signOut,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -122,8 +159,8 @@ class EmployeeProfilePage extends ConsumerWidget {
                           color: Colors.redAccent, size: 18),
                       const SizedBox(width: 8),
                       Text('Sign Out',
-                          style: AppTextStyles.labelMedium.copyWith(
-                              color: Colors.redAccent)),
+                          style: AppTextStyles.labelMedium
+                              .copyWith(color: Colors.redAccent)),
                     ],
                   ),
                 ),
@@ -135,7 +172,17 @@ class EmployeeProfilePage extends ConsumerWidget {
       ),
     );
   }
+
+  String _formatDate(DateTime d) =>
+      '${d.day} ${_month(d.month)} ${d.year}';
+
+  String _month(int m) => const [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ][m];
 }
+
+// ── Profile tile ──────────────────────────────────────────────────────────────
 
 class _ProfileTile extends StatelessWidget {
   final IconData icon;
@@ -148,7 +195,8 @@ class _ProfileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.bgCard,
         borderRadius: BorderRadius.circular(14),
@@ -157,11 +205,10 @@ class _ProfileTile extends StatelessWidget {
       child: Row(children: [
         Icon(icon, color: AppColors.primaryLight, size: 20),
         const SizedBox(width: 14),
-        Expanded(
-            child: Text(label, style: AppTextStyles.bodySmall)),
+        Expanded(child: Text(label, style: AppTextStyles.bodySmall)),
         Text(value,
-            style: AppTextStyles.caption.copyWith(
-                color: AppColors.textMuted)),
+            style: AppTextStyles.caption
+                .copyWith(color: AppColors.textMuted)),
       ]),
     );
   }

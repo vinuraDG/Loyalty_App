@@ -1,3 +1,5 @@
+// lib/features/employee/screens/employee_dashboard_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
@@ -64,8 +66,8 @@ class _EmployeeDashboardScreenState
             unselectedItemColor: AppColors.textMuted,
             selectedLabelStyle: AppTextStyles.caption.copyWith(
                 color: AppColors.primary, fontWeight: FontWeight.w600),
-            unselectedLabelStyle:
-                AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+            unselectedLabelStyle: AppTextStyles.caption
+                .copyWith(color: AppColors.textMuted),
             type: BottomNavigationBarType.fixed,
             items: const [
               BottomNavigationBarItem(

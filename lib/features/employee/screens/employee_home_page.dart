@@ -1,39 +1,11 @@
+// lib/features/employee/screens/employee_home_page.dart
+
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
-
-// ── Mock scanned customer ─────────────────────────────────────────────────────
-
-class _ScannedMember {
-  final String name;
-  final String memberId;
-  final String tier;
-  final int currentPoints;
-  const _ScannedMember({
-    required this.name,
-    required this.memberId,
-    required this.tier,
-    required this.currentPoints,
-  });
-}
-
-const _mockScannedMember = _ScannedMember(
-  name: 'Amal Perera',
-  memberId: 'AP2024X1',
-  tier: 'Gold',
-  currentPoints: 3420,
-);
-
-// ── Mock data ─────────────────────────────────────────────────────────────────
-
-// Weekly commission data (Mon–Sun) — used for the bar chart
-const _mockWeeklyCommission = [1240, 3800, 2650, 4200, 5100, 3200, 800];
-
-// Monthly commission total in LKR (replace with real value from your service)
-const double _mockMonthlyCommission = 1240.00; // LKR 87,450
-
-// ── Page ──────────────────────────────────────────────────────────────────────
+import '../data/emp_home_api_service.dart';
+import '../data/emp_home_mock_service.dart';
 
 class EmployeeHomePage extends StatefulWidget {
   final UserModel employee;
@@ -44,42 +16,74 @@ class EmployeeHomePage extends StatefulWidget {
 }
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
-  final List<_ScanEntry> _recentScans = [
-    const _ScanEntry(memberName: 'Nimal Silva',       saleAmount: 3565,  points: 180, time: '10:15 AM'),
-    const _ScanEntry(memberName: 'Kamani Fernando',   saleAmount: 10350, points: 320, time: '9:58 AM'),
-    const _ScanEntry(memberName: 'Ruwan Jayawardena', saleAmount: 4600,  points: 150, time: '9:40 AM'),
-    const _ScanEntry(memberName: 'Dilini Ratnayake',  saleAmount: 13800, points: 400, time: '9:22 AM'),
-  ];
+  // ── Service (swap to EmpHomeApiService.instance when backend is ready) ─────
+  final _svc = EmpHomeMockService.instance;
 
-  double get _weeklyCommissionTotal =>
-      _mockWeeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
+  List<ScanEntry> _todayScans = [];
+  List<int> _weeklyCommission = List.filled(7, 0);
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final scans = await _svc.getTodayScans(widget.employee.id);
+    final commission = await _svc.getWeeklyCommission(widget.employee.id);
+    if (!mounted) return;
+    setState(() {
+      _todayScans = scans.toList();
+      _weeklyCommission = commission;
+      _loading = false;
+    });
+  }
+
+  double get _weeklyTotal =>
+      _weeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
+
+  // ── Monthly commission (derived from weekly for mock; real API has its own
+  // endpoint — wire up separately when backend is ready) ─────────────────────
+  double get _monthlyCommission => _weeklyTotal * 4.3;
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: AppColors.bgDark,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-            // ── Header ──────────────────────────────────────────────
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // ── Header ────────────────────────────────────────────────────
             Row(children: [
               InitialsAvatar(initials: widget.employee.initials, size: 42),
               const SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Welcome back,', style: AppTextStyles.caption),
-                  Text(widget.employee.name, style: AppTextStyles.h4),
-                ],
-              )),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Welcome back,', style: AppTextStyles.caption),
+                    Text(widget.employee.name, style: AppTextStyles.h4),
+                  ],
+                ),
+              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: Text('Staff',
                     style: AppTextStyles.caption.copyWith(
@@ -89,7 +93,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             ]),
             const SizedBox(height: 24),
 
-            // ── Commission card ──────────────────────────────────────
+            // ── Commission card ───────────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -104,15 +108,12 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
-                  // ── Left: monthly commission total ─────────────────
+                  // Left — monthly total
                   Expanded(
                     flex: 5,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
-                        // Label row — Flexible is correct here (inside Row)
                         Row(children: [
                           Icon(Icons.payments_outlined,
                               size: 13,
@@ -131,25 +132,20 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                           ),
                         ]),
                         const SizedBox(height: 6),
-
-                        // Monthly amount — plain Text inside Column, no Flexible needed
                         Text(
-                          'LKR ${_mockMonthlyCommission.toStringAsFixed(0)}',
-                          style: AppTextStyles.h3.copyWith(color: Colors.white),
+                          'LKR ${_monthlyCommission.toStringAsFixed(0)}',
+                          style:
+                              AppTextStyles.h3.copyWith(color: Colors.white),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
                         const SizedBox(height: 6),
-
-                        // Subtle divider
                         Container(
                           height: 1,
                           width: 80,
                           color: Colors.white.withValues(alpha: 0.15),
                         ),
                         const SizedBox(height: 6),
-
-                        // Weekly sub-total row — Flexible is correct here (inside Row)
                         Row(children: [
                           Icon(Icons.calendar_view_week_rounded,
                               size: 11,
@@ -157,7 +153,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              'This week  LKR ${_weeklyCommissionTotal.toStringAsFixed(0)}',
+                              'This week  LKR ${_weeklyTotal.toStringAsFixed(0)}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.white.withValues(alpha: 0.5),
@@ -167,10 +163,8 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                           ),
                         ]),
                         const SizedBox(height: 3),
-
-                        // Transaction count — plain Text inside Column
                         Text(
-                          '${_recentScans.length} transactions · 2% rate',
+                          '${_todayScans.length} transactions · 2% rate',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.white.withValues(alpha: 0.45),
@@ -184,7 +178,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
                   const SizedBox(width: 12),
 
-                  // ── Right: weekly bar chart ────────────────────────
+                  // Right — weekly bar chart
                   Expanded(
                     flex: 5,
                     child: Column(
@@ -199,11 +193,10 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const SizedBox(
+                        SizedBox(
                           height: 80,
                           child: _WeeklyCommissionChart(
-                            data: _mockWeeklyCommission,
-                          ),
+                              data: _weeklyCommission),
                         ),
                       ],
                     ),
@@ -213,14 +206,15 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             ),
             const SizedBox(height: 24),
 
-            // ── Scan Member button ───────────────────────────────────
+            // ── Scan Member button ─────────────────────────────────────────
             const Text('Quick Actions', style: AppTextStyles.h4),
             const SizedBox(height: 14),
             GestureDetector(
               onTap: () => _startScanFlow(context),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
                 decoration: BoxDecoration(
                   color: AppColors.bgCard,
                   borderRadius: BorderRadius.circular(16),
@@ -237,16 +231,20 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                         color: AppColors.primaryLight, size: 26),
                   ),
                   const SizedBox(width: 16),
-                  Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Scan Member QR', style: AppTextStyles.labelMedium),
-                      const SizedBox(height: 2),
-                      Text('Scan QR code to identify member and add fuel',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textMuted)),
-                    ],
-                  )),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Scan Member QR',
+                            style: AppTextStyles.labelMedium),
+                        const SizedBox(height: 2),
+                        Text(
+                            'Scan QR code to identify member and add fuel',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.textMuted)),
+                      ],
+                    ),
+                  ),
                   const Icon(Icons.arrow_forward_ios_rounded,
                       color: AppColors.textMuted, size: 16),
                 ]),
@@ -254,10 +252,10 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             ),
             const SizedBox(height: 24),
 
-            // ── Today's scan history ─────────────────────────────────
+            // ── Today's scans ──────────────────────────────────────────────
             const Text("Today's Scans", style: AppTextStyles.h4),
             const SizedBox(height: 14),
-            if (_recentScans.isEmpty)
+            if (_todayScans.isEmpty)
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
@@ -267,7 +265,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                 ),
               )
             else
-              ..._recentScans.map((s) => _TodayScanTile(scan: s)),
+              ..._todayScans.map((s) => _TodayScanTile(scan: s)),
 
             const SizedBox(height: 8),
           ]),
@@ -276,7 +274,8 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     );
   }
 
-  // ── Step 1: Scanning sheet ─────────────────────────────────────────────────
+  // ── Scan flow ──────────────────────────────────────────────────────────────
+
   void _startScanFlow(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -287,14 +286,11 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       builder: (_) => Padding(
         padding: const EdgeInsets.all(28),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2))),
+          _sheetHandle(),
           const SizedBox(height: 24),
           Container(
-            width: 80, height: 80,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
@@ -327,106 +323,111 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     );
   }
 
-  // ── Step 2: Customer identified sheet ─────────────────────────────────────
   void _showCustomerSheet(BuildContext context) {
-    const member = _mockScannedMember;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgCard,
-      isDismissible: false,
-      enableDrag: false,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-              width: 40, height: 4,
+    // Simulate QR decode → look up member via service
+    _svc.getMemberByQr('demo-qr').then((member) {
+      if (!context.mounted) return;
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: AppColors.bgCard,
+        isDismissible: false,
+        enableDrag: false,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        builder: (_) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            _sheetHandle(),
+            const SizedBox(height: 20),
+            Container(
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          Container(
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check_circle_rounded,
-                color: Colors.greenAccent, size: 30),
-          ),
-          const SizedBox(height: 12),
-          const Text('Member Identified', style: AppTextStyles.h4),
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.bgDark,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(children: [
-              InitialsAvatar(
-                initials: member.name.split(' ').map((w) => w[0]).take(2).join(),
-                size: 44,
+                color: Colors.green.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 14),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(member.name, style: AppTextStyles.labelMedium),
-                  const SizedBox(height: 3),
-                  Text('ID: #${member.memberId}',
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.textMuted)),
-                  const SizedBox(height: 3),
-                  Text('${member.currentPoints} pts  •  ${member.tier}',
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.primaryLight)),
-                ],
-              )),
-              TierBadge(tier: member.tier),
-            ]),
-          ),
-          const SizedBox(height: 20),
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: Colors.greenAccent, size: 30),
+            ),
+            const SizedBox(height: 12),
+            const Text('Member Identified', style: AppTextStyles.h4),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.bgDark,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(children: [
+                InitialsAvatar(
+                  initials: member.name
+                      .split(' ')
+                      .map((w) => w[0])
+                      .take(2)
+                      .join(),
+                  size: 44,
                 ),
-                child: Text('Cancel',
-                    style: AppTextStyles.labelMedium
-                        .copyWith(color: AppColors.textMuted)),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(member.name, style: AppTextStyles.labelMedium),
+                      const SizedBox(height: 3),
+                      Text('ID: #${member.memberId}',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textMuted)),
+                      const SizedBox(height: 3),
+                      Text(
+                          '${member.currentPoints} pts  •  ${member.tier}',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.primaryLight)),
+                    ],
+                  ),
+                ),
+                TierBadge(tier: member.tier),
+              ]),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: GradientButton(
-                label: 'Add Fuel',
-                icon: Icons.local_gas_station_rounded,
-                onPressed: () {
-                  Navigator.pop(context);
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    if (context.mounted) _showFuelEntry(context, member);
-                  });
-                },
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.border),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('Cancel',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: AppColors.textMuted)),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: GradientButton(
+                  label: 'Add Fuel',
+                  icon: Icons.local_gas_station_rounded,
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      if (context.mounted) _showFuelEntry(context, member);
+                    });
+                  },
+                ),
+              ),
+            ]),
           ]),
-        ]),
-      ),
-    );
+        ),
+      );
+    });
   }
 
-  // ── Step 3: Fuel amount entry sheet ───────────────────────────────────────
-  void _showFuelEntry(BuildContext context, _ScannedMember member) {
+  void _showFuelEntry(BuildContext context, ScannedMember member) {
     final amountCtrl = TextEditingController();
     const double pointsPerLkr = 0.1;
 
@@ -445,16 +446,13 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
           return Padding(
             padding: EdgeInsets.fromLTRB(
-                24, 24, 24,
+                24,
+                24,
+                24,
                 MediaQuery.of(context).viewInsets.bottom + 32),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2))),
+              _sheetHandle(),
               const SizedBox(height: 20),
-
               const Row(children: [
                 Icon(Icons.local_gas_station_rounded,
                     color: AppColors.primaryLight, size: 22),
@@ -466,17 +464,16 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textMuted)),
               const SizedBox(height: 20),
-
               AppTextField(
                 label: 'Sale Amount (LKR)',
                 hint: 'e.g. 7015',
                 controller: amountCtrl,
                 prefixIconData: Icons.payments_outlined,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (_) => setSheet(() {}),
               ),
               const SizedBox(height: 16),
-
               if (amount > 0)
                 Container(
                   width: double.infinity,
@@ -492,19 +489,19 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                     const Icon(Icons.stars_rounded,
                         color: Colors.greenAccent, size: 18),
                     const SizedBox(width: 10),
-                    Expanded(child: Text(
-                      'Member will earn  +$points pts',
-                      style: AppTextStyles.labelMedium
-                          .copyWith(color: Colors.greenAccent),
-                    )),
+                    Expanded(
+                      child: Text(
+                        'Member will earn  +$points pts',
+                        style: AppTextStyles.labelMedium
+                            .copyWith(color: Colors.greenAccent),
+                      ),
+                    ),
                     Text('(LKR ${amount.toStringAsFixed(0)} × 0.1)',
                         style: AppTextStyles.caption
                             .copyWith(color: Colors.green.shade300)),
                   ]),
                 ),
-
               const SizedBox(height: 20),
-
               Row(children: [
                 Expanded(
                   child: OutlinedButton(
@@ -527,10 +524,18 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                     label: 'Confirm & Award',
                     icon: Icons.check_rounded,
                     onPressed: amount > 0
-                        ? () {
+                        ? () async {
                             Navigator.pop(sheetCtx);
-                            _onTransactionComplete(
-                                context, member, amount, points);
+                            await _svc.recordFuelSale(
+                              employeeId: widget.employee.id,
+                              customerId: member.userId,
+                              saleAmount: amount,
+                              pointsAwarded: points,
+                            );
+                            if (context.mounted) {
+                              _onTransactionComplete(
+                                  context, member, amount, points);
+                            }
                           }
                         : null,
                   ),
@@ -543,44 +548,45 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     );
   }
 
-  // ── Step 4: Complete + update state ───────────────────────────────────────
-  void _onTransactionComplete(BuildContext context, _ScannedMember member,
+  void _onTransactionComplete(BuildContext context, ScannedMember member,
       double amount, int points) {
-    final now = TimeOfDay.now();
-    final timeStr =
-        '${now.hourOfPeriod}:${now.minute.toString().padLeft(2, '0')} ${now.period.name.toUpperCase()}';
-
-    setState(() {
-      _recentScans.insert(
-        0,
-        _ScanEntry(
-          memberName: member.name,
-          saleAmount: amount,
-          points: points,
-          time: timeStr,
-        ),
-      );
+    // Reload today's scans from the service so the list reflects the new entry.
+    _svc.getTodayScans(widget.employee.id).then((scans) {
+      if (!mounted) return;
+      setState(() => _todayScans = scans.toList());
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: AppColors.bgCard,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
         content: Row(children: [
           const Icon(Icons.check_circle_rounded,
               color: Colors.greenAccent, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(
-            '+$points pts awarded to ${member.name}',
-            style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
-          )),
+          Expanded(
+            child: Text(
+              '+$points pts awarded to ${member.name}',
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textPrimary),
+            ),
+          ),
         ]),
         duration: const Duration(seconds: 3),
       ),
     );
   }
+
+  Widget _sheetHandle() => Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(2)),
+      );
 }
 
 // ── Weekly commission bar chart ───────────────────────────────────────────────
@@ -596,77 +602,62 @@ class _WeeklyCommissionChart extends StatelessWidget {
     final maxVal = data.reduce((a, b) => a > b ? a : b).toDouble();
     final todayIdx = DateTime.now().weekday - 1;
 
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(7, (i) {
-              final ratio =
-                  maxVal > 0 ? (data[i] / maxVal).clamp(0.08, 1.0) : 0.08;
-              final isToday = i == todayIdx;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.bottomCenter,
-                    heightFactor: ratio,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isToday
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.30),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
+    return Column(children: [
+      Expanded(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(7, (i) {
+            final ratio =
+                maxVal > 0 ? (data[i] / maxVal).clamp(0.08, 1.0) : 0.08;
+            final isToday = i == todayIdx;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                child: FractionallySizedBox(
+                  alignment: Alignment.bottomCenter,
+                  heightFactor: ratio,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isToday
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.30),
+                      borderRadius: BorderRadius.circular(5),
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
-        ),
-        const SizedBox(height: 5),
-        Row(
-          children: List.generate(7, (i) {
-            final isToday = i == DateTime.now().weekday - 1;
-            return Expanded(
-              child: Text(
-                _dayLabels[i],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: isToday
-                      ? Colors.white.withValues(alpha: 0.9)
-                      : Colors.white.withValues(alpha: 0.4),
-                  fontWeight:
-                      isToday ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
             );
           }),
         ),
-      ],
-    );
+      ),
+      const SizedBox(height: 5),
+      Row(
+        children: List.generate(7, (i) {
+          final isToday = i == DateTime.now().weekday - 1;
+          return Expanded(
+            child: Text(
+              _dayLabels[i],
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 9,
+                color: isToday
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.white.withValues(alpha: 0.4),
+                fontWeight:
+                    isToday ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          );
+        }),
+      ),
+    ]);
   }
 }
 
-// ── Supporting models & widgets ───────────────────────────────────────────────
-
-class _ScanEntry {
-  final String memberName;
-  final double saleAmount;
-  final int points;
-  final String time;
-  const _ScanEntry({
-    required this.memberName,
-    required this.saleAmount,
-    required this.points,
-    required this.time,
-  });
-}
+// ── Today scan tile ───────────────────────────────────────────────────────────
 
 class _TodayScanTile extends StatelessWidget {
-  final _ScanEntry scan;
+  final ScanEntry scan;
   const _TodayScanTile({required this.scan});
 
   @override
@@ -681,7 +672,8 @@ class _TodayScanTile extends StatelessWidget {
       ),
       child: Row(children: [
         Container(
-          width: 38, height: 38,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
@@ -690,23 +682,28 @@ class _TodayScanTile extends StatelessWidget {
               color: AppColors.primaryLight, size: 20),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(scan.memberName, style: AppTextStyles.labelMedium),
-          const SizedBox(height: 2),
-          Row(children: [
-            const Icon(Icons.payments_outlined,
-                size: 12, color: AppColors.textMuted),
-            const SizedBox(width: 3),
-            Flexible(
-              child: Text(
-                'LKR ${scan.saleAmount.toStringAsFixed(0)}  •  ${scan.time}',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ]),
-        ])),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(scan.memberName, style: AppTextStyles.labelMedium),
+              const SizedBox(height: 2),
+              Row(children: [
+                const Icon(Icons.payments_outlined,
+                    size: 12, color: AppColors.textMuted),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    'LKR ${scan.saleAmount.toStringAsFixed(0)}  •  ${scan.time}',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textMuted),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
