@@ -38,7 +38,7 @@ const List<Map<String, dynamic>> kMockUsers = [
 /// In a real app passwords are never stored like this — this is only for the
 /// mock/demo flow. The backend will handle authentication properly.
 const Map<String, String> kMockPasswords = {
-  'cust-001': 'password123',
+  'cust-001': 'customer123',
   'emp-001': 'employee123',
 };
 

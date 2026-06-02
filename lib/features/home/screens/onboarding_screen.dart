@@ -3,15 +3,19 @@ import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/auth/screens/login_screen.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 
-
 class _Slide {
   final IconData icon;
   final Color color;
   final String step;
   final String title;
   final String description;
-  const _Slide({required this.icon, required this.color, required this.step,
-    required this.title, required this.description});
+  const _Slide({
+    required this.icon,
+    required this.color,
+    required this.step,
+    required this.title,
+    required this.description,
+  });
 }
 
 const _slides = [
@@ -20,21 +24,24 @@ const _slides = [
     color: AppColors.fuelColor,
     step: '01 / 03',
     title: 'Earn points at our fuel station',
-    description: 'Fill up your tank and collect loyalty points every time. Just show your QR code to the attendant.',
+    description:
+        'Fill up your tank and collect loyalty points every time. Just show your QR code to the attendant.',
   ),
   _Slide(
     icon: Icons.local_laundry_service_rounded,
     color: AppColors.laundryColor,
     step: '02 / 03',
     title: 'Redeem at our laundry service',
-    description: 'Use your earned points to get free washes and discounts at our premium laundry service.',
+    description:
+        'Use your earned points to get free washes and discounts at our premium laundry service.',
   ),
   _Slide(
     icon: Icons.diamond,
     color: AppColors.accentGold,
     step: '03 / 03',
     title: 'Shop gold with your rewards',
-    description: 'Redeem your loyalty points for exclusive discounts and special offers at partner gold shops.',
+    description:
+        'Redeem your loyalty points for exclusive discounts and special offers at partner gold shops.',
   ),
 ];
 
@@ -54,13 +61,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 400));
     _fade = Tween<double>(begin: 0, end: 1).animate(_ctrl);
     _ctrl.forward();
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   void _next() {
     if (_idx < 2) {
@@ -73,16 +84,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   void _goLogin() => Navigator.pushReplacement(
-    context,
-    PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 500),
-      pageBuilder: (_, anim, __) => FadeTransition(opacity: anim, child: const LoginScreen()),
-    ),
-  );
+        context,
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 500),
+          pageBuilder: (_, anim, __) =>
+              FadeTransition(opacity: anim, child: const LoginScreen()),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     final slide = _slides[_idx];
+    final screenH = MediaQuery.of(context).size.height;
+    // Scale the illustration circle to fit smaller screens gracefully.
+    final circleSize = (screenH * 0.22).clamp(140.0, 220.0);
+    final iconSize = circleSize * 0.5;
+
     return Scaffold(
       backgroundColor: AppColors.bgDeep,
       body: SafeArea(
@@ -90,53 +107,74 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           opacity: _fade,
           child: Column(
             children: [
-              // Illustration area
+              // ── Illustration ──────────────────────────────────────────
               Expanded(
-                flex: 5,
-                child: Stack(alignment: Alignment.center, children: [
-                  Container(
-                    width: 220, height: 220,
-                    decoration: BoxDecoration(
-                      color: slide.color.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
+                flex: 4,
+                child: Center(
+                  child: Stack(alignment: Alignment.center, children: [
+                    Container(
+                      width: circleSize,
+                      height: circleSize,
+                      decoration: BoxDecoration(
+                        color: slide.color.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  Icon(slide.icon, size: 110, color: slide.color.withValues(alpha: 0.9)),
-                ]),
+                    Icon(slide.icon,
+                        size: iconSize,
+                        color: slide.color.withValues(alpha: 0.9)),
+                  ]),
+                ),
               ),
 
-              // Content area
+              // ── Content — scrollable so it never overflows ─────────────
               Expanded(
                 flex: 6,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(32, 4, 32, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(slide.step, style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.primary, letterSpacing: 2)),
-                      const SizedBox(height: 12),
+                      Text(
+                        slide.step,
+                        style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.primary, letterSpacing: 2),
+                      ),
+                      const SizedBox(height: 10),
                       Text(slide.title, style: AppTextStyles.h2),
-                      const SizedBox(height: 14),
-                      Text(slide.description, style: AppTextStyles.bodySmall.copyWith(height: 1.7)),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 12),
+                      Text(
+                        slide.description,
+                        style:
+                            AppTextStyles.bodySmall.copyWith(height: 1.7),
+                      ),
+                      const SizedBox(height: 24),
 
-                      // Dots
-                      Row(children: List.generate(3, (i) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.only(right: 6),
-                        width: i == _idx ? 22 : 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: i == _idx ? AppColors.primary : AppColors.border,
-                          borderRadius: BorderRadius.circular(4),
+                      // Progress dots
+                      Row(
+                        children: List.generate(
+                          3,
+                          (i) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.only(right: 6),
+                            width: i == _idx ? 22 : 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: i == _idx
+                                  ? AppColors.primary
+                                  : AppColors.border,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
                         ),
-                      ))),
+                      ),
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
                       GradientButton(
                         label: _idx < 2 ? 'Next' : 'Get started',
-                        icon: _idx < 2 ? Icons.arrow_forward_rounded : Icons.check_rounded,
+                        icon: _idx < 2
+                            ? Icons.arrow_forward_rounded
+                            : Icons.check_rounded,
                         onPressed: _next,
                       ),
                       const SizedBox(height: 12),
