@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import 'change_password_screen.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {

@@ -33,7 +33,19 @@ const List<Map<String, dynamic>> kMockUsers = [
     'points': 0,
   },
 ];
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Employee — Profile Info
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+/// Extra profile info shown on the employee profile page.
+/// The real backend returns this from GET /employees/{id}/profile.
+const Map<String, dynamic> kMockEmployeeProfiles = {
+  'emp-001': {
+    'phone': '0779876543',
+    'title': 'Senior Attendant',
+  },
+};
+ 
 /// Mock passwords keyed by user id.
 /// In a real app passwords are never stored like this — this is only for the
 /// mock/demo flow. The backend will handle authentication properly.
@@ -532,16 +544,3 @@ const List<Map<String, dynamic>> kMockCommissionSales = [
   },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Employee — Profile Info
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Extra profile info shown on the employee profile page.
-/// The real backend returns this from GET /employees/{id}/profile.
-const Map<String, dynamic> kMockEmployeeProfiles = {
-  'emp-001': {
-    'appVersion': '1.0.0',
-    'department': 'Fuel Station',
-    'joinedDate': '2023-01-10',
-  },
-};

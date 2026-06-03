@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
-import 'package:loyalty_app/features/points/data/points_api_service.dart';
-import 'package:loyalty_app/features/points/data/points_mock_service.dart';
+import 'package:loyalty_app/customer/points/data/points_api_service.dart';
+import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 

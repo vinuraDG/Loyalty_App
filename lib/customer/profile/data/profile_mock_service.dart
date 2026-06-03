@@ -1,5 +1,5 @@
 import 'package:loyalty_app/features/auth/data/auth_mock_service.dart';
-import 'package:loyalty_app/features/profile/data/profile_api_service.dart';
+import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
 
 class ProfileMockService implements IProfileService {
   ProfileMockService._();

@@ -78,7 +78,7 @@ class _EmployeeDashboardScreenState
               BottomNavigationBarItem(
                 icon: Icon(Icons.bar_chart_outlined),
                 activeIcon: Icon(Icons.bar_chart_rounded),
-                label: 'Commission',
+                label: 'MyCommission',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person_outline_rounded),

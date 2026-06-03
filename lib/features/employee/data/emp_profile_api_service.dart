@@ -8,7 +8,7 @@
 // ─── How to go live ───────────────────────────────────────────────────────────
 // 1. Set kBaseUrl in lib/data/mock_data.dart.
 // 2. Fill in the TODO below.
-// 3. In emp_profile_provider.dart swap:
+// 3. In employee_profile_page.dart swap:
 //      final _svc = EmpProfileMockService.instance;  // ← remove
 //      final _svc = EmpProfileApiService.instance;   // ← add
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,21 +18,18 @@ import 'package:loyalty_app/data/mock_data.dart';
 // ── Data model ────────────────────────────────────────────────────────────────
 
 class EmployeeProfileInfo {
-  final String appVersion;
-  final String department;
-  final DateTime joinedDate;
+  final String phone;
+  final String title;
 
   const EmployeeProfileInfo({
-    required this.appVersion,
-    required this.department,
-    required this.joinedDate,
+    required this.phone,
+    required this.title,
   });
 
   factory EmployeeProfileInfo.fromJson(Map<String, dynamic> json) {
     return EmployeeProfileInfo(
-      appVersion: json['appVersion'] as String,
-      department: json['department'] as String,
-      joinedDate: DateTime.parse(json['joinedDate'] as String),
+      phone: json['phone'] as String,
+      title: json['title'] as String,
     );
   }
 }
@@ -54,8 +51,7 @@ class EmpProfileApiService implements IEmpProfileService {
   Future<EmployeeProfileInfo> getProfileInfo(String employeeId) async {
     // TODO: GET $kBaseUrl/employees/$employeeId/profile
     // Headers → { "Authorization": "Bearer <token>" }
-    // 200 → { "appVersion": "1.0.0", "department": "Fuel Station",
-    //          "joinedDate": "2023-01-10" }
+    // 200 → { "phone": "0779876543", "title": "Senior Attendant" }
     throw UnimplementedError(
         'Backend not connected: GET $kBaseUrl/employees/$employeeId/profile');
   }

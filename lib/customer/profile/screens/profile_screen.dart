@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loyalty_app/features/profile/data/profile_api_service.dart';
-import 'package:loyalty_app/features/profile/data/profile_mock_service.dart';
-import 'package:loyalty_app/features/profile/screens/edit_profile_screen.dart';
-import 'package:loyalty_app/features/qr/screens/qr_screen.dart';
+import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
+import 'package:loyalty_app/customer/profile/data/profile_mock_service.dart';
+import 'package:loyalty_app/customer/profile/screens/edit_profile_screen.dart';
+import 'package:loyalty_app/customer/qr/screens/qr_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
-import '../../auth/providers/auth_provider.dart';
-import '../../auth/screens/login_screen.dart';
+import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/screens/login_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final IProfileService? service; // injectable for testing

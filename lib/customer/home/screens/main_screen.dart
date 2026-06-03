@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:loyalty_app/features/home/screens/home_screen.dart';
-import 'package:loyalty_app/features/points/screens/points_screen.dart';
-import 'package:loyalty_app/features/profile/screens/profile_screen.dart';
-import 'package:loyalty_app/features/qr/screens/qr_screen.dart';
+import 'package:loyalty_app/customer/home/screens/home_screen.dart';
+import 'package:loyalty_app/customer/points/screens/points_screen.dart';
+import 'package:loyalty_app/customer/profile/screens/profile_screen.dart';
+import 'package:loyalty_app/customer/qr/screens/qr_screen.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 
 class MainScreen extends StatefulWidget {

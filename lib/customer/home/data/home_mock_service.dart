@@ -1,7 +1,7 @@
 
 
 import 'package:loyalty_app/data/mock_data.dart';
-import 'package:loyalty_app/features/home/data/home_api_service.dart';
+import 'package:loyalty_app/customer/home/data/home_api_service.dart';
 
 class HomeMockService implements IHomeService {
   HomeMockService._();

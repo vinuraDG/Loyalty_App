@@ -59,6 +59,26 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
+      appBar: AppBar(
+        backgroundColor: AppColors.bgDark,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+      color: AppColors.textPrimary, size: 20),
+  onPressed: () {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  },
+),
+        titleTextStyle: AppTextStyles.h3,
+        title: const Text('Commission'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AppColors.border),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,8 +89,6 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Commission', style: AppTextStyles.h3),
-                  const SizedBox(height: 2),
                   const Text('Per-sale earnings breakdown',
                       style: AppTextStyles.bodySmall),
                   const SizedBox(height: 20),
@@ -100,8 +118,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
                                   ? const LinearGradient(
                                       colors: AppColors.buttonGradient)
                                   : null,
-                              color:
-                                  selected ? null : AppColors.bgCard,
+                              color: selected ? null : AppColors.bgCard,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: selected
@@ -194,8 +211,7 @@ class _SummaryCard extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(summary.month,
-            style:
-                AppTextStyles.caption.copyWith(color: Colors.white70)),
+            style: AppTextStyles.caption.copyWith(color: Colors.white70)),
         const SizedBox(height: 6),
         Text(
           'LKR ${summary.totalCommission.toStringAsFixed(2)}',
@@ -205,8 +221,7 @@ class _SummaryCard extends StatelessWidget {
         Text(
           'Total sales: LKR ${summary.totalSales.toStringAsFixed(0)}'
           '  •  2% commission rate',
-          style:
-              AppTextStyles.caption.copyWith(color: Colors.white60),
+          style: AppTextStyles.caption.copyWith(color: Colors.white60),
         ),
         const SizedBox(height: 16),
         Row(children: [
@@ -233,8 +248,7 @@ class _MiniStat extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(value, style: AppTextStyles.h4.copyWith(color: Colors.white)),
       Text(label,
-          style:
-              AppTextStyles.caption.copyWith(color: Colors.white60)),
+          style: AppTextStyles.caption.copyWith(color: Colors.white60)),
     ]);
   }
 }
@@ -293,8 +307,7 @@ class _SaleTile extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 3),
-              Text(
-                  'Sale: LKR ${sale.saleAmount.toStringAsFixed(0)}',
+              Text('Sale: LKR ${sale.saleAmount.toStringAsFixed(0)}',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textMuted)),
             ],

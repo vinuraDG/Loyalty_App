@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loyalty_app/features/home/screens/main_screen.dart';
+import 'package:loyalty_app/customer/home/screens/main_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';

@@ -1,6 +1,7 @@
 // lib/features/employee/screens/employee_home_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:loyalty_app/features/employee/screens/employee_commission_page.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -121,7 +122,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                           const SizedBox(width: 5),
                           Flexible(
                             child: Text(
-                              "This month's commission",
+                              "commission",
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.white.withValues(alpha: 0.55),
@@ -135,7 +136,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                         Text(
                           'LKR ${_monthlyCommission.toStringAsFixed(0)}',
                           style:
-                              AppTextStyles.h3.copyWith(color: Colors.white),
+                              AppTextStyles.h1.copyWith(color: Colors.white),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
@@ -207,50 +208,32 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             const SizedBox(height: 24),
 
             // ── Scan Member button ─────────────────────────────────────────
-            const Text('Quick Actions', style: AppTextStyles.h4),
-            const SizedBox(height: 14),
-            GestureDetector(
-              onTap: () => _startScanFlow(context),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: AppColors.bgCard,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.qr_code_scanner_rounded,
-                        color: AppColors.primaryLight, size: 26),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Scan Member QR',
-                            style: AppTextStyles.labelMedium),
-                        const SizedBox(height: 2),
-                        Text(
-                            'Scan QR code to identify member and add fuel',
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.textMuted)),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      color: AppColors.textMuted, size: 16),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 24),
+            // ── Quick Actions ──────────────────────────────────────────────
+const Text('Quick Actions', style: AppTextStyles.h4),
+const SizedBox(height: 14),
+Row(children: [
+  _EmpQuickAction(
+    icon: Icons.qr_code_scanner_rounded,
+    label: 'Scan QR',
+    color: AppColors.primaryLight,
+    onTap: () => _startScanFlow(context),
+  ),
+  const SizedBox(width: 10),
+  _EmpQuickAction(
+    icon: Icons.payments_outlined,
+    label: 'My Commission',
+    color: AppColors.primary,
+    onTap: () => Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EmployeeCommissionPage(
+          employee: widget.employee,
+        ),
+      ),
+    ),
+  ),
+]),
+const SizedBox(height: 24),
 
             // ── Today's scans ──────────────────────────────────────────────
             const Text("Today's Scans", style: AppTextStyles.h4),
@@ -302,7 +285,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           const Text('Scan Member QR', style: AppTextStyles.h4),
           const SizedBox(height: 8),
           const Text(
-            "Point the camera at the member's QR code to identify them.",
+            "Point the camera at the customer's QR code to identify them.",
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
           ),
@@ -718,4 +701,54 @@ class _TodayScanTile extends StatelessWidget {
       ]),
     );
   }
+}
+  // ── Employee Quick Action card ────────────────────────────────────────────────
+
+class _EmpQuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _EmpQuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: AppColors.bgCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ]),
+          ),
+        ),
+      );
 }

@@ -1,5 +1,5 @@
 import 'package:loyalty_app/data/mock_data.dart';
-import 'package:loyalty_app/features/points/data/points_api_service.dart';
+import 'package:loyalty_app/customer/points/data/points_api_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 
 class PointsMockService implements IPointsService {

@@ -9,6 +9,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../data/emp_profile_api_service.dart';
 import '../data/emp_profile_mock_service.dart';
+import 'change_password_page.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
   final UserModel employee;
@@ -44,6 +45,15 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
+    );
+  }
+
+  void _goToChangePassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangePasswordPage(employee: widget.employee),
+      ),
     );
   }
 
@@ -94,10 +104,12 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
                           color: AppColors.primary
                               .withValues(alpha: 0.3)),
                     ),
-                    child: Text('Staff Member',
-                        style: AppTextStyles.caption.copyWith(
-                            color: AppColors.primaryLight,
-                            fontWeight: FontWeight.w600)),
+                    child: Text(
+                      _info?.title ?? 'Staff Member',
+                      style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primaryLight,
+                          fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ]),
               ),
@@ -117,26 +129,43 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
                 value: '#$shortId',
               ),
               _ProfileTile(
-                icon: Icons.work_outline_rounded,
-                label: 'Department',
-                value: _info?.department ?? '—',
+                icon: Icons.phone_outlined,
+                label: 'Phone',
+                value: _info?.phone ?? '—',
               ),
               _ProfileTile(
-                icon: Icons.calendar_today_outlined,
-                label: 'Joined',
-                value: _info != null
-                    ? _formatDate(_info!.joinedDate)
-                    : '—',
+                icon: Icons.work_outline_rounded,
+                label: 'Title',
+                value: _info?.title ?? '—',
               ),
               const SizedBox(height: 24),
 
-              // ── App section ──────────────────────────────────────────────
-              const Text('App', style: AppTextStyles.h4),
+              // ── Security section ─────────────────────────────────────────
+              const Text('Security', style: AppTextStyles.h4),
               const SizedBox(height: 12),
-              _ProfileTile(
-                icon: Icons.info_outline_rounded,
-                label: 'Version',
-                value: _info?.appVersion ?? '—',
+              GestureDetector(
+                onTap: _goToChangePassword,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgCard,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.lock_outline_rounded,
+                        color: AppColors.primaryLight, size: 20),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text('Change Password',
+                          style: AppTextStyles.bodySmall),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textMuted, size: 20),
+                  ]),
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -172,14 +201,6 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
       ),
     );
   }
-
-  String _formatDate(DateTime d) =>
-      '${d.day} ${_month(d.month)} ${d.year}';
-
-  String _month(int m) => const [
-        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ][m];
 }
 
 // ── Profile tile ──────────────────────────────────────────────────────────────

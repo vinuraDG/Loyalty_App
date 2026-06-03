@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/data/mock_data.dart';
-import 'package:loyalty_app/features/points/data/points_api_service.dart';
-import 'package:loyalty_app/features/points/data/points_mock_service.dart';
+import 'package:loyalty_app/customer/points/data/points_api_service.dart';
+import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 
 class PointsScreen extends ConsumerStatefulWidget {
   final IPointsService? service; // injectable for testing

@@ -18,9 +18,8 @@ class EmpProfileMockService implements IEmpProfileService {
     // Fall back to safe defaults if the employeeId has no profile entry.
     final data = raw ??
         const {
-          'appVersion': '1.0.0',
-          'department': 'General',
-          'joinedDate': '2024-01-01',
+          'phone': '—',
+          'title': 'Staff Member',
         };
     return EmployeeProfileInfo.fromJson(Map<String, dynamic>.from(data));
   }

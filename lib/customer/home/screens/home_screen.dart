@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
-import 'package:loyalty_app/features/points/screens/points_history_screen.dart';
+import 'package:loyalty_app/customer/points/screens/points_history_screen.dart';
 import 'package:loyalty_app/services/mock_points_service.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'main_screen.dart';
@@ -269,7 +269,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Recent activity', style: AppTextStyles.h4),
+                  const Text('Today activities', style: AppTextStyles.h4),
                   GestureDetector(
                     onTap: () => _navTo(context, 1),
                     child: Text('See all',

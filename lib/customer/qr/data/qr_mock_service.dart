@@ -1,7 +1,7 @@
 
 
 import 'dart:convert';
-import 'package:loyalty_app/features/qr/data/qr_api_service.dart';
+import 'package:loyalty_app/customer/qr/data/qr_api_service.dart';
 
 class QrMockService implements IQrService {
   QrMockService._();
