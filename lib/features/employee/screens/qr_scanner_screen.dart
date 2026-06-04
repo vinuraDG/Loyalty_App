@@ -1,15 +1,4 @@
 // lib/features/employee/screens/qr_scanner_screen.dart
-//
-// Full-screen QR scanner page.
-// In mock mode it auto-resolves after a short delay (simulating a scan).
-// When a real camera package (e.g. mobile_scanner) is added:
-//   1. Replace the _MockScannerView widget with the real camera widget.
-//   2. In the onDetect callback call _onQrDetected(barcodeValue).
-//
-// Navigation contract
-//   Push: Navigator.push<ScannedMember>(context, MaterialPageRoute(builder: (_) =>
-//           QrScannerScreen(employeeId: emp.id, svc: svc)))
-//   Pop:  returns a ScannedMember on success, null if the user cancels.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -50,7 +39,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     _scanLineAnim =
         CurvedAnimation(parent: _scanLineCtrl, curve: Curves.easeInOut);
 
-    // Auto-start scan animation after a short settling delay.
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) setState(() => _scanning = true);
     });
@@ -62,8 +50,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     super.dispose();
   }
 
-  // ── Simulated QR detection (replace with real camera callback) ────────────
-
   Future<void> _onTapScan() async {
     if (_loading) return;
     setState(() {
@@ -72,7 +58,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     });
 
     try {
-      // In production: pass the real barcode string (userId) from the camera.
       const mockUserId = 'demo-qr';
       final member = await widget.svc.getMemberByQr(mockUserId);
       if (!mounted) return;
@@ -125,8 +110,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color:
-                                    AppColors.primaryLight.withValues(alpha: 0.6),
+                                color: AppColors.primaryLight
+                                    .withValues(alpha: 0.6),
                                 blurRadius: 8,
                               ),
                             ],
@@ -139,27 +124,31 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               ),
             ),
 
-          // ── Top bar ────────────────────────────────────────────────────
+          // ── Top bar — close button pinned to top-right ─────────────────
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context, null),
-                  icon: const Icon(Icons.close_rounded,
-                      color: Colors.white, size: 28),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Scan Member QR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context, null),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            width: 1),
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          color: Colors.white, size: 20),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ),
 
@@ -206,7 +195,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // In real app: remove this button — camera auto-detects.
                     GestureDetector(
                       onTap: _loading ? null : _onTapScan,
                       child: AnimatedContainer(
@@ -316,11 +304,16 @@ class _ScannerOverlay extends StatelessWidget {
 
     return CustomPaint(
       painter: _OverlayPainter(
-        viewfinderRect: Rect.fromLTWH(hPad, vOffset, viewfinderSize, viewfinderSize),
+        viewfinderRect: Rect.fromLTWH(
+            hPad, vOffset, viewfinderSize, viewfinderSize),
       ),
       child: Center(
         child: Transform.translate(
-          offset: Offset(0, -(screenSize.height * 0.5 - vOffset - viewfinderSize / 2)),
+          offset: Offset(
+              0,
+              -(screenSize.height * 0.5 -
+                  vOffset -
+                  viewfinderSize / 2)),
           child: SizedBox(
             width: viewfinderSize,
             height: viewfinderSize,
@@ -339,19 +332,16 @@ class _OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.black.withValues(alpha: 0.75);
-    // Top
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, viewfinderRect.top), paint);
-    // Bottom
+    canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, viewfinderRect.top), paint);
     canvas.drawRect(
         Rect.fromLTWH(0, viewfinderRect.bottom, size.width,
             size.height - viewfinderRect.bottom),
         paint);
-    // Left
     canvas.drawRect(
         Rect.fromLTWH(0, viewfinderRect.top, viewfinderRect.left,
             viewfinderRect.height),
         paint);
-    // Right
     canvas.drawRect(
         Rect.fromLTWH(viewfinderRect.right, viewfinderRect.top,
             size.width - viewfinderRect.right, viewfinderRect.height),
@@ -377,7 +367,8 @@ class _CornerBrackets extends StatelessWidget {
         left: left ? 0 : null,
         right: left ? null : 0,
         child: CustomPaint(
-          size: const Size(cornerLength + strokeWidth, cornerLength + strokeWidth),
+          size: const Size(
+              cornerLength + strokeWidth, cornerLength + strokeWidth),
           painter: _CornerPainter(
             top: top,
             left: left,
@@ -423,11 +414,15 @@ class _CornerPainter extends CustomPainter {
 
     final x = left ? strokeWidth / 2 : size.width - strokeWidth / 2;
     final y = top ? strokeWidth / 2 : size.height - strokeWidth / 2;
-    final xEnd = left ? strokeWidth / 2 + length : size.width - strokeWidth / 2 - length;
-    final yEnd = top ? strokeWidth / 2 + length : size.height - strokeWidth / 2 - length;
+    final xEnd = left
+        ? strokeWidth / 2 + length
+        : size.width - strokeWidth / 2 - length;
+    final yEnd = top
+        ? strokeWidth / 2 + length
+        : size.height - strokeWidth / 2 - length;
 
-    canvas.drawLine(Offset(x, y), Offset(xEnd, y), paint); // horizontal
-    canvas.drawLine(Offset(x, y), Offset(x, yEnd), paint); // vertical
+    canvas.drawLine(Offset(x, y), Offset(xEnd, y), paint);
+    canvas.drawLine(Offset(x, y), Offset(x, yEnd), paint);
   }
 
   @override

@@ -1,10 +1,12 @@
 // lib/features/employee/screens/redeem_flow_screen.dart
 //
-// Step 1 of the redemption flow: company tab rows only.
-// Each row is a slim horizontal strip — icon | name | active pts | expired pts | selector.
-// Selecting a row picks the company (uses its first active offer for OTP flow).
-// OTP flow is completely unchanged.
+// Step 1 of the redemption flow:
+//   • Company tabs scroll horizontally across the top.
+//   • Tapping a tab shows that company's point summary (total active / total expired).
+//   • Gold Shop only: allows redeem (OTP flow enabled).
+//   • All other companies: display-only — Confirm button is hidden / disabled.
 //
+// OTP flow is completely unchanged.
 // Returns true to the caller when redemption succeeds.
 
 import 'package:flutter/material.dart';
@@ -12,6 +14,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
 import 'otp_confirmation_screen.dart';
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const _kRedeemBusiness = 'Gold Shop';
 
 class RedeemFlowScreen extends StatefulWidget {
   final ScannedMember member;
@@ -32,8 +38,12 @@ class RedeemFlowScreen extends StatefulWidget {
 class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   List<RedeemableOffer>? _offers;
 
+  /// Currently selected company tab.
+  String? _selectedBusiness;
+
   /// The representative offer for the selected company (first active offer).
-  RedeemableOffer? _selected;
+  /// Only used when the selected business is Gold Shop.
+  RedeemableOffer? _selectedOffer;
 
   bool _loading = true;
   bool _sendingOtp = false;
@@ -52,13 +62,18 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   List<RedeemableOffer> _activeOffers(String business) =>
       (_grouped[business] ?? []).where((o) => !o.isExpired).toList();
 
+  List<RedeemableOffer> _expiredOffers(String business) =>
+      (_grouped[business] ?? []).where((o) => o.isExpired).toList();
+
+  /// Total points across ALL active offers for a business.
   int _activeTotalPoints(String business) =>
       _activeOffers(business).fold(0, (s, o) => s + o.pointsCost);
 
+  /// Total points across ALL expired offers for a business.
   int _expiredTotalPoints(String business) =>
-      (_grouped[business] ?? [])
-          .where((o) => o.isExpired)
-          .fold(0, (s, o) => s + o.pointsCost);
+      _expiredOffers(business).fold(0, (s, o) => s + o.pointsCost);
+
+  bool get _isGoldSelected => _selectedBusiness == _kRedeemBusiness;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -71,21 +86,56 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   Future<void> _loadOffers() async {
     try {
       final offers = await widget.svc.getRedeemableOffers(widget.member.userId);
-      if (mounted) setState(() { _offers = offers; _loading = false; });
+      if (mounted) {
+        final grouped = <String, List<RedeemableOffer>>{};
+        for (final o in offers) {
+          grouped.putIfAbsent(o.business, () => []).add(o);
+        }
+        final firstBusiness =
+            grouped.keys.isNotEmpty ? grouped.keys.first : null;
+        setState(() {
+          _offers = offers;
+          _loading = false;
+          _selectedBusiness = firstBusiness;
+          // Pre-select first active offer if Gold Shop is the first tab
+          if (_selectedBusiness == _kRedeemBusiness) {
+            final active = (grouped[_kRedeemBusiness] ?? [])
+                .where((o) => !o.isExpired)
+                .toList();
+            _selectedOffer = active.isNotEmpty ? active.first : null;
+          }
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
+  }
+
+  void _onTabTapped(String business) {
+    if (_selectedBusiness == business) return;
+    final active = _activeOffers(business);
+    setState(() {
+      _selectedBusiness = business;
+      // Only auto-select an offer for Gold Shop
+      _selectedOffer =
+          (business == _kRedeemBusiness && active.isNotEmpty) ? active.first : null;
+    });
   }
 
   // ── OTP flow (completely unchanged) ──────────────────────────────────────
 
   Future<void> _sendOtpAndProceed() async {
-    if (_selected == null || _sendingOtp) return;
+    if (_selectedOffer == null || _sendingOtp) return;
     setState(() => _sendingOtp = true);
     try {
       final otp = await widget.svc.sendRedemptionOtp(
         customerId: widget.member.userId,
-        offerId: _selected!.id,
+        offerId: _selectedOffer!.id,
       );
       if (!mounted) return;
       final confirmed = await Navigator.push<bool>(
@@ -93,7 +143,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
         MaterialPageRoute(
           builder: (_) => OtpConfirmationScreen(
             member: widget.member,
-            offer: _selected!,
+            offer: _selectedOffer!,
             employeeId: widget.employeeId,
             svc: widget.svc,
             devOtp: otp,
@@ -107,7 +157,10 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() { _sendingOtp = false; _error = e.toString(); });
+        setState(() {
+          _sendingOtp = false;
+          _error = e.toString();
+        });
       }
     }
   }
@@ -142,7 +195,8 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFD700).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -162,49 +216,24 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
             ]),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
-          // ── Column labels ──────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-            child: Row(children: [
-              const SizedBox(width: 46 + 12), // icon + gap
-              const Expanded(child: SizedBox()),
-              SizedBox(
-                width: 82,
-                child: Text('Active',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.4)),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 82,
-                child: Text('Expired',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.4)),
-              ),
-              const SizedBox(width: 34), // selector column
-            ]),
-          ),
+          // ── Horizontal company tab bar ─────────────────────────────────────
+          if (!_loading && _error == null) _buildCompanyTabs(),
 
+          const SizedBox(height: 12),
+
+          // ── Body (points summary only) ────────────────────────────────────
           Expanded(child: _buildBody()),
 
-          // ── Confirm button (unchanged) ─────────────────────────────────────
-          if (!_loading && _error == null)
+          // ── Confirm button — Gold Shop ONLY ────────────────────────────────
+          if (!_loading && _error == null && _isGoldSelected)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                if (_selected != null) ...[
+                if (_selectedOffer != null) ...[
                   _SelectedSummary(
-                    offer: _selected!,
+                    offer: _selectedOffer!,
                     customerPoints: widget.member.currentPoints,
                   ),
                   const SizedBox(height: 14),
@@ -212,7 +241,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
                 GradientButton(
                   label: _sendingOtp ? 'Sending OTP…' : 'Send OTP to Customer',
                   icon: Icons.sms_rounded,
-                  onPressed: (_selected != null && !_sendingOtp)
+                  onPressed: (_selectedOffer != null && !_sendingOtp)
                       ? _sendOtpAndProceed
                       : null,
                 ),
@@ -225,10 +254,132 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
                 ),
               ]),
             ),
+
+          // ── Display-only notice for non-Gold companies ─────────────────────
+          if (!_loading &&
+              _error == null &&
+              _selectedBusiness != null &&
+              !_isGoldSelected)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.textMuted.withValues(alpha: 0.18)),
+                ),
+                child: Row(children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 16,
+                      color: AppColors.textMuted.withValues(alpha: 0.7)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Redemption is only available for Gold Shop points.',
+                      style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textMuted, fontSize: 11),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
         ]),
       ),
     );
   }
+
+  // ── Horizontal company tab bar ─────────────────────────────────────────────
+
+  Widget _buildCompanyTabs() {
+    final grouped = _grouped;
+    final businesses = grouped.keys.toList();
+    if (businesses.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: businesses.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final business = businesses[i];
+          final theme = _BusinessTheme.of(business);
+          final isActive = _selectedBusiness == business;
+          final isGold = business == _kRedeemBusiness;
+
+          return GestureDetector(
+            onTap: () => _onTabTapped(business),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? theme.color.withValues(alpha: 0.15)
+                    : AppColors.bgCard,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: isActive
+                      ? theme.color.withValues(alpha: 0.6)
+                      : AppColors.border,
+                  width: isActive ? 1.5 : 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(theme.icon,
+                      size: 16,
+                      color: isActive
+                          ? theme.color
+                          : AppColors.textMuted.withValues(alpha: 0.7)),
+                  const SizedBox(width: 7),
+                  Text(
+                    business,
+                    style: AppTextStyles.caption.copyWith(
+                      color: isActive
+                          ? theme.accentColor
+                          : AppColors.textMuted,
+                      fontWeight:
+                          isActive ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                  ),
+                  // Gold Shop badge — "Redeem"
+                  if (isGold) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.color.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Redeem',
+                        style: AppTextStyles.caption.copyWith(
+                          color: theme.color,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Body ───────────────────────────────────────────────────────────────────
 
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -247,7 +398,10 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
                 textAlign: TextAlign.center),
             const SizedBox(height: 20),
             GradientButton(label: 'Retry', onPressed: () {
-              setState(() { _loading = true; _error = null; });
+              setState(() {
+                _loading = true;
+                _error = null;
+              });
               _loadOffers();
             }),
           ]),
@@ -255,60 +409,149 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
       );
     }
 
-    final grouped = _grouped;
-    final businesses = grouped.keys.toList();
-    final hasAnyActive = businesses.any((b) => _activeOffers(b).isNotEmpty);
-
-    if (!hasAnyActive) {
+    if (_selectedBusiness == null) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.redeem_rounded,
-                color: AppColors.textMuted.withValues(alpha: 0.4), size: 48),
-            const SizedBox(height: 12),
-            Text('No offers available',
-                style: AppTextStyles.labelMedium
-                    .copyWith(color: AppColors.textMuted)),
-            const SizedBox(height: 6),
-            Text(
-              'The customer needs more points to redeem any offer.',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ]),
-        ),
+        child: Text('No companies found.',
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-      itemCount: businesses.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) {
-        final business = businesses[i];
-        final theme = _BusinessTheme.of(business);
-        final active = _activeOffers(business);
-        final activePts = _activeTotalPoints(business);
-        final expiredPts = _expiredTotalPoints(business);
-        final hasActive = active.isNotEmpty;
-        final firstOffer = hasActive ? active.first : null;
-        final isSelected = _selected?.business == business;
+    final business = _selectedBusiness!;
+    final theme = _BusinessTheme.of(business);
+    final activePts = _activeTotalPoints(business);
+    final expiredPts = _expiredTotalPoints(business);
 
-        return _CompanyRow(
+    // Only show the summary card — no offer tiles
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+      children: [
+        _PointsSummaryCard(
           business: business,
           theme: theme,
           activeTotalPoints: activePts,
           expiredTotalPoints: expiredPts,
-          isSelected: isSelected,
-          hasActiveOffers: hasActive,
-          onTap: hasActive
-              ? () => setState(() {
-                    _selected = isSelected ? null : firstOffer;
-                  })
-              : null,
-        );
-      },
+        ),
+      ],
+    );
+  }
+}
+
+// ── Points summary card ────────────────────────────────────────────────────────
+//
+// Shows total active and total expired points for the selected company.
+
+class _PointsSummaryCard extends StatelessWidget {
+  final String business;
+  final _BusinessTheme theme;
+  final int activeTotalPoints;
+  final int expiredTotalPoints;
+
+  const _PointsSummaryCard({
+    required this.business,
+    required this.theme,
+    required this.activeTotalPoints,
+    required this.expiredTotalPoints,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: theme.color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.color.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        // Business icon
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: theme.color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(theme.icon, color: theme.color, size: 22),
+        ),
+        const SizedBox(width: 12),
+
+        // Company name
+        Expanded(
+          child: Text(
+            business,
+            style: AppTextStyles.labelMedium
+                .copyWith(color: AppColors.textPrimary),
+          ),
+        ),
+
+        // Active pts
+        _StatColumn(
+          label: 'Active',
+          value: '$activeTotalPoints pts',
+          valueColor: const Color(0xFFFFD700),
+          icon: Icons.stars_rounded,
+        ),
+
+        const SizedBox(width: 16),
+
+        // Expired pts
+        _StatColumn(
+          label: 'Expired',
+          value: expiredTotalPoints > 0 ? '$expiredTotalPoints pts' : '—',
+          valueColor: AppColors.textMuted,
+          icon: Icons.timer_off_rounded,
+          strikethrough: expiredTotalPoints > 0,
+        ),
+      ]),
+    );
+  }
+}
+
+class _StatColumn extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color valueColor;
+  final IconData icon;
+  final bool strikethrough;
+
+  const _StatColumn({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    required this.icon,
+    this.strikethrough = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(label,
+            style: AppTextStyles.caption.copyWith(
+                color: AppColors.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4)),
+        const SizedBox(height: 4),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: valueColor),
+          const SizedBox(width: 3),
+          Text(
+            value,
+            style: AppTextStyles.caption.copyWith(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              decoration:
+                  strikethrough ? TextDecoration.lineThrough : TextDecoration.none,
+              decorationColor: valueColor,
+              decorationThickness: 1.8,
+            ),
+          ),
+        ]),
+      ],
     );
   }
 }
@@ -355,205 +598,10 @@ class _BusinessTheme {
   }
 }
 
-// ── Company row ────────────────────────────────────────────────────────────────
-//
-// A single slim horizontal row:
-//   [icon]  [company name]  [active pts pill]  [expired pts pill]  [●]
-//
-// Everything sits on one line — no stacking, no sub-rows.
-
-class _CompanyRow extends StatelessWidget {
-  final String business;
-  final _BusinessTheme theme;
-  final int activeTotalPoints;
-  final int expiredTotalPoints;
-  final bool isSelected;
-  final bool hasActiveOffers;
-  final VoidCallback? onTap;
-
-  const _CompanyRow({
-    required this.business,
-    required this.theme,
-    required this.activeTotalPoints,
-    required this.expiredTotalPoints,
-    required this.isSelected,
-    required this.hasActiveOffers,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.color.withValues(alpha: 0.08)
-              : AppColors.bgCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected
-                ? theme.color.withValues(alpha: 0.55)
-                : AppColors.border,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // ── Business icon ────────────────────────────────────────────────
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: theme.color.withValues(
-                    alpha: isSelected ? 0.22 : 0.12),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(theme.icon,
-                  color: theme.color,
-                  size: 20),
-            ),
-            const SizedBox(width: 12),
-
-            // ── Company name ─────────────────────────────────────────────────
-            Expanded(
-              child: Text(
-                business,
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: isSelected
-                      ? theme.accentColor
-                      : AppColors.textPrimary,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
-            const SizedBox(width: 8),
-
-            // ── Active total pill ────────────────────────────────────────────
-            _PtsPill(
-              icon: Icons.stars_rounded,
-              label: '$activeTotalPoints pts',
-              color: const Color(0xFFFFD700),
-              bgColor: const Color(0xFFFFD700).withValues(alpha: 0.12),
-              borderColor: const Color(0xFFFFD700).withValues(alpha: 0.28),
-              strikethrough: false,
-              dimmed: !hasActiveOffers,
-              width: 82,
-            ),
-
-            const SizedBox(width: 6),
-
-            // ── Expired total pill ───────────────────────────────────────────
-            _PtsPill(
-              icon: Icons.timer_off_rounded,
-              label: expiredTotalPoints > 0 ? '$expiredTotalPoints pts' : '—',
-              color: AppColors.textMuted,
-              bgColor: AppColors.textMuted.withValues(alpha: 0.07),
-              borderColor: AppColors.textMuted.withValues(alpha: 0.15),
-              strikethrough: expiredTotalPoints > 0,
-              dimmed: true,
-              width: 82,
-            ),
-
-            const SizedBox(width: 10),
-
-            // ── Selection circle ─────────────────────────────────────────────
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? theme.color
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected
-                      ? theme.color
-                      : AppColors.border,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? const Icon(Icons.check_rounded,
-                      color: Colors.white, size: 13)
-                  : null,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Points pill ────────────────────────────────────────────────────────────────
-
-class _PtsPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Color bgColor;
-  final Color borderColor;
-  final bool strikethrough;
-  final bool dimmed;
-  final double width;
-
-  const _PtsPill({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.bgColor,
-    required this.borderColor,
-    required this.strikethrough,
-    required this.dimmed,
-    required this.width,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: dimmed ? 0.6 : 1.0,
-      child: Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: borderColor),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 11, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                decoration: strikethrough
-                    ? TextDecoration.lineThrough
-                    : TextDecoration.none,
-                decorationColor: color,
-                decorationThickness: 1.8,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Selected summary strip ─────────────────────────────────────────────────────
 //
 // Shows the chosen offer + points cost + remaining pts after deduction.
+// Completely unchanged from original.
 
 class _SelectedSummary extends StatelessWidget {
   final RedeemableOffer offer;

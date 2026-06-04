@@ -169,8 +169,8 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
                       _IdentificationBanner(member: _member, initials: initials),
                       const SizedBox(height: 24),
 
-                      // ── Stats row ────────────────────────────────────
-                      _StatsRow(member: _member),
+                      // ── Points hero ──────────────────────────────────
+                      _PointsHero(member: _member),
                       const SizedBox(height: 32),
 
                       // ── Action label ─────────────────────────────────
@@ -301,82 +301,92 @@ class _IdentificationBanner extends StatelessWidget {
             ],
           ),
         ),
-        TierBadge(tier: member.tier),
+        // TierBadge removed
       ]),
     );
   }
 }
 
-class _StatsRow extends StatelessWidget {
+/// Full-width hero card that shows the member's point balance prominently.
+class _PointsHero extends StatelessWidget {
   final ScannedMember member;
-  const _StatsRow({required this.member});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      Expanded(
-        child: _StatChip(
-          icon: Icons.stars_rounded,
-          iconColor: const Color(0xFFFFD700),
-          label: 'Points',
-          value: member.currentPoints.toString(),
-        ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: _StatChip(
-          icon: Icons.workspace_premium_rounded,
-          iconColor: AppColors.primaryLight,
-          label: 'Tier',
-          value: member.tier,
-        ),
-      ),
-    ]);
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final String value;
-  const _StatChip(
-      {required this.icon,
-      required this.iconColor,
-      required this.label,
-      required this.value});
+  const _PointsHero({required this.member});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
       decoration: BoxDecoration(
         color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: iconColor, size: 18),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFFFD700).withValues(alpha: 0.3),
         ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textMuted, fontSize: 11)),
-            const SizedBox(height: 2),
-            Text(value, style: AppTextStyles.labelMedium),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.bgCard,
+            const Color(0xFFFFD700).withValues(alpha: 0.06),
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      ]),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.stars_rounded,
+                color: Color(0xFFFFD700), size: 28),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total Points',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                member.currentPoints.toString(),
+                style: AppTextStyles.h4.copyWith(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          if (member.currentPoints == 0)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.border.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'No points',
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textMuted),
+              ),
+            )
+         
+        ],
+      ),
     );
   }
 }
