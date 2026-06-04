@@ -1,7 +1,7 @@
 // lib/features/employee/screens/employee_home_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:loyalty_app/features/employee/screens/employee_commission_page.dart';
+import 'package:loyalty_app/features/employee/screens/employee_dashboard_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -17,7 +17,6 @@ class EmployeeHomePage extends StatefulWidget {
 }
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
-  // ── Service (swap to EmpHomeApiService.instance when backend is ready) ─────
   final _svc = EmpHomeMockService.instance;
 
   List<ScanEntry> _todayScans = [];
@@ -44,8 +43,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   double get _weeklyTotal =>
       _weeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
 
-  // ── Monthly commission (derived from weekly for mock; real API has its own
-  // endpoint — wire up separately when backend is ready) ─────────────────────
   double get _monthlyCommission => _weeklyTotal * 4.3;
 
   @override
@@ -207,33 +204,31 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
             ),
             const SizedBox(height: 24),
 
-            // ── Scan Member button ─────────────────────────────────────────
             // ── Quick Actions ──────────────────────────────────────────────
-const Text('Quick Actions', style: AppTextStyles.h4),
-const SizedBox(height: 14),
-Row(children: [
-  _EmpQuickAction(
-    icon: Icons.qr_code_scanner_rounded,
-    label: 'Scan QR',
-    color: AppColors.primaryLight,
-    onTap: () => _startScanFlow(context),
-  ),
-  const SizedBox(width: 10),
-  _EmpQuickAction(
-    icon: Icons.payments_outlined,
-    label: 'My Commission',
-    color: AppColors.primary,
-    onTap: () => Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EmployeeCommissionPage(
-          employee: widget.employee,
-        ),
-      ),
-    ),
-  ),
-]),
-const SizedBox(height: 24),
+            const Text('Quick Actions', style: AppTextStyles.h4),
+            const SizedBox(height: 14),
+            Row(children: [
+              _EmpQuickAction(
+                icon: Icons.qr_code_scanner_rounded,
+                label: 'Scan QR',
+                color: AppColors.primaryLight,
+                onTap: () => _startScanFlow(context),
+              ),
+              const SizedBox(width: 10),
+              _EmpQuickAction(
+                icon: Icons.payments_outlined,
+                label: 'My Commission',
+                color: AppColors.primary,
+                onTap: () {
+                  final dashboard = context
+                      .findAncestorStateOfType<EmployeeDashboardScreenState>();
+                  if (dashboard != null) {
+                    dashboard.switchToCommission();
+                  }
+                },
+              ),
+            ]),
+            const SizedBox(height: 24),
 
             // ── Today's scans ──────────────────────────────────────────────
             const Text("Today's Scans", style: AppTextStyles.h4),
@@ -307,7 +302,6 @@ const SizedBox(height: 24),
   }
 
   void _showCustomerSheet(BuildContext context) {
-    // Simulate QR decode → look up member via service
     _svc.getMemberByQr('demo-qr').then((member) {
       if (!context.mounted) return;
       showModalBottomSheet(
@@ -533,7 +527,6 @@ const SizedBox(height: 24),
 
   void _onTransactionComplete(BuildContext context, ScannedMember member,
       double amount, int points) {
-    // Reload today's scans from the service so the list reflects the new entry.
     _svc.getTodayScans(widget.employee.id).then((scans) {
       if (!mounted) return;
       setState(() => _todayScans = scans.toList());
@@ -702,7 +695,8 @@ class _TodayScanTile extends StatelessWidget {
     );
   }
 }
-  // ── Employee Quick Action card ────────────────────────────────────────────────
+
+// ── Employee Quick Action card ────────────────────────────────────────────────
 
 class _EmpQuickAction extends StatelessWidget {
   final IconData icon;

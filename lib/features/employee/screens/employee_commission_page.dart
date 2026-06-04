@@ -8,7 +8,12 @@ import '../data/emp_commission_mock_service.dart';
 
 class EmployeeCommissionPage extends StatefulWidget {
   final UserModel employee;
-  const EmployeeCommissionPage({super.key, required this.employee});
+  final bool showBackButton;
+  const EmployeeCommissionPage({
+    super.key,
+    required this.employee,
+    this.showBackButton = false,
+  });
 
   @override
   State<EmployeeCommissionPage> createState() =>
@@ -16,7 +21,6 @@ class EmployeeCommissionPage extends StatefulWidget {
 }
 
 class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
-  // ── Service (swap to EmpCommissionApiService.instance when backend ready) ──
   final _svc = EmpCommissionMockService.instance;
 
   List<String> _months = [];
@@ -59,36 +63,38 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgDark,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-  icon: const Icon(Icons.arrow_back_ios_new_rounded,
-      color: AppColors.textPrimary, size: 20),
-  onPressed: () {
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-  },
-),
-        titleTextStyle: AppTextStyles.h3,
-        title: const Text('Commission'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: AppColors.border),
-        ),
-      ),
+      appBar: widget.showBackButton
+          ? AppBar(
+              backgroundColor: AppColors.bgDark,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: AppColors.textPrimary, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+              titleTextStyle: AppTextStyles.h3,
+              title: const Text('Commission'),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Container(height: 1, color: AppColors.border),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Static header + filter ────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title shown inline only when used as a tab (no AppBar)
+                  if (!widget.showBackButton) ...[
+                    const Text('Commission', style: AppTextStyles.h3),
+                    const SizedBox(height: 2),
+                  ],
                   const Text('Per-sale earnings breakdown',
                       style: AppTextStyles.bodySmall),
                   const SizedBox(height: 20),

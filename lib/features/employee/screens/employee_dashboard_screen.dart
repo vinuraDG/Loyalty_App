@@ -16,10 +16,10 @@ class EmployeeDashboardScreen extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<EmployeeDashboardScreen> createState() =>
-      _EmployeeDashboardScreenState();
+      EmployeeDashboardScreenState();
 }
 
-class _EmployeeDashboardScreenState
+class EmployeeDashboardScreenState
     extends ConsumerState<EmployeeDashboardScreen> {
   int _currentIndex = 0;
 
@@ -34,6 +34,10 @@ class _EmployeeDashboardScreenState
       EmployeeProfilePage(employee: widget.employee),
     ];
   }
+
+  /// Switches the bottom nav to the Commission tab.
+  /// Called from EmployeeHomePage via findAncestorStateOfType.
+  void switchToCommission() => setState(() => _currentIndex = 1);
 
   Future<void> _signOut() async {
     await ref.read(authProvider.notifier).signOut();
@@ -66,8 +70,8 @@ class _EmployeeDashboardScreenState
             unselectedItemColor: AppColors.textMuted,
             selectedLabelStyle: AppTextStyles.caption.copyWith(
                 color: AppColors.primary, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: AppTextStyles.caption
-                .copyWith(color: AppColors.textMuted),
+            unselectedLabelStyle:
+                AppTextStyles.caption.copyWith(color: AppColors.textMuted),
             type: BottomNavigationBarType.fixed,
             items: const [
               BottomNavigationBarItem(
