@@ -24,7 +24,7 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
   // ── Service (swap to EmpProfileApiService.instance when backend ready) ─────
   final _svc = EmpProfileMockService.instance;
 
-  EmployeeProfileInfo? _info;
+  dynamic _info;
 
   @override
   void initState() {

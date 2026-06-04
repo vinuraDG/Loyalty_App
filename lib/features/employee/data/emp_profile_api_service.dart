@@ -1,21 +1,10 @@
 // lib/features/employee/data/emp_profile_api_service.dart
 //
-// Contains:
-//   • EmployeeProfileInfo    — extra info shown on the profile page
-//   • IEmpProfileService     — interface both mock and real services implement
-//   • EmpProfileApiService   — real backend stubs (fill in TODOs when ready)
-//
-// ─── How to go live ───────────────────────────────────────────────────────────
-// 1. Set kBaseUrl in lib/data/mock_data.dart.
-// 2. Fill in the TODO below.
-// 3. In employee_profile_page.dart swap:
-//      final _svc = EmpProfileMockService.instance;  // ← remove
-//      final _svc = EmpProfileApiService.instance;   // ← add
-// ─────────────────────────────────────────────────────────────────────────────
+// Defines the data models and service interface for the employee profile
+// feature. The real implementation (EmpProfileApiService) hits the backend;
+// the mock implementation (EmpProfileMockService) uses local data.
 
-import 'package:loyalty_app/data/mock_data.dart';
-
-// ── Data model ────────────────────────────────────────────────────────────────
+// ── Data models ───────────────────────────────────────────────────────────────
 
 class EmployeeProfileInfo {
   final String phone;
@@ -28,20 +17,30 @@ class EmployeeProfileInfo {
 
   factory EmployeeProfileInfo.fromJson(Map<String, dynamic> json) {
     return EmployeeProfileInfo(
-      phone: json['phone'] as String,
-      title: json['title'] as String,
+      phone: json['phone'] as String? ?? '—',
+      title: json['title'] as String? ?? 'Staff Member',
     );
   }
 }
 
-// ── Interface ─────────────────────────────────────────────────────────────────
+// ── Service interface ─────────────────────────────────────────────────────────
 
 abstract class IEmpProfileService {
-  /// Extra profile data displayed on the employee profile page.
+  /// Returns extra profile info for the given employee.
+  /// Throws on network / server error.
   Future<EmployeeProfileInfo> getProfileInfo(String employeeId);
+
+  /// Changes the employee's password.
+  /// Throws [Exception] with a human-readable message on failure
+  /// (wrong current password, network error, etc.).
+  Future<void> changePassword({
+    required String employeeId,
+    required String currentPassword,
+    required String newPassword,
+  });
 }
 
-// ── Real API service (stubs) ──────────────────────────────────────────────────
+// ── Real API implementation (stub — fill in when backend is ready) ────────────
 
 class EmpProfileApiService implements IEmpProfileService {
   EmpProfileApiService._();
@@ -49,10 +48,20 @@ class EmpProfileApiService implements IEmpProfileService {
 
   @override
   Future<EmployeeProfileInfo> getProfileInfo(String employeeId) async {
-    // TODO: GET $kBaseUrl/employees/$employeeId/profile
-    // Headers → { "Authorization": "Bearer <token>" }
-    // 200 → { "phone": "0779876543", "title": "Senior Attendant" }
-    throw UnimplementedError(
-        'Backend not connected: GET $kBaseUrl/employees/$employeeId/profile');
+    // TODO: replace with real HTTP call, e.g.:
+    // final res = await http.get(Uri.parse('$kBaseUrl/employees/$employeeId/profile'));
+    // return EmployeeProfileInfo.fromJson(jsonDecode(res.body));
+    throw UnimplementedError('EmpProfileApiService.getProfileInfo');
+  }
+
+  @override
+  Future<void> changePassword({
+    required String employeeId,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    // TODO: replace with real HTTP call, e.g.:
+    // await http.post(Uri.parse('$kBaseUrl/employees/$employeeId/change-password'), ...);
+    throw UnimplementedError('EmpProfileApiService.changePassword');
   }
 }

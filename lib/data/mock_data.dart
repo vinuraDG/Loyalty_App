@@ -33,10 +33,11 @@ const List<Map<String, dynamic>> kMockUsers = [
     'points': 0,
   },
 ];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Employee — Profile Info
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 /// Extra profile info shown on the employee profile page.
 /// The real backend returns this from GET /employees/{id}/profile.
 const Map<String, dynamic> kMockEmployeeProfiles = {
@@ -45,7 +46,7 @@ const Map<String, dynamic> kMockEmployeeProfiles = {
     'title': 'Senior Attendant',
   },
 };
- 
+
 /// Mock passwords keyed by user id.
 /// In a real app passwords are never stored like this — this is only for the
 /// mock/demo flow. The backend will handle authentication properly.
@@ -182,28 +183,18 @@ const List<Map<String, dynamic>> kMockAds = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Mock redeemable offers shown on the rewards screen.
+/// isExpired: true  → offer has passed its validity window (cannot be redeemed).
+/// isExpired: false → offer is currently active.
 /// The real backend will serve these from a promotions API.
 const List<Map<String, dynamic>> kMockOffers = [
+  // ── Laundry ──────────────────────────────────────────────────────────────
   {
     'id': 'o1',
     'title': 'Free wash service',
     'description': 'Any 1 load of laundry, any size',
     'business': 'Laundry',
     'pointsCost': 200,
-  },
-  {
-    'id': 'o2',
-    'title': '10% fuel discount',
-    'description': 'Per fill-up, any fuel type',
-    'business': 'Fuel Station',
-    'pointsCost': 150,
-  },
-  {
-    'id': 'o3',
-    'title': 'Free gold jewellery polish',
-    'description': 'Professional polish for any gold item',
-    'business': 'Gold Shop',
-    'pointsCost': 500,
+    'isExpired': false,
   },
   {
     'id': 'o4',
@@ -211,6 +202,41 @@ const List<Map<String, dynamic>> kMockOffers = [
     'description': 'Full laundry + ironing service',
     'business': 'Laundry',
     'pointsCost': 350,
+    'isExpired': false,
+  },
+  {
+    'id': 'o6',
+    'title': 'Express same-day wash',
+    'description': 'Ready within 4 hours',
+    'business': 'Laundry',
+    'pointsCost': 180,
+    'isExpired': true,   // ← expired
+  },
+  // ── Fuel Station ─────────────────────────────────────────────────────────
+  {
+    'id': 'o2',
+    'title': '10% fuel discount',
+    'description': 'Per fill-up, any fuel type',
+    'business': 'Fuel Station',
+    'pointsCost': 150,
+    'isExpired': false,
+  },
+  {
+    'id': 'o7',
+    'title': 'Free car wash',
+    'description': 'With any fuel fill-up',
+    'business': 'Fuel Station',
+    'pointsCost': 100,
+    'isExpired': true,   // ← expired
+  },
+  // ── Gold Shop ─────────────────────────────────────────────────────────────
+  {
+    'id': 'o3',
+    'title': 'Free gold jewellery polish',
+    'description': 'Professional polish for any gold item',
+    'business': 'Gold Shop',
+    'pointsCost': 500,
+    'isExpired': false,
   },
   {
     'id': 'o5',
@@ -218,6 +244,15 @@ const List<Map<String, dynamic>> kMockOffers = [
     'description': 'Free gold item valuation',
     'business': 'Gold Shop',
     'pointsCost': 300,
+    'isExpired': false,
+  },
+  {
+    'id': 'o8',
+    'title': 'Free ring sizing',
+    'description': 'Resize any gold ring',
+    'business': 'Gold Shop',
+    'pointsCost': 250,
+    'isExpired': true,   // ← expired
   },
 ];
 
@@ -250,6 +285,7 @@ const Map<String, dynamic> kMockScannedMember = {
   'memberId': 'AP2024X1',
   'tier': 'Gold',
   'currentPoints': 3420,
+  'phone': '071 234 5678',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -543,4 +579,3 @@ const List<Map<String, dynamic>> kMockCommissionSales = [
     'month': 'March 2026',
   },
 ];
-

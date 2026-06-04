@@ -1,22 +1,12 @@
 // lib/features/employee/data/emp_home_api_service.dart
 //
-// Contains:
-//   • ScannedMember     — member returned after QR scan
-//   • ScanEntry         — one completed fuel-sale scan
-//   • IEmpHomeService   — interface both mock and real services implement
-//   • EmpHomeApiService — real backend stubs (fill in TODOs when ready)
-//
-// ─── How to go live ───────────────────────────────────────────────────────────
-// 1. Set kBaseUrl in lib/data/mock_data.dart.
-// 2. Fill in every TODO below.
-// 3. In emp_home_provider.dart swap:
-//      final _svc = EmpHomeMockService.instance;  // ← remove
-//      final _svc = EmpHomeApiService.instance;   // ← add
+// Models + service interface for the employee home feature.
+// The mock implementation lives in emp_home_mock_service.dart.
+// The real implementation lives in emp_home_real_service.dart (to be created).
+
 // ─────────────────────────────────────────────────────────────────────────────
-
-import 'package:loyalty_app/data/mock_data.dart';
-
-// ── Data models ───────────────────────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ScannedMember {
   final String userId;
@@ -24,6 +14,7 @@ class ScannedMember {
   final String memberId;
   final String tier;
   final int currentPoints;
+  final String phone;
 
   const ScannedMember({
     required this.userId,
@@ -31,18 +22,11 @@ class ScannedMember {
     required this.memberId,
     required this.tier,
     required this.currentPoints,
+    required this.phone,
   });
-
-  factory ScannedMember.fromJson(String userId, Map<String, dynamic> json) {
-    return ScannedMember(
-      userId: userId,
-      name: json['name'] as String,
-      memberId: json['memberId'] as String,
-      tier: json['tier'] as String,
-      currentPoints: json['currentPoints'] as int,
-    );
-  }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ScanEntry {
   final String memberName;
@@ -57,23 +41,87 @@ class ScanEntry {
     required this.time,
   });
 
-  factory ScanEntry.fromJson(Map<String, dynamic> json) {
-    return ScanEntry(
-      memberName: json['memberName'] as String,
-      saleAmount: (json['saleAmount'] as num).toDouble(),
-      points: json['points'] as int,
-      time: json['time'] as String,
-    );
-  }
+  factory ScanEntry.fromJson(Map<String, dynamic> j) => ScanEntry(
+        memberName: j['memberName'] as String,
+        saleAmount: (j['saleAmount'] as num).toDouble(),
+        points: j['points'] as int,
+        time: j['time'] as String,
+      );
 }
 
-// ── Interface ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
-abstract class IEmpHomeService {
-  /// Look up a loyalty member by the userId decoded from their QR code.
+class RedeemableOffer {
+  final String id;
+  final String title;
+  final String description;
+  final String business;
+  final int pointsCost;
+
+  /// True when the offer's validity window has passed.
+  /// Expired offers are shown in the summary but cannot be redeemed.
+  final bool isExpired;
+
+  const RedeemableOffer({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.business,
+    required this.pointsCost,
+    this.isExpired = false,
+  });
+
+  factory RedeemableOffer.fromJson(Map<String, dynamic> j) => RedeemableOffer(
+        id: j['id'] as String,
+        title: j['title'] as String,
+        description: j['description'] as String,
+        business: j['business'] as String,
+        pointsCost: j['pointsCost'] as int,
+        isExpired: j['isExpired'] as bool? ?? false,
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+class RedemptionResult {
+  final int pointsDeducted;
+  final int remainingPoints;
+  final String confirmationCode;
+
+  const RedemptionResult({
+    required this.pointsDeducted,
+    required this.remainingPoints,
+    required this.confirmationCode,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exceptions
+// ─────────────────────────────────────────────────────────────────────────────
+
+class InvalidOtpException implements Exception {
+  const InvalidOtpException();
+  String get message => 'The OTP entered is incorrect. Please try again.';
+  @override
+  String toString() => message;
+}
+
+class InsufficientPointsException implements Exception {
+  const InsufficientPointsException();
+  String get message => 'Not enough points to redeem this offer.';
+  @override
+  String toString() => message;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service interface
+// ─────────────────────────────────────────────────────────────────────────────
+
+abstract interface class IEmpHomeService {
+  /// Looks up the loyalty member by their QR payload (userId).
   Future<ScannedMember> getMemberByQr(String userId);
 
-  /// Record a completed fuel sale and award points to the member.
+  /// Records a completed fuel sale and awards points to the customer.
   Future<void> recordFuelSale({
     required String employeeId,
     required String customerId,
@@ -81,58 +129,28 @@ abstract class IEmpHomeService {
     required int pointsAwarded,
   });
 
-  /// Today's scan history for this employee (newest first).
+  /// Returns today's scan entries for the given employee.
   Future<List<ScanEntry>> getTodayScans(String employeeId);
 
-  /// Weekly commission chart data in LKR cents (÷100 = LKR).
-  /// Index 0 = Monday … index 6 = Sunday.
+  /// Returns 7 daily commission amounts (Mon–Sun) for the current week.
   Future<List<int>> getWeeklyCommission(String employeeId);
-}
 
-// ── Real API service (stubs) ──────────────────────────────────────────────────
+  /// Returns all offers for the customer — both active and expired.
+  /// Filtering by isExpired is done in the UI layer.
+  Future<List<RedeemableOffer>> getRedeemableOffers(String customerId);
 
-class EmpHomeApiService implements IEmpHomeService {
-  EmpHomeApiService._();
-  static final EmpHomeApiService instance = EmpHomeApiService._();
-
-  @override
-  Future<ScannedMember> getMemberByQr(String userId) async {
-    // TODO: GET $kBaseUrl/members/$userId
-    // Headers → { "Authorization": "Bearer <token>" }
-    // 200 → ScannedMember JSON
-    // 404 → throw Exception('Member not found.')
-    throw UnimplementedError(
-        'Backend not connected: GET $kBaseUrl/members/$userId');
-  }
-
-  @override
-  Future<void> recordFuelSale({
-    required String employeeId,
+  /// Sends a redemption OTP to the customer's phone.
+  /// Returns the OTP string in mock mode (ignored in production).
+  Future<String> sendRedemptionOtp({
     required String customerId,
-    required double saleAmount,
-    required int pointsAwarded,
-  }) async {
-    // TODO: POST $kBaseUrl/fuel-sales
-    // Body → { "employeeId", "customerId", "saleAmount", "pointsAwarded" }
-    // 201 → Created
-    throw UnimplementedError(
-        'Backend not connected: POST $kBaseUrl/fuel-sales');
-  }
+    required String offerId,
+  });
 
-  @override
-  Future<List<ScanEntry>> getTodayScans(String employeeId) async {
-    // TODO: GET $kBaseUrl/employees/$employeeId/scans/today
-    // 200 → [ ScanEntry JSON, … ] newest first
-    throw UnimplementedError(
-        'Backend not connected: GET $kBaseUrl/employees/$employeeId/scans/today');
-  }
-
-  @override
-  Future<List<int>> getWeeklyCommission(String employeeId) async {
-    // TODO: GET $kBaseUrl/employees/$employeeId/commission/weekly
-    // 200 → { "amounts": [1240, 3800, 2650, 4200, 5100, 3200, 800] }
-    //        values are LKR cents
-    throw UnimplementedError(
-        'Backend not connected: GET $kBaseUrl/employees/$employeeId/commission/weekly');
-  }
+  /// Validates the OTP and deducts points if correct.
+  Future<RedemptionResult> confirmRedemption({
+    required String customerId,
+    required String offerId,
+    required String otp,
+    required String employeeId,
+  });
 }

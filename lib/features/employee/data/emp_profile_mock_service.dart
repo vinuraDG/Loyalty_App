@@ -24,6 +24,21 @@ class EmpProfileMockService implements IEmpProfileService {
     return EmployeeProfileInfo.fromJson(Map<String, dynamic>.from(data));
   }
 
+  @override
+  Future<void> changePassword({
+    required String employeeId,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _delay(ms: 600);
+    // Validate against the mock password store.
+    final stored = kMockPasswords[employeeId];
+    if (stored == null || stored != currentPassword) {
+      throw Exception('Current password is incorrect.');
+    }
+    // In mock mode there is no persistent store, so we simply succeed.
+  }
+
   Future<void> _delay({int ms = 300}) =>
       Future.delayed(Duration(milliseconds: ms));
 }

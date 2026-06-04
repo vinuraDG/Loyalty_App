@@ -1,4 +1,9 @@
 // lib/features/employee/screens/employee_home_page.dart
+//
+// Refactored to use the new standalone QrScannerScreen and
+// CustomerIdentifiedScreen instead of in-line bottom sheets.
+// The fuel entry sheet is now in fuel_entry_sheet.dart.
+// All scan + redeem logic is delegated to child screens.
 
 import 'package:flutter/material.dart';
 import 'package:loyalty_app/features/employee/screens/employee_dashboard_screen.dart';
@@ -7,6 +12,8 @@ import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
 import '../data/emp_home_mock_service.dart';
+import 'qr_scanner_screen.dart';
+import 'customer_identified_screen.dart';
 
 class EmployeeHomePage extends StatefulWidget {
   final UserModel employee;
@@ -17,7 +24,8 @@ class EmployeeHomePage extends StatefulWidget {
 }
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
-  final _svc = EmpHomeMockService.instance;
+  // ── Swap to EmpHomeApiService.instance when backend is ready ──────────────
+  final IEmpHomeService _svc = EmpHomeMockService.instance;
 
   List<ScanEntry> _todayScans = [];
   List<int> _weeklyCommission = List.filled(7, 0);
@@ -40,10 +48,48 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     });
   }
 
+  Future<void> _refreshScans() async {
+    final scans = await _svc.getTodayScans(widget.employee.id);
+    if (!mounted) return;
+    setState(() => _todayScans = scans.toList());
+  }
+
   double get _weeklyTotal =>
       _weeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
 
   double get _monthlyCommission => _weeklyTotal * 4.3;
+
+  // ── QR scan entry point ───────────────────────────────────────────────────
+
+  Future<void> _startScanFlow(BuildContext context) async {
+    // 1. Navigate to the scanner screen — it returns a ScannedMember.
+    final member = await Navigator.push<ScannedMember>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QrScannerScreen(
+          employeeId: widget.employee.id,
+          svc: _svc,
+        ),
+      ),
+    );
+
+    if (member == null || !context.mounted) return;
+
+    // 2. Navigate to the customer screen for Earn / Redeem.
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CustomerIdentifiedScreen(
+          member: member,
+          employeeId: widget.employee.id,
+          svc: _svc,
+        ),
+      ),
+    );
+
+    // 3. Refresh the today-scans list regardless of what happened.
+    await _refreshScans();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,510 +105,210 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ── Header ────────────────────────────────────────────────────
-            Row(children: [
-              InitialsAvatar(initials: widget.employee.initials, size: 42),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Welcome back,', style: AppTextStyles.caption),
-                    Text(widget.employee.name, style: AppTextStyles.h4),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                child: Text('Staff',
-                    style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primaryLight,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ]),
-            const SizedBox(height: 24),
-
-            // ── Commission card ───────────────────────────────────────────
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: AppColors.buttonGradient,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left — monthly total
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(Icons.payments_outlined,
-                              size: 13,
-                              color: Colors.white.withValues(alpha: 0.55)),
-                          const SizedBox(width: 5),
-                          Flexible(
-                            child: Text(
-                              "commission",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.55),
-                                fontWeight: FontWeight.w400,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(height: 6),
-                        Text(
-                          'LKR ${_monthlyCommission.toStringAsFixed(0)}',
-                          style:
-                              AppTextStyles.h1.copyWith(color: Colors.white),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          height: 1,
-                          width: 80,
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(children: [
-                          Icon(Icons.calendar_view_week_rounded,
-                              size: 11,
-                              color: Colors.white.withValues(alpha: 0.45)),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              'This week  LKR ${_weeklyTotal.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.white.withValues(alpha: 0.5),
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(height: 3),
-                        Text(
-                          '${_todayScans.length} transactions · 2% rate',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.45),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Right — weekly bar chart
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Last 7 days',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.5),
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          height: 80,
-                          child: _WeeklyCommissionChart(
-                              data: _weeklyCommission),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ── Quick Actions ──────────────────────────────────────────────
-            const Text('Quick Actions', style: AppTextStyles.h4),
-            const SizedBox(height: 14),
-            Row(children: [
-              _EmpQuickAction(
-                icon: Icons.qr_code_scanner_rounded,
-                label: 'Scan QR',
-                color: AppColors.primaryLight,
-                onTap: () => _startScanFlow(context),
-              ),
-              const SizedBox(width: 10),
-              _EmpQuickAction(
-                icon: Icons.payments_outlined,
-                label: 'My Commission',
-                color: AppColors.primary,
-                onTap: () {
-                  final dashboard = context
-                      .findAncestorStateOfType<EmployeeDashboardScreenState>();
-                  if (dashboard != null) {
-                    dashboard.switchToCommission();
-                  }
-                },
-              ),
-            ]),
-            const SizedBox(height: 24),
-
-            // ── Today's scans ──────────────────────────────────────────────
-            const Text("Today's Scans", style: AppTextStyles.h4),
-            const SizedBox(height: 14),
-            if (_todayScans.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text('No scans yet today.',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textMuted)),
-                ),
-              )
-            else
-              ..._todayScans.map((s) => _TodayScanTile(scan: s)),
-
-            const SizedBox(height: 8),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  // ── Scan flow ──────────────────────────────────────────────────────────────
-
-  void _startScanFlow(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgCard,
-      isDismissible: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          _sheetHandle(),
-          const SizedBox(height: 24),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.qr_code_scanner_rounded,
-                color: AppColors.primaryLight, size: 44),
-          ),
-          const SizedBox(height: 18),
-          const Text('Scan Member QR', style: AppTextStyles.h4),
-          const SizedBox(height: 8),
-          const Text(
-            "Point the camera at the customer's QR code to identify them.",
-            style: AppTextStyles.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 28),
-          GradientButton(
-            label: 'Open Camera',
-            icon: Icons.camera_alt_outlined,
-            onPressed: () {
-              Navigator.pop(context);
-              Future.delayed(const Duration(milliseconds: 300), () {
-                if (context.mounted) _showCustomerSheet(context);
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-        ]),
-      ),
-    );
-  }
-
-  void _showCustomerSheet(BuildContext context) {
-    _svc.getMemberByQr('demo-qr').then((member) {
-      if (!context.mounted) return;
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: AppColors.bgCard,
-        isDismissible: false,
-        enableDrag: false,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (_) => Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            _sheetHandle(),
-            const SizedBox(height: 20),
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle_rounded,
-                  color: Colors.greenAccent, size: 30),
-            ),
-            const SizedBox(height: 12),
-            const Text('Member Identified', style: AppTextStyles.h4),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.bgDark,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(children: [
-                InitialsAvatar(
-                  initials: member.name
-                      .split(' ')
-                      .map((w) => w[0])
-                      .take(2)
-                      .join(),
-                  size: 44,
-                ),
-                const SizedBox(width: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──────────────────────────────────────────────
+              Row(children: [
+                InitialsAvatar(initials: widget.employee.initials, size: 42),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(member.name, style: AppTextStyles.labelMedium),
-                      const SizedBox(height: 3),
-                      Text('ID: #${member.memberId}',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textMuted)),
-                      const SizedBox(height: 3),
-                      Text(
-                          '${member.currentPoints} pts  •  ${member.tier}',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.primaryLight)),
+                      const Text('Welcome back,', style: AppTextStyles.caption),
+                      Text(widget.employee.name, style: AppTextStyles.h4),
                     ],
                   ),
                 ),
-                TierBadge(tier: member.tier),
-              ]),
-            ),
-            const SizedBox(height: 20),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
-                  child: Text('Cancel',
-                      style: AppTextStyles.labelMedium
-                          .copyWith(color: AppColors.textMuted)),
+                  child: Text('Staff',
+                      style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primaryLight,
+                          fontWeight: FontWeight.w600)),
                 ),
+              ]),
+              const SizedBox(height: 24),
+
+              // ── Commission card ──────────────────────────────────────
+              _CommissionCard(
+                monthlyCommission: _monthlyCommission,
+                weeklyTotal: _weeklyTotal,
+                weeklyCommission: _weeklyCommission,
+                scanCount: _todayScans.length,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: GradientButton(
-                  label: 'Add Fuel',
-                  icon: Icons.local_gas_station_rounded,
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Future.delayed(const Duration(milliseconds: 300), () {
-                      if (context.mounted) _showFuelEntry(context, member);
-                    });
+              const SizedBox(height: 24),
+
+              // ── Quick Actions ────────────────────────────────────────
+              const Text('Quick Actions', style: AppTextStyles.h4),
+              const SizedBox(height: 14),
+              Row(children: [
+                _EmpQuickAction(
+                  icon: Icons.qr_code_scanner_rounded,
+                  label: 'Scan QR',
+                  color: AppColors.primaryLight,
+                  onTap: () => _startScanFlow(context),
+                ),
+                const SizedBox(width: 10),
+                _EmpQuickAction(
+                  icon: Icons.payments_outlined,
+                  label: 'My Commission',
+                  color: AppColors.primary,
+                  onTap: () {
+                    final dashboard = context
+                        .findAncestorStateOfType<
+                            EmployeeDashboardScreenState>();
+                    dashboard?.switchToCommission();
                   },
                 ),
-              ),
-            ]),
-          ]),
-        ),
-      );
-    });
-  }
-
-  void _showFuelEntry(BuildContext context, ScannedMember member) {
-    final amountCtrl = TextEditingController();
-    const double pointsPerLkr = 0.1;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgCard,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) {
-          final amount = double.tryParse(amountCtrl.text) ?? 0;
-          final points = (amount * pointsPerLkr).toInt();
-
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-                24,
-                24,
-                24,
-                MediaQuery.of(context).viewInsets.bottom + 32),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              _sheetHandle(),
-              const SizedBox(height: 20),
-              const Row(children: [
-                Icon(Icons.local_gas_station_rounded,
-                    color: AppColors.primaryLight, size: 22),
-                SizedBox(width: 10),
-                Text('Add Fuel Details', style: AppTextStyles.h4),
               ]),
-              const SizedBox(height: 6),
-              Text('For ${member.name}',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.textMuted)),
-              const SizedBox(height: 20),
-              AppTextField(
-                label: 'Sale Amount (LKR)',
-                hint: 'e.g. 7015',
-                controller: amountCtrl,
-                prefixIconData: Icons.payments_outlined,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (_) => setSheet(() {}),
-              ),
-              const SizedBox(height: 16),
-              if (amount > 0)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: Colors.green.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.stars_rounded,
-                        color: Colors.greenAccent, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Member will earn  +$points pts',
-                        style: AppTextStyles.labelMedium
-                            .copyWith(color: Colors.greenAccent),
-                      ),
-                    ),
-                    Text('(LKR ${amount.toStringAsFixed(0)} × 0.1)',
-                        style: AppTextStyles.caption
-                            .copyWith(color: Colors.green.shade300)),
-                  ]),
-                ),
-              const SizedBox(height: 20),
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(sheetCtx),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.border),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('Cancel',
-                        style: AppTextStyles.labelMedium
+              const SizedBox(height: 24),
+
+              // ── Today's scans ────────────────────────────────────────
+              const Text("Today's Scans", style: AppTextStyles.h4),
+              const SizedBox(height: 14),
+              if (_todayScans.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text('No scans yet today.',
+                        style: AppTextStyles.bodySmall
                             .copyWith(color: AppColors.textMuted)),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: GradientButton(
-                    label: 'Confirm & Award',
-                    icon: Icons.check_rounded,
-                    onPressed: amount > 0
-                        ? () async {
-                            Navigator.pop(sheetCtx);
-                            await _svc.recordFuelSale(
-                              employeeId: widget.employee.id,
-                              customerId: member.userId,
-                              saleAmount: amount,
-                              pointsAwarded: points,
-                            );
-                            if (context.mounted) {
-                              _onTransactionComplete(
-                                  context, member, amount, points);
-                            }
-                          }
-                        : null,
-                  ),
-                ),
-              ]),
-            ]),
-          );
-        },
+                )
+              else
+                ..._todayScans.map((s) => _TodayScanTile(scan: s)),
+
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  void _onTransactionComplete(BuildContext context, ScannedMember member,
-      double amount, int points) {
-    _svc.getTodayScans(widget.employee.id).then((scans) {
-      if (!mounted) return;
-      setState(() => _todayScans = scans.toList());
-    });
+// ── Commission card ───────────────────────────────────────────────────────────
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppColors.bgCard,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-        content: Row(children: [
-          const Icon(Icons.check_circle_rounded,
-              color: Colors.greenAccent, size: 20),
-          const SizedBox(width: 10),
+class _CommissionCard extends StatelessWidget {
+  final double monthlyCommission;
+  final double weeklyTotal;
+  final List<int> weeklyCommission;
+  final int scanCount;
+
+  const _CommissionCard({
+    required this.monthlyCommission,
+    required this.weeklyTotal,
+    required this.weeklyCommission,
+    required this.scanCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: AppColors.buttonGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Expanded(
-            child: Text(
-              '+$points pts awarded to ${member.name}',
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textPrimary),
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.payments_outlined,
+                      size: 13,
+                      color: Colors.white.withValues(alpha: 0.55)),
+                  const SizedBox(width: 5),
+                  Text('commission',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.55),
+                          fontWeight: FontWeight.w400)),
+                ]),
+                const SizedBox(height: 6),
+                Text(
+                  'LKR ${monthlyCommission.toStringAsFixed(0)}',
+                  style: AppTextStyles.h1.copyWith(color: Colors.white),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  height: 1,
+                  width: 80,
+                  color: Colors.white.withValues(alpha: 0.15),
+                ),
+                const SizedBox(height: 6),
+                Row(children: [
+                  Icon(Icons.calendar_view_week_rounded,
+                      size: 11,
+                      color: Colors.white.withValues(alpha: 0.45)),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      'This week  LKR ${weeklyTotal.toStringAsFixed(0)}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.5)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 3),
+                Text(
+                  '$scanCount transactions · 2% rate',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.45)),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
             ),
           ),
-        ]),
-        duration: const Duration(seconds: 3),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Last 7 days',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withValues(alpha: 0.5),
+                      letterSpacing: 0.3),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 80,
+                  child: _WeeklyCommissionChart(data: weeklyCommission),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
-
-  Widget _sheetHandle() => Container(
-        width: 40,
-        height: 4,
-        decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(2)),
-      );
 }
 
 // ── Weekly commission bar chart ───────────────────────────────────────────────
@@ -570,7 +316,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 class _WeeklyCommissionChart extends StatelessWidget {
   final List<int> data;
   const _WeeklyCommissionChart({required this.data});
-
   static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   @override
@@ -736,9 +481,7 @@ class _EmpQuickAction extends StatelessWidget {
               Text(
                 label,
                 style: AppTextStyles.caption.copyWith(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                    fontSize: 11, color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ]),
