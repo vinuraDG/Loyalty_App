@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
-import 'change_password_screen.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -148,126 +147,107 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
 
-                  // ── Avatar ────────────────────────────────────────
-                  Center(
-                    child: AnimatedBuilder(
-                      animation: Listenable.merge([_firstNameCtrl, _lastNameCtrl]),
-                      builder: (_, __) =>
-                          InitialsAvatar(initials: _initials, size: 80),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // ── Personal Info Form ────────────────────────────
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _SectionLabel(label: 'PERSONAL INFO'),
-                        const SizedBox(height: 12),
-
-                        _ProfileField(
-                          controller: _firstNameCtrl,
-                          label: 'First Name',
-                          icon: Icons.person_outline_rounded,
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'First name is required';
-                            if (v.trim().length < 2) return 'Too short';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-
-                        _ProfileField(
-                          controller: _lastNameCtrl,
-                          label: 'Last Name',
-                          icon: Icons.person_outline_rounded,
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Last name is required';
-                            if (v.trim().length < 2) return 'Too short';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-
-                        _ProfileField(
-                          controller: _emailCtrl,
-                          label: 'Email Address',
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Email is required';
-                            final emailRegex =
-                                RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-                            if (!emailRegex.hasMatch(v.trim())) return 'Enter a valid email';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-
-                        _ProfileField(
-                          controller: _phoneCtrl,
-                          label: 'Phone Number',
-                          icon: Icons.phone_outlined,
-                          readOnly: true,
-                          hint: 'Verified via OTP',
-                          validator: (_) => null,
-                        ),
-                        const SizedBox(height: 6),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Row(children: [
-                            const Icon(Icons.verified_rounded,
-                                color: AppColors.primary, size: 13),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Phone verified — cannot be changed here',
-                              style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.textMuted, fontSize: 11),
-                            ),
-                          ]),
-                        ),
-                        const SizedBox(height: 14),
-
-                        _ProfileField(
-                          controller: _addressCtrl,
-                          label: 'Address',
-                          icon: Icons.location_on_outlined,
-                          keyboardType: TextInputType.streetAddress,
-                          maxLines: 2,
-                          validator: (_) => null,
-                        ),
-                        const SizedBox(height: 28),
-
-                        GradientButton(
-                          label: 'Save Changes',
-                          isLoading: _isSaving,
-                          onPressed: _hasChanges ? _save : null,
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-
-                  // ── Change Password button ────────────────────────
-                  const _SectionLabel(label: 'SECURITY'),
-                  const SizedBox(height: 12),
-
-                  _ChangePasswordTile(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ChangePasswordScreen(),
+                    // ── Avatar ────────────────────────────────────────
+                    Center(
+                      child: AnimatedBuilder(
+                        animation: Listenable.merge([_firstNameCtrl, _lastNameCtrl]),
+                        builder: (_, __) =>
+                            InitialsAvatar(initials: _initials, size: 80),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
+                    const SizedBox(height: 32),
+
+                    // ── Personal Info Form ────────────────────────────
+                    const _SectionLabel(label: 'PERSONAL INFO'),
+                    const SizedBox(height: 12),
+
+                    _ProfileField(
+                      controller: _firstNameCtrl,
+                      label: 'First Name',
+                      icon: Icons.person_outline_rounded,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'First name is required';
+                        if (v.trim().length < 2) return 'Too short';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    _ProfileField(
+                      controller: _lastNameCtrl,
+                      label: 'Last Name',
+                      icon: Icons.person_outline_rounded,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Last name is required';
+                        if (v.trim().length < 2) return 'Too short';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    _ProfileField(
+                      controller: _emailCtrl,
+                      label: 'Email Address',
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Email is required';
+                        final emailRegex =
+                            RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        if (!emailRegex.hasMatch(v.trim())) return 'Enter a valid email';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    _ProfileField(
+                      controller: _phoneCtrl,
+                      label: 'Phone Number',
+                      icon: Icons.phone_outlined,
+                      readOnly: true,
+                      hint: 'Verified via OTP',
+                      validator: (_) => null,
+                    ),
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Row(children: [
+                        const Icon(Icons.verified_rounded,
+                            color: AppColors.primary, size: 13),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Phone verified — cannot be changed here',
+                          style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textMuted, fontSize: 11),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 14),
+
+                    _ProfileField(
+                      controller: _addressCtrl,
+                      label: 'Address',
+                      icon: Icons.location_on_outlined,
+                      keyboardType: TextInputType.streetAddress,
+                      maxLines: 2,
+                      validator: (_) => null,
+                    ),
+                    const SizedBox(height: 28),
+
+                    GradientButton(
+                      label: 'Save Changes',
+                      isLoading: _isSaving,
+                      onPressed: _hasChanges ? _save : null,
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           ),
@@ -275,49 +255,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ),
     );
   }
-}
-
-// ── Change Password Tile ──────────────────────────────────────────────────────
-
-class _ChangePasswordTile extends StatelessWidget {
-  final VoidCallback onTap;
-  const _ChangePasswordTile({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(children: [
-        Container(
-          width: 38, height: 38,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(Icons.lock_outline_rounded,
-              color: AppColors.primary, size: 18),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Change Password', style: AppTextStyles.labelMedium),
-            const SizedBox(height: 2),
-            Text('Update your account password',
-                style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textMuted)),
-          ]),
-        ),
-        const Icon(Icons.arrow_forward_ios_rounded,
-            size: 14, color: AppColors.textSecondary),
-      ]),
-    ),
-  );
 }
 
 // ── Shared sub-widgets ────────────────────────────────────────────────────────

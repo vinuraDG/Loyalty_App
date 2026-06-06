@@ -1,17 +1,18 @@
+// lib/features/auth/providers/auth_provider.dart
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/models/user_model.dart';
 import 'package:loyalty_app/services/mock_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 
 class AuthState {
   final AuthStatus status;
   final UserModel? user;
-  final String? errorMessage;
-  final String? pendingPhone;
+  final String?    errorMessage;
+  final String?    pendingPhone;
 
   const AuthState({
     this.status = AuthStatus.initial,
@@ -20,19 +21,19 @@ class AuthState {
     this.pendingPhone,
   });
 
-  bool get isLoading => status == AuthStatus.loading;
+  bool get isLoading       => status == AuthStatus.loading;
   bool get isAuthenticated => status == AuthStatus.authenticated;
-  bool get isEmployee => user?.role == 'employee';
+  bool get isEmployee      => user?.role == 'employee';
 
   AuthState copyWith({
     AuthStatus? status,
-    UserModel? user,
-    String? errorMessage,
-    String? pendingPhone,
+    UserModel?  user,
+    String?     errorMessage,
+    String?     pendingPhone,
   }) =>
       AuthState(
-        status: status ?? this.status,
-        user: user ?? this.user,
+        status:       status       ?? this.status,
+        user:         user         ?? this.user,
         errorMessage: errorMessage,
         pendingPhone: pendingPhone ?? this.pendingPhone,
       );
@@ -45,12 +46,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   final _auth = MockAuthService.instance;
 
-  // ── Session ───────────────────────────────────────────────────
+  // ── Session ───────────────────────────────────────────────────────────────
 
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
     final loggedIn = prefs.getBool(AppConstants.prefIsLoggedIn) ?? false;
-    final userId = prefs.getString(AppConstants.prefUserId);
+    final userId   = prefs.getString(AppConstants.prefUserId);
     if (loggedIn && userId != null) {
       final user = _auth.findById(userId);
       if (user != null) {
@@ -75,7 +76,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove(AppConstants.prefUserRole);
   }
 
-  // ── Email Auth ────────────────────────────────────────────────
+  // ── Email Auth ────────────────────────────────────────────────────────────
 
   Future<void> signInWithEmail(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
@@ -99,16 +100,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String lastName,
     required String email,
     required String phone,
-    required String password, // ← removed 'required String name' from here
+    required String password,
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       final user = await _auth.signUpWithEmail(
         firstName: firstName,
-        lastName: lastName,
-        email: email,
-        phone: phone,
-        password: password,
+        lastName:  lastName,
+        email:     email,
+        phone:     phone,
+        password:  password,
       );
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
@@ -122,7 +123,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ── Phone / OTP ───────────────────────────────────────────────
+  // ── Phone / OTP (login) ───────────────────────────────────────────────────
 
   Future<void> sendOtp(String phone) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
@@ -141,7 +142,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (state.pendingPhone == null) return null;
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      final user = await _auth.verifyOtp(phone: state.pendingPhone!, otp: otp);
+      final user = await _auth.verifyOtp(
+          phone: state.pendingPhone!, otp: otp);
       if (user != null) {
         await _saveSession(user);
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
@@ -163,9 +165,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _auth.createAccountWithPhone(
         firstName: firstName,
-        lastName: lastName,
-        email: email,
-        phone: state.pendingPhone!,
+        lastName:  lastName,
+        email:     email,
+        phone:     state.pendingPhone!,
       );
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
@@ -175,7 +177,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ── Profile update ────────────────────────────────────────────
+  // ── Forgot password ───────────────────────────────────────────────────────
+  //
+  // These three methods drive the ForgotPasswordScreen flow.
+  // They intentionally do NOT touch the main AuthState.status so that any
+  // currently-authenticated session is unaffected while a user is going
+  // through the reset flow in a separate route.
+  //
+  // TODO (backend): swap MockAuthService calls for real API calls:
+  //   sendOtpForReset    → POST /auth/forgot-password/send-otp
+  //   verifyOtpForReset  → POST /auth/forgot-password/verify-otp
+  //   resetPassword      → POST /auth/forgot-password/reset
+
+  Future<void> sendOtpForReset(String phone) async {
+    // TODO: call real API — verify phone exists, then SMS OTP.
+    // Throws AuthException (caught in ForgotPasswordScreen) on unknown phone.
+    await _auth.sendOtpForReset(phone);
+  }
+
+  /// Returns true if the OTP is valid, false otherwise.
+  Future<bool> verifyOtpForReset({
+    required String phone,
+    required String otp,
+  }) async {
+    // TODO: call real API — validate OTP + expiry, return short-lived token.
+    return _auth.verifyOtpForReset(phone: phone, otp: otp);
+  }
+
+  /// Replaces the account's password for [phone] with [newPassword].
+  Future<void> resetPassword({
+    required String phone,
+    required String newPassword,
+  }) async {
+    // TODO: call real API — accept reset token + new password, hash & store.
+    await _auth.resetPassword(phone: phone, newPassword: newPassword);
+  }
+
+  // ── Profile update ────────────────────────────────────────────────────────
 
   Future<void> updateProfile({
     required String firstName,
@@ -187,11 +225,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       final updated = await _auth.updateProfile(
-        id: state.user!.id,
+        id:        state.user!.id,
         firstName: firstName,
-        lastName: lastName,
-        email: email,
-        address: address,
+        lastName:  lastName,
+        email:     email,
+        address:   address,
       );
       await _saveSession(updated);
       state = state.copyWith(status: AuthStatus.authenticated, user: updated);
@@ -213,9 +251,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       await _auth.changePassword(
-        id: state.user!.id,
+        id:              state.user!.id,
         currentPassword: currentPassword,
-        newPassword: newPassword,
+        newPassword:     newPassword,
       );
       state = state.copyWith(status: AuthStatus.authenticated);
     } on AuthException catch (e) {
@@ -228,7 +266,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ── Misc ──────────────────────────────────────────────────────
+  // ── Misc ──────────────────────────────────────────────────────────────────
 
   Future<void> signOut() async {
     await _clearSession();
@@ -244,7 +282,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-// ── Providers ─────────────────────────────────────────────────
+// ── Providers ─────────────────────────────────────────────────────────────────
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
   (ref) => AuthNotifier(),

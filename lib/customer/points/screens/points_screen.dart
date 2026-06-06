@@ -9,7 +9,7 @@ import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 
 class PointsScreen extends ConsumerStatefulWidget {
-  final IPointsService? service; // injectable for testing
+  final IPointsService? service;
   const PointsScreen({super.key, this.service});
 
   @override
@@ -17,9 +17,8 @@ class PointsScreen extends ConsumerStatefulWidget {
 }
 
 class _PointsScreenState extends ConsumerState<PointsScreen> {
-  // 'All' | business name from AppConstants
   String _filter   = 'All';
-  int    _monthIdx = 0; // 0 = current month
+  int    _monthIdx = 0;
 
   IPointsService get _svc =>
       widget.service ?? PointsMockService.instance;
@@ -56,10 +55,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   Future<List<TransactionModel>>? _txFuture;
   String? _loadedUserId;
 
-  // Called on first build and whenever an inherited dependency changes
-  // (e.g. the auth provider notifies). Safer than initState because
-  // ref.read is legal here, and safer than build() because it avoids
-  // triggering a setState inside the build phase.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -110,8 +105,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 ),
               ),
               trailing: sel
-                  ? const Icon(Icons.check_rounded,
-                      color: AppColors.primary, size: 20)
+                  ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20)
                   : null,
               onTap: () {
                 setState(() {
@@ -128,12 +122,219 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────────
+  // ── Business card popup ───────────────────────────────────────────────────
+
+  void _showBizDetail(
+    BuildContext context, {
+    required String business,
+    required int totalEarned,
+    required int totalRedeemed,
+    required int totalExpired,
+    required Color color,
+  }) {
+    final netPoints = totalEarned - totalRedeemed - totalExpired;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgCard,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Icon + business name
+              Row(children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: BusinessIcon(business: business, size: 26),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      business == kBusinessFuel ? 'Fuel Station' : business,
+                      style: AppTextStyles.h4,
+                    ),
+                    Text(
+                      'Points breakdown',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ]),
+              const SizedBox(height: 20),
+
+              // Net points hero
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withValues(alpha: 0.25),
+                      color.withValues(alpha: 0.10),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: color.withValues(alpha: 0.3)),
+                ),
+                child: Column(children: [
+                  Text(
+                    '$netPoints',
+                    style: AppTextStyles.display.copyWith(
+                      fontSize: 44,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'available points',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 16),
+
+              // Breakdown rows
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bgDark,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(children: [
+                  _BizDetailRow(
+                    icon: Icons.add_circle_outline_rounded,
+                    iconColor: AppColors.success,
+                    label: 'Total earned',
+                    value: '+$totalEarned pts',
+                    valueColor: AppColors.success,
+                  ),
+                  _BizDetailDivider(),
+                  _BizDetailRow(
+                    icon: Icons.remove_circle_outline_rounded,
+                    iconColor: AppColors.error,
+                    label: 'Total redeemed',
+                    value: '-$totalRedeemed pts',
+                    valueColor: AppColors.error,
+                  ),
+                  if (totalExpired > 0) ...[
+                    _BizDetailDivider(),
+                    _BizDetailRow(
+                      icon: Icons.timer_off_rounded,
+                      iconColor: const Color(0xFFFBBF24),
+                      label: 'Expired points',
+                      value: '-$totalExpired pts',
+                      valueColor: const Color(0xFFFBBF24),
+                    ),
+                  ],
+                  _BizDetailDivider(),
+                  _BizDetailRow(
+                    icon: Icons.account_balance_wallet_rounded,
+                    iconColor: color,
+                    label: 'Net available',
+                    value: '$netPoints pts',
+                    valueColor: color,
+                    bold: true,
+                  ),
+                ]),
+              ),
+
+              if (totalExpired > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBBF24).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFFBBF24).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 15,
+                      color: Color(0xFFFBBF24),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '$totalExpired pts expired and cannot be redeemed.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: const Color(0xFFFBBF24),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // Close button
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: AppColors.buttonGradient,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Close',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    // Watch so the widget rebuilds when the user changes; the future itself
-    // is assigned in didChangeDependencies — never inside build().
     ref.watch(currentUserProvider);
 
     return Scaffold(
@@ -152,7 +353,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
             child: FutureBuilder<List<TransactionModel>>(
               future: _txFuture,
               builder: (context, snapshot) {
-                // _txFuture is null only when user is not yet available.
                 if (_txFuture == null ||
                     snapshot.connectionState != ConnectionState.done) {
                   return const Center(child: CircularProgressIndicator());
@@ -184,13 +384,18 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     .where((t) => t.isEarned)
                     .fold<int>(0, (s, t) => s + t.points);
                 final monthRedeemed = monthTxs
-                    .where((t) => !t.isEarned)
+                    .where((t) => t.isRedeemed)
                     .fold<int>(0, (s, t) => s + t.points);
-                final monthTotal = monthEarned - monthRedeemed;
+                final monthExpired = monthTxs
+                    .where((t) => t.isExpired)
+                    .fold<int>(0, (s, t) => s + t.points);
+
+                // ✅ FIX: subtract expired from balance
+                final monthBalance = monthEarned - monthRedeemed - monthExpired;
 
                 // ── Today slice ────────────────────────────────────────────
-                final today     = DateTime.now();
-                final todayTxs  = allTxs.where((t) =>
+                final today    = DateTime.now();
+                final todayTxs = allTxs.where((t) =>
                     t.date.year  == today.year  &&
                     t.date.month == today.month &&
                     t.date.day   == today.day).toList();
@@ -198,29 +403,56 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     .where((t) => t.isEarned)
                     .fold<int>(0, (s, t) => s + t.points);
                 final todayRedeemed = todayTxs
-                    .where((t) => !t.isEarned)
+                    .where((t) => t.isRedeemed)
                     .fold<int>(0, (s, t) => s + t.points);
 
-                // ── Per-business breakdown (earned only) ───────────────────
-                final byBiz = <String, int>{};
-                for (final t in monthTxs.where((t) => t.isEarned)) {
-                  byBiz[t.business] =
-                      (byBiz[t.business] ?? 0) + t.points;
+                // ── Per-business breakdown (all-time, for biz cards) ───────
+                // Earned: only non-expired earned transactions
+                // Redeemed: redeemed transactions
+                // Expired: expired transactions
+                final byBizEarned   = <String, int>{};
+                final byBizRedeemed = <String, int>{};
+                final byBizExpired  = <String, int>{};
+
+                for (final t in allTxs) {
+                  if (t.isEarned) {
+                    byBizEarned[t.business] =
+                        (byBizEarned[t.business] ?? 0) + t.points;
+                  } else if (t.isRedeemed) {
+                    byBizRedeemed[t.business] =
+                        (byBizRedeemed[t.business] ?? 0) + t.points;
+                  } else if (t.isExpired) {
+                    byBizExpired[t.business] =
+                        (byBizExpired[t.business] ?? 0) + t.points;
+                  }
                 }
 
-                // ── Business-filtered list ──────────────────────────────────
-                final txs = _filter == 'All'
-                    ? monthTxs
-                    : monthTxs
-                        .where((t) => t.business == _filter)
-                        .toList();
+                // Net available per business (earned - redeemed - expired)
+                final byBizNet = <String, int>{};
+                for (final biz in [
+                  kBusinessFuel,
+                  kBusinessLaundry,
+                  kBusinessGold,
+                ]) {
+                  final e = byBizEarned[biz]   ?? 0;
+                  final r = byBizRedeemed[biz] ?? 0;
+                  final x = byBizExpired[biz]  ?? 0;
+                  byBizNet[biz] = e - r - x;
+                }
+
+                // ── Business-filtered transaction list ─────────────────────
+                final txs = monthTxs
+                    .where((t) => !t.isExpired)
+                    .where((t) =>
+                        _filter == 'All' || t.business == _filter)
+                    .toList();
 
                 return SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Balance card ────────────────────────────────────
+                      // ── Balance card ──────────────────────────────────────
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(22),
@@ -243,8 +475,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                               Text(
                                 sel['label'] as String,
                                 style: AppTextStyles.bodySmall.copyWith(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.7)),
+                                    color: Colors.white.withValues(alpha: 0.7)),
                               ),
                             ]),
                             const SizedBox(height: 8),
@@ -253,7 +484,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '$monthTotal',
+                                  '$monthBalance',
                                   style: AppTextStyles.display
                                       .copyWith(fontSize: 48),
                                 ),
@@ -263,8 +494,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                   child: Text(
                                     'pts',
                                     style: AppTextStyles.bodySmall.copyWith(
-                                      color: Colors.white
-                                          .withValues(alpha: 0.7),
+                                      color: Colors.white.withValues(alpha: 0.7),
                                       fontSize: 16,
                                     ),
                                   ),
@@ -281,21 +511,17 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                             Row(children: [
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       'Today earned',
                                       style: AppTextStyles.caption.copyWith(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.6),
+                                        color: Colors.white.withValues(alpha: 0.6),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      todayEarned > 0
-                                          ? '+$todayEarned'
-                                          : '+0',
+                                      todayEarned > 0 ? '+$todayEarned' : '+0',
                                       style: AppTextStyles.h3.copyWith(
                                         color: AppColors.success,
                                         fontSize: 22,
@@ -307,8 +533,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                               Container(
                                   width: 1,
                                   height: 36,
-                                  color: Colors.white
-                                      .withValues(alpha: 0.12)),
+                                  color: Colors.white.withValues(alpha: 0.12)),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -316,8 +541,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                     Text(
                                       'Today redeemed',
                                       style: AppTextStyles.caption.copyWith(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.6),
+                                        color: Colors.white.withValues(alpha: 0.6),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -334,31 +558,84 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                 ),
                               ),
                             ]),
+
+                            // Expired notice
+                            if (monthExpired > 0) ...[
+                              Container(
+                                  height: 1,
+                                  margin: const EdgeInsets.only(top: 14),
+                                  color: Colors.white.withValues(alpha: 0.12)),
+                              const SizedBox(height: 12),
+                              Row(children: [
+                                const Icon(
+                                  Icons.timer_off_rounded,
+                                  size: 13,
+                                  color: Color(0xFFFBBF24),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$monthExpired pts expired this month',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: const Color(0xFFFBBF24),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ]),
+                            ],
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // ── Per-business breakdown ──────────────────────────
+                      // ── Per-business breakdown cards ───────────────────────
                       Row(children: [
                         _BizCard(
+                          business: kBusinessFuel,
+                          pts: byBizNet[kBusinessFuel] ?? 0,
+                          expiredPts: byBizExpired[kBusinessFuel] ?? 0,
+                          onTap: () => _showBizDetail(
+                            context,
                             business: kBusinessFuel,
-                            pts: byBiz[kBusinessFuel] ?? 0),
+                            totalEarned:   byBizEarned[kBusinessFuel]   ?? 0,
+                            totalRedeemed: byBizRedeemed[kBusinessFuel] ?? 0,
+                            totalExpired:  byBizExpired[kBusinessFuel]  ?? 0,
+                            color: AppColors.fuelColor,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         _BizCard(
+                          business: kBusinessLaundry,
+                          pts: byBizNet[kBusinessLaundry] ?? 0,
+                          expiredPts: byBizExpired[kBusinessLaundry] ?? 0,
+                          onTap: () => _showBizDetail(
+                            context,
                             business: kBusinessLaundry,
-                            pts: byBiz[kBusinessLaundry] ?? 0),
+                            totalEarned:   byBizEarned[kBusinessLaundry]   ?? 0,
+                            totalRedeemed: byBizRedeemed[kBusinessLaundry] ?? 0,
+                            totalExpired:  byBizExpired[kBusinessLaundry]  ?? 0,
+                            color: AppColors.laundryColor,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         _BizCard(
+                          business: kBusinessGold,
+                          pts: byBizNet[kBusinessGold] ?? 0,
+                          expiredPts: byBizExpired[kBusinessGold] ?? 0,
+                          onTap: () => _showBizDetail(
+                            context,
                             business: kBusinessGold,
-                            pts: byBiz[kBusinessGold] ?? 0),
+                            totalEarned:   byBizEarned[kBusinessGold]   ?? 0,
+                            totalRedeemed: byBizRedeemed[kBusinessGold] ?? 0,
+                            totalExpired:  byBizExpired[kBusinessGold]  ?? 0,
+                            color: AppColors.accentGold,
+                          ),
+                        ),
                       ]),
                       const SizedBox(height: 24),
 
-                      // ── Transaction history header ──────────────────────
+                      // ── Transaction history header ─────────────────────────
                       Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text('Transaction History',
                               style: AppTextStyles.h4),
@@ -369,30 +646,21 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                   horizontal: 12, vertical: 7),
                               decoration: BoxDecoration(
                                 color: AppColors.bgCard,
-                                borderRadius:
-                                    BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: AppColors.border),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppColors.border),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                      Icons.calendar_today_rounded,
-                                      size: 13,
-                                      color: AppColors.primary),
+                                  const Icon(Icons.calendar_today_rounded,
+                                      size: 13, color: AppColors.primary),
                                   const SizedBox(width: 6),
                                   Text(sel['short'] as String,
                                       style: AppTextStyles.labelSmall
-                                          .copyWith(
-                                              color:
-                                                  AppColors.primary)),
+                                          .copyWith(color: AppColors.primary)),
                                   const SizedBox(width: 4),
-                                  const Icon(
-                                      Icons
-                                          .keyboard_arrow_down_rounded,
-                                      size: 16,
-                                      color: AppColors.primary),
+                                  const Icon(Icons.keyboard_arrow_down_rounded,
+                                      size: 16, color: AppColors.primary),
                                 ],
                               ),
                             ),
@@ -401,7 +669,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // ── Business filter tabs ───────────────────────────
+                      // ── Business filter tabs ──────────────────────────────
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.bgCard,
@@ -412,23 +680,20 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                         child: Row(
                           children: _filterLabels.map((f) {
                             final isSelected = _filter == f;
-                            // Shorten 'Fuel Station' → 'Fuel' to fit
                             final displayLabel =
                                 f == kBusinessFuel ? 'Fuel' : f;
                             return Expanded(
                               child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _filter = f),
+                                onTap: () => setState(() => _filter = f),
                                 child: AnimatedContainer(
-                                  duration: const Duration(
-                                      milliseconds: 200),
+                                  duration:
+                                      const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 9),
                                   decoration: BoxDecoration(
                                     gradient: isSelected
                                         ? const LinearGradient(
-                                            colors: AppColors
-                                                .buttonGradient)
+                                            colors: AppColors.buttonGradient)
                                         : null,
                                     borderRadius:
                                         BorderRadius.circular(10),
@@ -436,8 +701,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                   alignment: Alignment.center,
                                   child: Text(
                                     displayLabel,
-                                    style:
-                                        AppTextStyles.caption.copyWith(
+                                    style: AppTextStyles.caption.copyWith(
                                       color: isSelected
                                           ? Colors.white
                                           : AppColors.textSecondary,
@@ -455,19 +719,17 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       ),
                       const SizedBox(height: 14),
 
-                      // ── Transaction list ───────────────────────────────
+                      // ── Transaction list ──────────────────────────────────
                       if (txs.isEmpty)
                         Center(
                           child: Padding(
                             padding: const EdgeInsets.all(32),
                             child: Column(children: [
                               const Icon(Icons.receipt_long_outlined,
-                                  color: AppColors.textSecondary,
-                                  size: 40),
+                                  color: AppColors.textSecondary, size: 40),
                               const SizedBox(height: 8),
                               Text(
-                                'No transactions for '
-                                '${sel['label']}.',
+                                'No transactions for ${sel['label']}.',
                                 style: AppTextStyles.bodySmall,
                                 textAlign: TextAlign.center,
                               ),
@@ -476,8 +738,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                         )
                       else
                         ...txs.map((tx) => Padding(
-                              padding:
-                                  const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.only(bottom: 10),
                               child: _TxCard(tx: tx),
                             )),
 
@@ -494,12 +755,20 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   }
 }
 
-// ── Supporting widgets ────────────────────────────────────────────────────────
+// ── Business card ─────────────────────────────────────────────────────────────
 
 class _BizCard extends StatelessWidget {
-  final String business;
-  final int    pts;
-  const _BizCard({required this.business, required this.pts});
+  final String   business;
+  final int      pts;
+  final int      expiredPts;
+  final VoidCallback onTap;
+
+  const _BizCard({
+    required this.business,
+    required this.pts,
+    required this.expiredPts,
+    required this.onTap,
+  });
 
   Color get _color {
     if (business == kBusinessFuel)    return AppColors.fuelColor;
@@ -514,24 +783,107 @@ class _BizCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.bgCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _color.withValues(alpha: 0.5)),
-          ),
-          child: Column(children: [
-            Text(_shortName,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.bgCard,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _color.withValues(alpha: 0.5)),
+            ),
+            child: Column(children: [
+              Text(
+                _shortName,
                 style: AppTextStyles.caption.copyWith(
-                    color: _color, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text('$pts', style: AppTextStyles.h4),
-            const Text('pts', style: AppTextStyles.caption),
-          ]),
+                  color: _color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text('$pts', style: AppTextStyles.h4),
+              const Text('pts', style: AppTextStyles.caption),
+              // Small expired badge
+              if (expiredPts > 0) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5, vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBBF24).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '-$expiredPts exp',
+                    style: AppTextStyles.caption.copyWith(
+                      color: const Color(0xFFFBBF24),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ]),
+          ),
         ),
       );
 }
+
+// ── Biz detail popup rows ─────────────────────────────────────────────────────
+
+class _BizDetailRow extends StatelessWidget {
+  final IconData icon;
+  final Color    iconColor;
+  final String   label;
+  final String   value;
+  final Color    valueColor;
+  final bool     bold;
+
+  const _BizDetailRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    this.bold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: AppTextStyles.labelMedium.copyWith(
+              color: valueColor,
+              fontSize: 13,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ]),
+      );
+}
+
+class _BizDetailDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: AppColors.border,
+      );
+}
+
+// ── Transaction card ──────────────────────────────────────────────────────────
 
 class _TxCard extends StatelessWidget {
   final TransactionModel tx;
@@ -557,8 +909,7 @@ class _TxCard extends StatelessWidget {
                   Text(tx.business, style: AppTextStyles.labelMedium),
                   const SizedBox(height: 2),
                   Text(
-                    '${tx.isEarned ? 'Earned' : 'Redeemed'} · '
-                    '${_fmtRelative(tx.date)}',
+                    '${_txTypeLabel(tx)} · ${_fmtRelative(tx.date)}',
                     style: AppTextStyles.caption,
                   ),
                 ],
@@ -568,8 +919,7 @@ class _TxCard extends StatelessWidget {
               Text(
                 tx.displayPoints,
                 style: AppTextStyles.labelMedium.copyWith(
-                  color:
-                      tx.isEarned ? AppColors.success : AppColors.error,
+                  color: _txColor(tx),
                 ),
               ),
               const SizedBox(width: 6),
@@ -580,9 +930,20 @@ class _TxCard extends StatelessWidget {
         ),
       );
 
+  String _txTypeLabel(TransactionModel tx) {
+    if (tx.isEarned)   return 'Earned';
+    if (tx.isRedeemed) return 'Redeemed';
+    return 'Expired';
+  }
+
+  Color _txColor(TransactionModel tx) {
+    if (tx.isEarned)   return AppColors.success;
+    if (tx.isRedeemed) return AppColors.error;
+    return const Color(0xFFF97316);
+  }
+
   void _showDetail(BuildContext context) {
-    final isEarned = tx.isEarned;
-    final color    = isEarned ? AppColors.success : AppColors.error;
+    final color = _txColor(tx);
 
     showModalBottomSheet(
       context: context,
@@ -600,10 +961,8 @@ class _TxCard extends StatelessWidget {
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Handle bar
             Container(
-              width: 40,
-              height: 4,
+              width: 40, height: 4,
               decoration: BoxDecoration(
                 color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
@@ -611,42 +970,40 @@ class _TxCard extends StatelessWidget {
             ),
             const SizedBox(height: 18),
 
-            // Icon + amount hero
             Container(
-              width: 56,
-              height: 56,
+              width: 56, height: 56,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: BusinessIcon(business: tx.business, size: 30),
+                child: tx.isExpired
+                    ? Icon(Icons.timer_off_rounded, size: 26, color: color)
+                    : BusinessIcon(business: tx.business, size: 30),
               ),
             ),
             const SizedBox(height: 10),
 
             Text(
               tx.displayPoints,
-              style: AppTextStyles.display.copyWith(
-                  fontSize: 34, color: color),
+              style: AppTextStyles.display.copyWith(fontSize: 34, color: color),
             ),
             const SizedBox(height: 4),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                isEarned ? 'Points Earned' : 'Points Redeemed',
+                _txTypeLabel(tx),
                 style: AppTextStyles.caption.copyWith(
-                    color: color, fontWeight: FontWeight.w600),
+                  color: color, fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const SizedBox(height: 16),
 
-            // Detail rows
             Container(
               decoration: BoxDecoration(
                 color: AppColors.bgDark,
@@ -654,48 +1011,25 @@ class _TxCard extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(children: [
-                _DetailRow(
-                  icon: Icons.store_rounded,
-                  label: 'Business',
-                  value: tx.business,
-                ),
+                _DetailRow(icon: Icons.store_rounded,        label: 'Business', value: tx.business),
                 _TxDivider(),
-                _DetailRow(
-                  icon: Icons.receipt_outlined,
-                  label: 'Bill No',
-                  value: tx.billNo ?? '-',
-                ),
+                _DetailRow(icon: Icons.receipt_outlined,     label: 'Bill No',  value: tx.billNo ?? '-'),
                 _TxDivider(),
-                _DetailRow(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Date',
-                  value: _fmtDate(tx.date),
-                ),
+                _DetailRow(icon: Icons.calendar_today_rounded, label: 'Date',   value: _fmtDate(tx.date)),
                 _TxDivider(),
-                _DetailRow(
-                  icon: Icons.access_time_rounded,
-                  label: 'Time',
-                  value: _fmtTime(tx.date),
-                ),
+                _DetailRow(icon: Icons.access_time_rounded,  label: 'Time',     value: _fmtTime(tx.date)),
                 _TxDivider(),
-                _DetailRow(
-                  icon: Icons.toll_rounded,
-                  label: 'Points',
-                  value: tx.displayPoints,
-                  valueColor: color,
-                ),
+                _DetailRow(icon: Icons.toll_rounded,         label: 'Points',   value: tx.displayPoints, valueColor: color),
                 _TxDivider(),
-                _DetailRow(
-                  icon: Icons.swap_horiz_rounded,
-                  label: 'Type',
-                  value: isEarned ? 'Earned' : 'Redeemed',
-                  valueColor: color,
-                ),
+                _DetailRow(icon: Icons.swap_horiz_rounded,   label: 'Type',     value: _txTypeLabel(tx), valueColor: color),
+                if (tx.note != null && tx.note!.isNotEmpty) ...[
+                  _TxDivider(),
+                  _DetailRow(icon: Icons.notes_rounded, label: 'Note', value: tx.note!),
+                ],
               ]),
             ),
             const SizedBox(height: 16),
 
-            // Close button
             SizedBox(
               width: double.infinity,
               child: GestureDetector(
@@ -710,8 +1044,7 @@ class _TxCard extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Text(
                     'Close',
-                    style: AppTextStyles.labelMedium
-                        .copyWith(color: Colors.white),
+                    style: AppTextStyles.labelMedium.copyWith(color: Colors.white),
                   ),
                 ),
               ),
@@ -721,8 +1054,6 @@ class _TxCard extends StatelessWidget {
       ),
     );
   }
-
-  // ── Formatters ────────────────────────────────────────────────────────────
 
   String _fmtRelative(DateTime d) {
     final diff = DateTime.now().difference(d);
@@ -747,7 +1078,8 @@ class _TxCard extends StatelessWidget {
   }
 }
 
-// ── Detail row ─────────────────────────────────────────────────────────────────
+// ── Detail row ────────────────────────────────────────────────────────────────
+
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String   label;
@@ -780,7 +1112,6 @@ class _DetailRow extends StatelessWidget {
       );
 }
 
-// ── Thin divider used inside detail sheet ────────────────────────────────────
 class _TxDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(

@@ -173,7 +173,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               const SizedBox(height: 24),
 
               // ── Today's scans ────────────────────────────────────────
-              const Text("Today's Scans", style: AppTextStyles.h4),
+              const Text("Today Scans", style: AppTextStyles.h4),
               const SizedBox(height: 14),
               if (_todayScans.isEmpty)
                 Center(
@@ -273,14 +273,7 @@ class _CommissionCard extends StatelessWidget {
                   ),
                 ]),
                 const SizedBox(height: 3),
-                Text(
-                  '$scanCount transactions · 2% rate',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.45)),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
+                
               ],
             ),
           ),

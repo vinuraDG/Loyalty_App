@@ -1,4 +1,6 @@
-// points_mock_service.dart
+// lib/customer/points/data/points_mock_service.dart
+// IPointsService implementation used exclusively by PointsHistoryScreen.
+
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
@@ -12,7 +14,6 @@ class PointsMockService implements IPointsService {
         ? Duration(hours: m['hoursAgo'] as int)
         : Duration(days: (m['daysAgo'] as int? ?? 0));
 
-    // Determine transaction type: expired takes priority over isEarned flag
     final bool expired = (m['isExpired'] as bool? ?? false);
     final bool earned  = (m['isEarned']  as bool? ?? false);
     final TransactionType txType = expired
@@ -29,6 +30,7 @@ class PointsMockService implements IPointsService {
       type:     txType,
       date:     DateTime.now().subtract(ago),
       note:     m['note']     as String?,
+      billNo:   m['billNo']   as String?,
     );
   }).toList();
 

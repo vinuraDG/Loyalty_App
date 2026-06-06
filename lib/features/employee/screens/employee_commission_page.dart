@@ -226,7 +226,7 @@ class _SummaryCard extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           'Total sales: LKR ${summary.totalSales.toStringAsFixed(0)}'
-          '  •  2% commission rate',
+          ,
           style: AppTextStyles.caption.copyWith(color: Colors.white60),
         ),
         const SizedBox(height: 16),
@@ -335,10 +335,7 @@ class _SaleTile extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text('2% rate',
-              style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textMuted, fontSize: 10)),
+         
         ]),
       ]),
     );

@@ -8,6 +8,7 @@ import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
 import 'signup_screen.dart';
 import 'otp_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -155,7 +156,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   controller: _tab,
                   children: [
 
-                    // ── Email form ──────────────────────────────
+                    // ── Email form ──────────────────────────────────
                     Form(
                       key: _emailFormKey,
                       child: Column(
@@ -196,7 +197,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const ForgotPasswordScreen(),
+                                ),
+                              ),
                               child: const Text('Forgot password?'),
                             ),
                           ),
@@ -209,7 +216,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                     ),
 
-                    // ── Phone form ──────────────────────────────
+                    // ── Phone form ──────────────────────────────────
                     Form(
                       key: _phoneFormKey,
                       child: Column(

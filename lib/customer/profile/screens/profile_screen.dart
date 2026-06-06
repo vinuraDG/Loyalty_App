@@ -94,8 +94,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             Text(user.email, style: AppTextStyles.caption),
                             const SizedBox(height: 2),
                             Text(user.phone, style: AppTextStyles.caption),
-                            const SizedBox(height: 8),
-                            TierBadge(tier: tier),
+                            
                           ],
                         ),
                       ),

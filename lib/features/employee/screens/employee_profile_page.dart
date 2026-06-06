@@ -9,7 +9,6 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../data/emp_profile_api_service.dart';
 import '../data/emp_profile_mock_service.dart';
-import 'change_password_page.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
   final UserModel employee;
@@ -21,7 +20,6 @@ class EmployeeProfilePage extends ConsumerStatefulWidget {
 }
 
 class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
-  // ── Service (swap to EmpProfileApiService.instance when backend ready) ─────
   final _svc = EmpProfileMockService.instance;
 
   dynamic _info;
@@ -48,18 +46,9 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
     );
   }
 
-  void _goToChangePassword() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChangePasswordPage(employee: widget.employee),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final rawId = widget.employee.id.toUpperCase();
+    final rawId   = widget.employee.id.toUpperCase();
     final shortId = rawId.substring(0, rawId.length.clamp(0, 8));
 
     return Scaffold(
@@ -97,12 +86,10 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
-                      color:
-                          AppColors.primary.withValues(alpha: 0.15),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: AppColors.primary
-                              .withValues(alpha: 0.3)),
+                          color: AppColors.primary.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _info?.title ?? 'Staff Member',
@@ -138,36 +125,7 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
                 label: 'Title',
                 value: _info?.title ?? '—',
               ),
-              const SizedBox(height: 24),
-
-              // ── Security section ─────────────────────────────────────────
-              const Text('Security', style: AppTextStyles.h4),
-              const SizedBox(height: 12),
-              GestureDetector(
-                onTap: _goToChangePassword,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgCard,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(children: [
-                    Icon(Icons.lock_outline_rounded,
-                        color: AppColors.primaryLight, size: 20),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text('Change Password',
-                          style: AppTextStyles.bodySmall),
-                    ),
-                    Icon(Icons.chevron_right_rounded,
-                        color: AppColors.textMuted, size: 20),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // ── Sign out ─────────────────────────────────────────────────
               GestureDetector(
@@ -207,30 +165,27 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
 
 class _ProfileTile extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final String value;
+  final String   label;
+  final String   value;
   const _ProfileTile(
       {required this.icon, required this.label, required this.value});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(children: [
-        Icon(icon, color: AppColors.primaryLight, size: 20),
-        const SizedBox(width: 14),
-        Expanded(child: Text(label, style: AppTextStyles.bodySmall)),
-        Text(value,
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.textMuted)),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          Icon(icon, color: AppColors.primaryLight, size: 20),
+          const SizedBox(width: 14),
+          Expanded(child: Text(label, style: AppTextStyles.bodySmall)),
+          Text(value,
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textMuted)),
+        ]),
+      );
 }

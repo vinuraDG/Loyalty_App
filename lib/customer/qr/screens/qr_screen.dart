@@ -97,19 +97,7 @@ class QrScreen extends ConsumerWidget {
                     border: Border.all(
                         color: AppColors.primary.withValues(alpha: 0.2)),
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.info_outline,
-                        color: AppColors.primaryLight, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'This QR code contains your unique member ID. '
-                        'Show it at any of our fuel stations, laundry, or gold businesses.',
-                        style: AppTextStyles.caption.copyWith(
-                            color: AppColors.primaryLight, height: 1.6),
-                      ),
-                    ),
-                  ]),
+                 
                 ),
                 const SizedBox(height: 24),
               ]),
