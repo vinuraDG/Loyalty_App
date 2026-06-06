@@ -1,4 +1,6 @@
-enum TransactionType { earned, redeemed }
+// transaction_model.dart
+
+enum TransactionType { earned, redeemed, expired }
 
 class TransactionModel {
   final String id;
@@ -11,10 +13,25 @@ class TransactionModel {
   final String? billNo;
 
   const TransactionModel({
-    required this.id, required this.userId, required this.business,
-    required this.points, required this.type, required this.date, this.note, this.billNo,
+    required this.id,
+    required this.userId,
+    required this.business,
+    required this.points,
+    required this.type,
+    required this.date,
+    this.note,
+    this.billNo,
   });
 
-  bool get isEarned => type == TransactionType.earned;
-  String get displayPoints => isEarned ? '+$points pts' : '-$points pts';
+  bool get isEarned   => type == TransactionType.earned;
+  bool get isRedeemed => type == TransactionType.redeemed;
+  bool get isExpired  => type == TransactionType.expired;
+
+  String get displayPoints {
+    switch (type) {
+      case TransactionType.earned:   return '+$points pts';
+      case TransactionType.redeemed: return '-$points pts';
+      case TransactionType.expired:  return '$points pts';
+    }
+  }
 }

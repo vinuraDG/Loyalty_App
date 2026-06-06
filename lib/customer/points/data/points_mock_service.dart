@@ -1,3 +1,4 @@
+// points_mock_service.dart
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
@@ -6,19 +7,26 @@ class PointsMockService implements IPointsService {
   PointsMockService._();
   static final PointsMockService instance = PointsMockService._();
 
-  // Built once from mock_data.dart (a flat List), then appended during session.
   final List<TransactionModel> _transactions = kMockTransactions.map((m) {
     final Duration ago = m.containsKey('hoursAgo')
         ? Duration(hours: m['hoursAgo'] as int)
         : Duration(days: (m['daysAgo'] as int? ?? 0));
+
+    // Determine transaction type: expired takes priority over isEarned flag
+    final bool expired = (m['isExpired'] as bool? ?? false);
+    final bool earned  = (m['isEarned']  as bool? ?? false);
+    final TransactionType txType = expired
+        ? TransactionType.expired
+        : earned
+            ? TransactionType.earned
+            : TransactionType.redeemed;
+
     return TransactionModel(
       id:       m['id']       as String,
       userId:   m['userId']   as String,
       business: m['business'] as String,
       points:   m['points']   as int,
-      type:     (m['isEarned'] as bool)
-                    ? TransactionType.earned
-                    : TransactionType.redeemed,
+      type:     txType,
       date:     DateTime.now().subtract(ago),
       note:     m['note']     as String?,
     );

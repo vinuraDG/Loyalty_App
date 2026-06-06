@@ -67,27 +67,27 @@ const String kMockOtp = '1234';
 // Transactions (Customer)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Mock transaction records keyed by userId.
+/// Mock transaction records for customers.
 /// Fields mirror what the real API will return:
-///   id, userId, business, points, isEarned, daysAgo (int, relative to now)
+///   id, userId, business, points, isEarned, isExpired,
+///   hoursAgo | daysAgo (relative to now so dates stay accurate at runtime),
+///   note (optional), billNo (optional).
 ///
-/// Using daysAgo instead of ISO strings so dates stay accurate at runtime.
+/// isExpired: true  → points were earned but lapsed before being redeemed.
+///                    isEarned is also true on these rows (they were real earn
+///                    events; they just can no longer be used).
+/// isExpired: false → normal active transaction (default when key is absent).
 const List<Map<String, dynamic>> kMockTransactions = [
+  // ── Active earned ─────────────────────────────────────────────────────────
   {
     'id': 't1',
     'userId': 'cust-001',
     'business': 'Fuel Station',
     'points': 120,
     'isEarned': true,
+    'isExpired': false,
     'hoursAgo': 3,
-  },
-  {
-    'id': 't2',
-    'userId': 'cust-001',
-    'business': 'Laundry',
-    'points': 200,
-    'isEarned': false,
-    'daysAgo': 1,
+    'billNo': 'FS-20240601-001',
   },
   {
     'id': 't3',
@@ -95,7 +95,9 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'business': 'Gold Shop',
     'points': 200,
     'isEarned': true,
+    'isExpired': false,
     'daysAgo': 3,
+    'billNo': 'GS-20240529-003',
   },
   {
     'id': 't4',
@@ -103,7 +105,9 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'business': 'Fuel Station',
     'points': 120,
     'isEarned': true,
+    'isExpired': false,
     'daysAgo': 5,
+    'billNo': 'FS-20240527-004',
   },
   {
     'id': 't5',
@@ -111,7 +115,9 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'business': 'Laundry',
     'points': 80,
     'isEarned': true,
+    'isExpired': false,
     'daysAgo': 7,
+    'billNo': 'LN-20240525-005',
   },
   {
     'id': 't6',
@@ -119,7 +125,9 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'business': 'Gold Shop',
     'points': 200,
     'isEarned': true,
+    'isExpired': false,
     'daysAgo': 10,
+    'billNo': 'GS-20240522-006',
   },
   {
     'id': 't7',
@@ -127,7 +135,56 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'business': 'Fuel Station',
     'points': 120,
     'isEarned': true,
+    'isExpired': false,
     'daysAgo': 12,
+    'billNo': 'FS-20240520-007',
+  },
+
+  // ── Redeemed ──────────────────────────────────────────────────────────────
+  {
+    'id': 't2',
+    'userId': 'cust-001',
+    'business': 'Laundry',
+    'points': 200,
+    'isEarned': false,
+    'isExpired': false,
+    'daysAgo': 1,
+    'note': 'Free wash service',
+  },
+
+  // ── Expired (earned but lapsed — cannot be redeemed) ──────────────────────
+  {
+    'id': 't8',
+    'userId': 'cust-001',
+    'business': 'Gold Shop',
+    'points': 150,
+    'isEarned': true,
+    'isExpired': true,
+    'daysAgo': 45,
+    'billNo': 'GS-20240417-008',
+    'note': 'Points expired — not redeemed in time',
+  },
+  {
+    'id': 't9',
+    'userId': 'cust-001',
+    'business': 'Fuel Station',
+    'points': 120,
+    'isEarned': true,
+    'isExpired': true,
+    'daysAgo': 60,
+    'billNo': 'FS-20240402-009',
+    'note': 'Points expired — not redeemed in time',
+  },
+  {
+    'id': 't10',
+    'userId': 'cust-001',
+    'business': 'Laundry',
+    'points': 80,
+    'isEarned': true,
+    'isExpired': true,
+    'daysAgo': 90,
+    'billNo': 'LN-20240303-010',
+    'note': 'Points expired — not redeemed in time',
   },
 ];
 
@@ -187,7 +244,7 @@ const List<Map<String, dynamic>> kMockAds = [
 /// isExpired: false → offer is currently active.
 /// The real backend will serve these from a promotions API.
 const List<Map<String, dynamic>> kMockOffers = [
-  // ── Laundry ──────────────────────────────────────────────────────────────
+  // ── Laundry ───────────────────────────────────────────────────────────────
   {
     'id': 'o1',
     'title': 'Free wash service',
@@ -210,9 +267,9 @@ const List<Map<String, dynamic>> kMockOffers = [
     'description': 'Ready within 4 hours',
     'business': 'Laundry',
     'pointsCost': 180,
-    'isExpired': true,   // ← expired
+    'isExpired': true,
   },
-  // ── Fuel Station ─────────────────────────────────────────────────────────
+  // ── Fuel Station ──────────────────────────────────────────────────────────
   {
     'id': 'o2',
     'title': '10% fuel discount',
@@ -227,7 +284,7 @@ const List<Map<String, dynamic>> kMockOffers = [
     'description': 'With any fuel fill-up',
     'business': 'Fuel Station',
     'pointsCost': 100,
-    'isExpired': true,   // ← expired
+    'isExpired': true,
   },
   // ── Gold Shop ─────────────────────────────────────────────────────────────
   {
@@ -252,7 +309,7 @@ const List<Map<String, dynamic>> kMockOffers = [
     'description': 'Resize any gold ring',
     'business': 'Gold Shop',
     'pointsCost': 250,
-    'isExpired': true,   // ← expired
+    'isExpired': true,
   },
 ];
 
