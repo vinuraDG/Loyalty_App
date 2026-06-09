@@ -26,6 +26,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _passCtrl     = TextEditingController();
   final _phoneCtrl    = TextEditingController();
 
+  final List<String> _logoAssets = [
+    'assets/images/logo1.jpg',
+    'assets/images/logo2.jpg',
+    'assets/images/logo3.jpg',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -118,6 +124,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 'Sign in to access your points and rewards',
                 style: AppTextStyles.bodySmall,
               ),
+              const SizedBox(height: 20),
+
+              // ── Partner logos ───────────────────────────────────
+              _PartnerLogosStrip(logos: _logoAssets),
               const SizedBox(height: 24),
 
               // Tab selector
@@ -312,6 +322,79 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Partner Logos Strip ────────────────────────────────────────────────────────
+
+class _PartnerLogosStrip extends StatelessWidget {
+  final List<String> logos;
+  const _PartnerLogosStrip({required this.logos});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Our partner brands',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textMuted,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.bgInput,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Row(
+            children: List.generate(logos.length, (i) {
+              final isLast = i == logos.length - 1;
+              return Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: isLast
+                        ? null
+                        : Border(
+                            right: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                            ),
+                          ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 12, horizontal: 10),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      logos[i],
+                      height: 48,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.store_outlined,
+                          color: AppColors.primaryLight,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
     );
   }
 }

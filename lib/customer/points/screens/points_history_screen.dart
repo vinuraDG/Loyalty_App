@@ -379,13 +379,15 @@ class _Header extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Text(
-                  'Points History',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
+                Center(
+                  child: const Text(
+                    'Points History',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
                   ),
                 ),
               ]),
@@ -396,7 +398,7 @@ class _Header extends StatelessWidget {
                 child: SlideTransition(
                   position: heroSlide,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
                         'Current Balance',
@@ -409,7 +411,8 @@ class _Header extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
                             fmtFn(balance),
