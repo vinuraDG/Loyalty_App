@@ -29,7 +29,6 @@ class _EmployeeTotalCommissionPageState
   }
 
   Future<void> _loadAll() async {
-    // Build last 6 month keys to fetch across all months
     final now = DateTime.now();
     const shortMonths = [
       'Jan','Feb','Mar','Apr','May','Jun',
@@ -93,7 +92,7 @@ class _EmployeeTotalCommissionPageState
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        // ── Total commission card (height 160) ────────────────────────────
+        // ── Total commission card ─────────────────────────────────────────
         Container(
           width: double.infinity,
           height: 160,
@@ -110,7 +109,6 @@ class _EmployeeTotalCommissionPageState
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Top row: fuel badge
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -143,8 +141,6 @@ class _EmployeeTotalCommissionPageState
                   ),
                 ],
               ),
-
-              // Big commission number
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -153,8 +149,6 @@ class _EmployeeTotalCommissionPageState
                   style: AppTextStyles.display.copyWith(fontSize: 34),
                 ),
               ),
-
-              // Stats row: sales + commission
               Row(children: [
                 _CardStat(
                   icon: Icons.payments_outlined,
@@ -259,214 +253,61 @@ class _CardStat extends StatelessWidget {
       );
 }
 
-// ── Fuel sale tile ────────────────────────────────────────────────────────────
+// ── Fuel sale tile (no tap / no detail popup) ─────────────────────────────────
 
 class _FuelSaleTile extends StatelessWidget {
   final SaleEntry sale;
   const _FuelSaleTile({required this.sale});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: () => _showDetail(context),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.bgCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.fuelColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.local_gas_station_rounded,
-                  color: AppColors.fuelColor, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(sale.customerName,
-                      style: AppTextStyles.labelMedium,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${sale.date}  ·  ${sale.time}',
-                    style: AppTextStyles.caption,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(
-                '+LKR ${sale.commission.toStringAsFixed(2)}',
-                style: AppTextStyles.labelMedium
-                    .copyWith(color: AppColors.success),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'LKR ${sale.saleAmount.toStringAsFixed(0)} sale',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textSecondary, fontSize: 10),
-              ),
-            ]),
-            const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded,
-                size: 16, color: AppColors.textSecondary),
-          ]),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
         ),
-      );
-
-  void _showDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgCard,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+        child: Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.fuelColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.local_gas_station_rounded,
+                color: AppColors.fuelColor, size: 22),
           ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(sale.customerName,
+                    style: AppTextStyles.labelMedium,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Text(
+                  '${sale.date}  ·  ${sale.time}',
+                  style: AppTextStyles.caption,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            Container(
-              width: 60, height: 60,
-              decoration: BoxDecoration(
-                color: AppColors.fuelColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.local_gas_station_rounded,
-                  color: AppColors.fuelColor, size: 30),
-            ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(width: 8),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(
               '+LKR ${sale.commission.toStringAsFixed(2)}',
-              style: AppTextStyles.display
-                  .copyWith(fontSize: 34, color: AppColors.success),
+              style: AppTextStyles.labelMedium
+                  .copyWith(color: AppColors.success),
             ),
-            const SizedBox(height: 4),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.fuelColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text('Fuel Commission Earned',
-                  style: AppTextStyles.caption.copyWith(
-                      color: AppColors.fuelColor,
-                      fontWeight: FontWeight.w600)),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.bgDark,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(children: [
-                _DetailRow(icon: Icons.person_rounded,
-                    label: 'Customer',    value: sale.customerName),
-                _TxDivider(),
-                _DetailRow(icon: Icons.payments_outlined,
-                    label: 'Sale amount',
-                    value: 'LKR ${sale.saleAmount.toStringAsFixed(0)}'),
-                _TxDivider(),
-                _DetailRow(icon: Icons.calendar_today_rounded,
-                    label: 'Date',        value: sale.date),
-                _TxDivider(),
-                _DetailRow(icon: Icons.access_time_rounded,
-                    label: 'Time',        value: sale.time),
-                _TxDivider(),
-                _DetailRow(
-                    icon: Icons.percent_rounded,
-                    label: 'Commission (2%)',
-                    value: 'LKR ${sale.commission.toStringAsFixed(2)}',
-                    valueColor: AppColors.success),
-              ]),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: AppColors.buttonGradient),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text('Close',
-                      style: AppTextStyles.labelMedium
-                          .copyWith(color: Colors.white)),
-                ),
-              ),
+            const SizedBox(height: 2),
+            Text(
+              'LKR ${sale.saleAmount.toStringAsFixed(0)} sale',
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary, fontSize: 10),
             ),
           ]),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Shared detail row + divider ───────────────────────────────────────────────
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String   label;
-  final String   value;
-  final Color?   valueColor;
-
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
-          const SizedBox(width: 10),
-          Text(label,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary)),
-          const Spacer(),
-          Text(value,
-              style: AppTextStyles.labelMedium.copyWith(
-                color: valueColor ?? AppColors.textPrimary,
-                fontSize: 13,
-              )),
         ]),
-      );
-}
-
-class _TxDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 1,
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        color: AppColors.border,
       );
 }

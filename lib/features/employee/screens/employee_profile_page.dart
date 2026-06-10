@@ -37,16 +37,6 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
     setState(() => _info = info);
   }
 
-  Future<void> _signOut() async {
-    await ref.read(authProvider.notifier).signOut();
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final rawId   = widget.employee.id.toUpperCase();
@@ -143,7 +133,7 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
 
               // ── Sign out ─────────────────────────────────────────────────
               GestureDetector(
-                onTap: _signOut,
+                onTap: () => _signOut(context, ref),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -173,6 +163,92 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
       ),
     );
   }
+}
+
+// ── Sign-out helpers ──────────────────────────────────────────────────────────
+
+Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+  final confirmed = await _showSignOutDialog(context);
+  if (!confirmed) return;
+  await ref.read(authProvider.notifier).signOut();
+  if (!context.mounted) return;
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    (_) => false,
+  );
+}
+
+Future<bool> _showSignOutDialog(BuildContext context) async {
+  return await showDialog<bool>(
+        context: context,
+        barrierColor: Colors.black54,
+        builder: (ctx) => Dialog(
+          backgroundColor: AppColors.bgCard,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.logout_rounded,
+                    color: AppColors.error, size: 28),
+              ),
+              const SizedBox(height: 16),
+              const Text('Sign out?',
+                  style: AppTextStyles.h4, textAlign: TextAlign.center),
+              const SizedBox(height: 6),
+              const Text(
+                "You'll be returned to the login screen and will need to sign back in.",
+                style: AppTextStyles.caption,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Sign out',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    side: const BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ) ??
+      false;
 }
 
 // ── Change Password Tile ──────────────────────────────────────────────────────

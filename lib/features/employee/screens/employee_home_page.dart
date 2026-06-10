@@ -252,7 +252,7 @@ class _CommissionCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'LKR ${monthlyCommission.toStringAsFixed(0)}',
-                  style: AppTextStyles.h1.copyWith(color: Colors.white),
+                  style: TextStyle(fontSize: 35, color: Colors.white, fontWeight: FontWeight.w800),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),

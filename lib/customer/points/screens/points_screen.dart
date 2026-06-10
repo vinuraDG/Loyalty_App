@@ -244,7 +244,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     _BizDetailRow(
                       icon: Icons.timer_off_rounded,
                       iconColor: const Color(0xFFFBBF24),
-                      label: 'Expired points',
+                      label: 'Expire points',
                       value: '-$totalExpired pts',
                       valueColor: const Color(0xFFFBBF24),
                     ),
@@ -282,7 +282,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$totalExpired pts expired and cannot be redeemed.',
+                        '$totalExpired pts • Expiring soon',
                         style: AppTextStyles.caption.copyWith(
                           color: const Color(0xFFFBBF24),
                         ),
@@ -957,7 +957,7 @@ class _TxCard extends StatelessWidget {
   String _txTypeLabel(TransactionModel tx) {
     if (tx.isEarned)   return 'Earned';
     if (tx.isRedeemed) return 'Redeemed';
-    return 'Expired';
+    return 'Expire';
   }
 
   Color _txColor(TransactionModel tx) {
