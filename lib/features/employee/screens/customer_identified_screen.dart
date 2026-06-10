@@ -241,7 +241,7 @@ class _AppBar extends StatelessWidget {
               color: AppColors.textPrimary, size: 20),
         ),
         const SizedBox(width: 4),
-        const Text('Member Identified', style: AppTextStyles.h4),
+        const Text('Customer Identified', style: AppTextStyles.h4),
         const Spacer(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

@@ -91,7 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               SizedBox(
-                height: 110,
+                height: 160,
                 child: PageView.builder(
                   controller: _adController,
                   itemCount: kMockAds.length,
@@ -404,6 +404,7 @@ class _AdCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {},
       child: Container(
+        height: 160,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: gradient,
@@ -413,38 +414,105 @@ class _AdCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
         ),
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(20),
+
+            // Left — tag + title + subtitle + hint
+            Expanded(
+              flex: 6,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(ad['tag'] as String,
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: tagColor)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(ad['title'] as String,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          height: 1.3)),
+                  const SizedBox(height: 3),
+                  Text(ad['subtitle'] as String,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.65))),
+                  const Spacer(),
+                  Row(children: [
+                    Icon(Icons.local_offer_rounded,
+                        size: 11,
+                        color: Colors.white.withValues(alpha: 0.5)),
+                    const SizedBox(width: 4),
+                    Text('Tap to view offer',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontWeight: FontWeight.w400)),
+                  ]),
+                ],
               ),
-              child: Text(ad['tag'] as String,
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: tagColor)),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(ad['title'] as String,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        height: 1.3)),
-                const SizedBox(height: 2),
-                Text(ad['subtitle'] as String,
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.65))),
-              ],
+
+            const SizedBox(width: 12),
+
+            // Right — points badge + decorative icon
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star_rounded,
+                            size: 12,
+                            color: Colors.white.withValues(alpha: 0.9)),
+                        const SizedBox(width: 4),
+                        Text(ad['points'] != null
+                                ? '${ad['points']} pts'
+                                : '2× pts',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.9))),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.card_giftcard_rounded,
+                    size: 56,
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                ],
+              ),
             ),
+
           ],
         ),
       ),

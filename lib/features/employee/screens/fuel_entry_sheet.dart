@@ -118,7 +118,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         StatefulBuilder(
           builder: (_, setInner) => Column(children: [
             AppTextField(
-              label: 'Sale Amount (LKR)',
+              label: 'Sale Amount',
               hint: 'e.g. 7015',
               controller: _amountCtrl,
               prefixIconData: Icons.payments_outlined,

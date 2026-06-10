@@ -341,141 +341,163 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: AppColors.cardGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Back button row
-              Row(children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── App bar ───────────────────────────────────────────────
+        SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.bgCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Center(
-                  child: const Text(
-                    'Points History',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 28),
-
-              FadeTransition(
-                opacity: heroFade,
-                child: SlideTransition(
-                  position: heroSlide,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Current Balance',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            fmtFn(balance),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 52,
-                              fontWeight: FontWeight.w800,
-                              height: 1,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              'pts',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white.withValues(alpha: 0.55),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 3 summary pills: Earned / Redeemed / Expired
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(children: [
-                          _SummaryPill(
-                            label: 'Earned',
-                            value: '+${fmtFn(totalEarned)}',
-                            icon: Icons.add_circle_outline_rounded,
-                            color: const Color(0xFFA7F3D0),
-                          ),
-                          const SizedBox(width: 10),
-                          _SummaryPill(
-                            label: 'Redeemed',
-                            value: '-${fmtFn(totalRedeemed)}',
-                            icon: Icons.remove_circle_outline_rounded,
-                            color: const Color(0xFFFCA5A5),
-                          ),
-                          if (totalExpired > 0) ...[
-                            const SizedBox(width: 10),
-                            _SummaryPill(
-                              label: 'Expired',
-                              value: fmtFn(totalExpired),
-                              icon: Icons.timer_off_rounded,
-                              color: const Color(0xFFFBBF24),
-                            ),
-                          ],
-                        ]),
-                      ),
-                    ],
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AppColors.textSecondary,
+                    size: 16,
                   ),
                 ),
               ),
-            ],
+              const SizedBox(width: 14),
+              const Text(
+                'Points History',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ]),
           ),
         ),
-      ),
+
+        // ── Balance card ──────────────────────────────────────────
+        FadeTransition(
+          opacity: heroFade,
+          child: SlideTransition(
+            position: heroSlide,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                width: double.infinity,
+                height:160,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: AppColors.cardGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left — balance hero
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        mainAxisAlignment:MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Icon(Icons.account_balance_wallet_rounded,
+                                size: 13,
+                                color: Colors.white.withValues(alpha: 0.55)),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Current Balance',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.55),
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 6),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                fmtFn(balance),
+                                style: AppTextStyles.display.copyWith(fontSize: 42),
+                              ),
+                              const SizedBox(width: 6),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 7),
+                                child: Text(
+                                  'pts',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Right — compact stat lines
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Summary',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.white.withValues(alpha: 0.5),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _MiniStatLine(
+                            label: 'Earned',
+                            value: '+${fmtFn(totalEarned)}',
+                            color: const Color(0xFFA7F3D0),
+                          ),
+                          const SizedBox(height: 6),
+                          _MiniStatLine(
+                            label: 'Redeemed',
+                            value: '-${fmtFn(totalRedeemed)}',
+                            color: const Color(0xFFFCA5A5),
+                          ),
+                          if (totalExpired > 0) ...[
+                            const SizedBox(height: 6),
+                            _MiniStatLine(
+                              label: 'Expire',
+                              value: fmtFn(totalExpired),
+                              color: const Color(0xFFFBBF24),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -501,7 +523,6 @@ class _ExpiredBanner extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
-            // subtle warm amber tint
             color: const Color(0xFFF97316).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
@@ -529,7 +550,7 @@ class _ExpiredBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${fmtFn(totalExpired)} points have expired',
+                    '${fmtFn(totalExpired)} points have expire',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -538,7 +559,7 @@ class _ExpiredBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Expired points cannot be redeemed.',
+                    'Expire points cannot be redeemed.',
                     style: TextStyle(
                       fontSize: 11,
                       color: const Color(0xFFF97316).withValues(alpha: 0.7),
@@ -709,7 +730,7 @@ class _TabBar extends StatelessWidget {
             onTap: () => onTabChanged(_Tab.redeemed),
           ),
           _TabItem(
-            label: 'Expired',
+            label: 'Expire',
             count: expiredCount,
             isActive: activeTab == _Tab.expired,
             activeColor: const Color(0xFFF97316),
@@ -975,7 +996,7 @@ class _CompanyCard extends StatelessWidget {
             if (expired > 0) ...[
               const SizedBox(height: 3),
               _StatRow(
-                label: 'Expired',
+                label: 'Expire',
                 value: fmtFn(expired),
                 color: const Color(0xFFF97316),
               ),
@@ -1010,6 +1031,44 @@ class _StatRow extends StatelessWidget {
           value,
           style: TextStyle(
             fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Mini Stat Line (used in header balance card) ──────────────────────────────
+class _MiniStatLine extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _MiniStatLine({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.white.withValues(alpha: 0.5),
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
             fontWeight: FontWeight.w700,
             color: color,
           ),
@@ -1054,58 +1113,6 @@ class _BusinessBadge extends StatelessWidget {
   }
 }
 
-// ── Summary Pill ──────────────────────────────────────────────────────────────
-class _SummaryPill extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _SummaryPill({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 15),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-}
-
 // ── History Tile ──────────────────────────────────────────────────────────────
 class _HistoryTile extends StatelessWidget {
   final TransactionModel tx;
@@ -1127,7 +1134,6 @@ class _HistoryTile extends StatelessWidget {
         : accent;
     final time = _timeString(tx.date);
 
-    // Expired tiles are visually dimmed
     return Opacity(
       opacity: isExpired ? 0.65 : 1.0,
       child: Padding(
@@ -1220,7 +1226,7 @@ class _HistoryTile extends StatelessWidget {
                 ),
               ),
               Text(
-                isExpired ? 'expired' : 'pts',
+                isExpired ? 'expire' : 'pts',
                 style: TextStyle(
                   fontSize: 10,
                   color: isExpired
@@ -1255,7 +1261,7 @@ class _TxBadge extends StatelessWidget {
           AppColors.error,
         ),
       TransactionType.expired => (
-          'Expired',
+          'Expire',
           Icons.timer_off_rounded,
           const Color(0xFFF97316),
         ),

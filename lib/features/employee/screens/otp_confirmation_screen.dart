@@ -307,7 +307,7 @@ class _OtpBox extends StatelessWidget {
           onChanged: onChanged,
           style: const TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 24,
+            fontSize: 17,
             fontWeight: FontWeight.w700,
           ),
           decoration: InputDecoration(

@@ -1,19 +1,17 @@
 // lib/features/employee/screens/employee_home_page.dart
-//
-// Refactored to use the new standalone QrScannerScreen and
-// CustomerIdentifiedScreen instead of in-line bottom sheets.
-// The fuel entry sheet is now in fuel_entry_sheet.dart.
-// All scan + redeem logic is delegated to child screens.
 
 import 'package:flutter/material.dart';
-import 'package:loyalty_app/features/employee/screens/employee_dashboard_screen.dart';
+import 'package:loyalty_app/features/employee/data/emp_home_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
-import '../data/emp_home_api_service.dart';
 import '../data/emp_home_mock_service.dart';
 import 'qr_scanner_screen.dart';
 import 'customer_identified_screen.dart';
+import 'employee_total_commission_page.dart';
+import 'employee_dashboard_screen.dart';
+
+// ── EmployeeHomePage ──────────────────────────────────────────────────────────
 
 class EmployeeHomePage extends StatefulWidget {
   final UserModel employee;
@@ -24,7 +22,6 @@ class EmployeeHomePage extends StatefulWidget {
 }
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
-  // ── Swap to EmpHomeApiService.instance when backend is ready ──────────────
   final IEmpHomeService _svc = EmpHomeMockService.instance;
 
   List<ScanEntry> _todayScans = [];
@@ -59,10 +56,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
   double get _monthlyCommission => _weeklyTotal * 4.3;
 
-  // ── QR scan entry point ───────────────────────────────────────────────────
-
   Future<void> _startScanFlow(BuildContext context) async {
-    // 1. Navigate to the scanner screen — it returns a ScannedMember.
     final member = await Navigator.push<ScannedMember>(
       context,
       MaterialPageRoute(
@@ -75,7 +69,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
     if (member == null || !context.mounted) return;
 
-    // 2. Navigate to the customer screen for Earn / Redeem.
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -87,8 +80,16 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       ),
     );
 
-    // 3. Refresh the today-scans list regardless of what happened.
     await _refreshScans();
+  }
+
+  /// Switches the dashboard bottom nav to the Commission tab.
+  void _goToCommission(BuildContext context) {
+    final dashState = context
+        .findAncestorStateOfType<EmployeeDashboardScreenState>();
+    if (dashState != null) {
+      dashState.switchToCommission();
+    }
   }
 
   @override
@@ -108,7 +109,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ──────────────────────────────────────────────
+              // ── Header ────────────────────────────────────────────────
               Row(children: [
                 InitialsAvatar(initials: widget.employee.initials, size: 42),
                 const SizedBox(width: 12),
@@ -138,16 +139,26 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               ]),
               const SizedBox(height: 24),
 
-              // ── Commission card ──────────────────────────────────────
-              _CommissionCard(
-                monthlyCommission: _monthlyCommission,
-                weeklyTotal: _weeklyTotal,
-                weeklyCommission: _weeklyCommission,
-                scanCount: _todayScans.length,
+              // ── Commission card (tappable → switches to Commission tab) ──
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EmployeeTotalCommissionPage(
+                      employee: widget.employee,
+                    ),
+                  ),
+                ),
+                child: _CommissionCard(
+                  monthlyCommission: _monthlyCommission,
+                  weeklyTotal: _weeklyTotal,
+                  weeklyCommission: _weeklyCommission,
+                  scanCount: _todayScans.length,
+                ),
               ),
               const SizedBox(height: 24),
 
-              // ── Quick Actions ────────────────────────────────────────
+              // ── Quick Actions ─────────────────────────────────────────
               const Text('Quick Actions', style: AppTextStyles.h4),
               const SizedBox(height: 14),
               Row(children: [
@@ -162,18 +173,13 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   icon: Icons.payments_outlined,
                   label: 'My Commission',
                   color: AppColors.primary,
-                  onTap: () {
-                    final dashboard = context
-                        .findAncestorStateOfType<
-                            EmployeeDashboardScreenState>();
-                    dashboard?.switchToCommission();
-                  },
+                  onTap: () => _goToCommission(context),
                 ),
               ]),
               const SizedBox(height: 24),
 
-              // ── Today's scans ────────────────────────────────────────
-              const Text("Today Scans", style: AppTextStyles.h4),
+              // ── Today's scans ─────────────────────────────────────────
+              const Text('Today Scans', style: AppTextStyles.h4),
               const SizedBox(height: 14),
               if (_todayScans.isEmpty)
                 Center(
@@ -272,8 +278,18 @@ class _CommissionCard extends StatelessWidget {
                     ),
                   ),
                 ]),
-                const SizedBox(height: 3),
-                
+                const SizedBox(height: 6),
+                Row(children: [
+                  Icon(Icons.open_in_new_rounded,
+                      size: 10,
+                      color: Colors.white.withValues(alpha: 0.4)),
+                  const SizedBox(width: 4),
+                  Text('Tap to view history',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.4),
+                      )),
+                ]),
               ],
             ),
           ),

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/customer/profile/screens/change_password_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -125,6 +126,19 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
                 label: 'Title',
                 value: _info?.title ?? '—',
               ),
+              const SizedBox(height: 24),
+
+              // ── Security section ─────────────────────────────────────────
+              const Text('Security', style: AppTextStyles.h4),
+              const SizedBox(height: 12),
+              _ChangePasswordTile(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen(),
+                  ),
+                ),
+              ),
               const SizedBox(height: 32),
 
               // ── Sign out ─────────────────────────────────────────────────
@@ -156,6 +170,70 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Change Password Tile ──────────────────────────────────────────────────────
+
+class _ChangePasswordTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ChangePasswordTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.lock_outline_rounded,
+              color: AppColors.primary,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Change Password',
+                  style: AppTextStyles.labelMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Update your account password',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.arrow_forward_ios_rounded,
+            color: AppColors.textSecondary,
+            size: 14,
+          ),
+        ]),
       ),
     );
   }

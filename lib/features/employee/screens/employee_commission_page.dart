@@ -1,19 +1,14 @@
 // lib/features/employee/screens/employee_commission_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:loyalty_app/features/employee/data/emp_commission_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/user_model.dart';
-import '../data/emp_commission_api_service.dart';
 import '../data/emp_commission_mock_service.dart';
 
 class EmployeeCommissionPage extends StatefulWidget {
   final UserModel employee;
-  final bool showBackButton;
-  const EmployeeCommissionPage({
-    super.key,
-    required this.employee,
-    this.showBackButton = false,
-  });
+  const EmployeeCommissionPage({super.key, required this.employee});
 
   @override
   State<EmployeeCommissionPage> createState() =>
@@ -25,6 +20,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
 
   List<String> _months = [];
   String? _selectedMonth;
+  int _monthIdx = 0;
   List<SaleEntry> _sales = [];
   MonthlySummary? _summary;
   bool _loading = true;
@@ -41,6 +37,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
     setState(() {
       _months = months;
       _selectedMonth = months.isNotEmpty ? months.first : null;
+      _monthIdx = 0;
     });
     if (_selectedMonth != null) await _loadMonth(_selectedMonth!);
   }
@@ -53,122 +50,143 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
     ]);
     if (!mounted) return;
     setState(() {
-      _sales = results[0] as List<SaleEntry>;
+      _sales   = results[0] as List<SaleEntry>;
       _summary = results[1] as MonthlySummary;
       _loading = false;
     });
+  }
+
+  void _pickMonth(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text('Select Month', style: AppTextStyles.h4),
+          ),
+          const SizedBox(height: 8),
+          ...List.generate(_months.length, (i) {
+            final m   = _months[i];
+            final sel = _monthIdx == i;
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Icon(
+                Icons.calendar_today_rounded,
+                size: 18,
+                color: sel ? AppColors.primary : AppColors.textSecondary,
+              ),
+              title: Text(
+                m,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: sel ? AppColors.primary : AppColors.textPrimary,
+                ),
+              ),
+              trailing: sel
+                  ? const Icon(Icons.check_rounded,
+                      color: AppColors.primary, size: 20)
+                  : null,
+              onTap: () {
+                setState(() {
+                  _monthIdx      = i;
+                  _selectedMonth = m;
+                });
+                Navigator.pop(context);
+                _loadMonth(m);
+              },
+            );
+          }),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
-      appBar: widget.showBackButton
-          ? AppBar(
-              backgroundColor: AppColors.bgDark,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.textPrimary, size: 20),
-                onPressed: () => Navigator.pop(context),
-              ),
-              titleTextStyle: AppTextStyles.h3,
-              title: const Text('Commission'),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(1),
-                child: Container(height: 1, color: AppColors.border),
-              ),
-            )
-          : null,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Title ──────────────────────────────────────────────────
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: Text('Commission', style: AppTextStyles.h3),
+            ),
+
+            // ── Subtitle + summary card + month picker ─────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title shown inline only when used as a tab (no AppBar)
-                  if (!widget.showBackButton) ...[
-                    const Text('Commission', style: AppTextStyles.h3),
-                    const SizedBox(height: 2),
-                  ],
                   const Text('Per-sale earnings breakdown',
                       style: AppTextStyles.bodySmall),
                   const SizedBox(height: 20),
 
-                  // Month filter chips
-                  SizedBox(
-                    height: 36,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _months.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (_, i) {
-                        final m = _months[i];
-                        final selected = m == _selectedMonth;
-                        return GestureDetector(
-                          onTap: () {
-                            if (selected) return;
-                            setState(() => _selectedMonth = m);
-                            _loadMonth(m);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              gradient: selected
-                                  ? const LinearGradient(
-                                      colors: AppColors.buttonGradient)
-                                  : null,
-                              color: selected ? null : AppColors.bgCard,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: selected
-                                    ? Colors.transparent
-                                    : AppColors.border,
-                              ),
-                            ),
-                            child: Text(
-                              m,
-                              style: AppTextStyles.caption.copyWith(
-                                color: selected
-                                    ? Colors.white
-                                    : AppColors.textMuted,
-                                fontWeight: selected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Summary card
                   if (_summary != null) _SummaryCard(summary: _summary!),
                   if (_summary != null) const SizedBox(height: 20),
 
                   if (!_loading && _selectedMonth != null)
-                    Row(children: [
-                      Text('Sales in $_selectedMonth',
-                          style: AppTextStyles.h4),
-                      const Spacer(),
-                      Text('${_sales.length} transactions',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textMuted)),
-                    ]),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Sales in $_selectedMonth',
+                          style: AppTextStyles.h4,
+                        ),
+                        GestureDetector(
+                          onTap: () => _pickMonth(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgCard,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.calendar_today_rounded,
+                                    size: 13, color: AppColors.primary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _selectedMonth!,
+                                  style: AppTextStyles.labelSmall
+                                      .copyWith(color: AppColors.primary),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: 16, color: AppColors.primary),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: 12),
                 ],
               ),
             ),
 
-            // ── Transaction list ──────────────────────────────────────────
+            // ── Sales list ─────────────────────────────────────────────
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -225,8 +243,7 @@ class _SummaryCard extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Total sales: LKR ${summary.totalSales.toStringAsFixed(0)}'
-          ,
+          'Total sales: LKR ${summary.totalSales.toStringAsFixed(0)}',
           style: AppTextStyles.caption.copyWith(color: Colors.white60),
         ),
         const SizedBox(height: 16),
@@ -276,8 +293,7 @@ class _SaleTile extends StatelessWidget {
       ),
       child: Row(children: [
         Container(
-          width: 42,
-          height: 42,
+          width: 42, height: 42,
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
@@ -335,9 +351,9 @@ class _SaleTile extends StatelessWidget {
               ),
             ),
           ),
-         
         ]),
       ]),
     );
   }
+  
 }

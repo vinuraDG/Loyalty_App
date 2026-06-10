@@ -147,7 +147,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle bar
               Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
@@ -156,8 +155,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Icon + business name
               Row(children: [
                 Container(
                   width: 44, height: 44,
@@ -187,8 +184,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 ),
               ]),
               const SizedBox(height: 20),
-
-              // Net points hero
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 20),
@@ -222,8 +217,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 ]),
               ),
               const SizedBox(height: 16),
-
-              // Breakdown rows
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.bgDark,
@@ -267,7 +260,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   ),
                 ]),
               ),
-
               if (totalExpired > 0) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -299,10 +291,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   ]),
                 ),
               ],
-
               const SizedBox(height: 16),
-
-              // Close button
               SizedBox(
                 width: double.infinity,
                 child: GestureDetector(
@@ -390,7 +379,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     .where((t) => t.isExpired)
                     .fold<int>(0, (s, t) => s + t.points);
 
-                // ✅ FIX: subtract expired from balance
                 final monthBalance = monthEarned - monthRedeemed - monthExpired;
 
                 // ── Today slice ────────────────────────────────────────────
@@ -406,10 +394,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     .where((t) => t.isRedeemed)
                     .fold<int>(0, (s, t) => s + t.points);
 
-                // ── Per-business breakdown (all-time, for biz cards) ───────
-                // Earned: only non-expired earned transactions
-                // Redeemed: redeemed transactions
-                // Expired: expired transactions
+                // ── Per-business breakdown ─────────────────────────────────
                 final byBizEarned   = <String, int>{};
                 final byBizRedeemed = <String, int>{};
                 final byBizExpired  = <String, int>{};
@@ -427,7 +412,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   }
                 }
 
-                // Net available per business (earned - redeemed - expired)
                 final byBizNet = <String, int>{};
                 for (final biz in [
                   kBusinessFuel,
@@ -452,10 +436,12 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Balance card ──────────────────────────────────────
+
+                      // ── Balance card (left: balance, right: stats) ────────
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(22),
+                        height: 160,
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: AppColors.cardGradient,
@@ -464,124 +450,105 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           ),
                           borderRadius: BorderRadius.circular(22),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Row(children: [
-                              Icon(Icons.calendar_month_rounded,
-                                  size: 13,
-                                  color: Colors.white.withValues(alpha: 0.6)),
-                              const SizedBox(width: 5),
-                              Text(
-                                sel['label'] as String,
-                                style: AppTextStyles.bodySmall.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.7)),
-                              ),
-                            ]),
-                            const SizedBox(height: 8),
-
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '$monthBalance',
-                                  style: AppTextStyles.display
-                                      .copyWith(fontSize: 48),
-                                ),
-                                const SizedBox(width: 8),
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    'pts',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: Colors.white.withValues(alpha: 0.7),
-                                      fontSize: 16,
+                            // ── Left: month label + big balance ──────────────
+                            Expanded(
+                              flex: 5,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(children: [
+                                    Icon(Icons.calendar_month_rounded,
+                                        size: 12,
+                                        color: Colors.white.withValues(alpha: 0.55)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      sel['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white.withValues(alpha: 0.55),
+                                        fontWeight: FontWeight.w400,
+                                      ),
                                     ),
+                                  ]),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        '$monthBalance',
+                                        style: AppTextStyles.display
+                                            .copyWith(fontSize: 42),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 7),
+                                        child: Text(
+                                          'pts',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: Colors.white
+                                                .withValues(alpha: 0.6),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 16),
 
+                            // Vertical divider
                             Container(
-                                height: 1,
-                                color: Colors.white.withValues(alpha: 0.12)),
-                            const SizedBox(height: 14),
+                              width: 1,
+                              height: 70,
+                              margin: const EdgeInsets.symmetric(horizontal: 16),
+                              color: Colors.white.withValues(alpha: 0.15),
+                            ),
 
-                            Row(children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Today earned',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.6),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      todayEarned > 0 ? '+$todayEarned' : '+0',
-                                      style: AppTextStyles.h3.copyWith(
-                                        color: AppColors.success,
-                                        fontSize: 22,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                  width: 1,
-                                  height: 36,
-                                  color: Colors.white.withValues(alpha: 0.12)),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Today redeemed',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.6),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      todayRedeemed > 0
-                                          ? '-$todayRedeemed'
-                                          : '-0',
-                                      style: AppTextStyles.h3.copyWith(
-                                        color: AppColors.error,
-                                        fontSize: 22,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ]),
-
-                            // Expired notice
-                            if (monthExpired > 0) ...[
-                              Container(
-                                  height: 1,
-                                  margin: const EdgeInsets.only(top: 14),
-                                  color: Colors.white.withValues(alpha: 0.12)),
-                              const SizedBox(height: 12),
-                              Row(children: [
-                                const Icon(
-                                  Icons.timer_off_rounded,
-                                  size: 13,
-                                  color: Color(0xFFFBBF24),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '$monthExpired pts expired this month',
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: const Color(0xFFFBBF24),
-                                    fontWeight: FontWeight.w600,
+                            // ── Right: earned / redeemed / expired stats ──────
+                            Expanded(
+                              flex: 5,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _CardStatRow(
+                                    icon: Icons.arrow_upward_rounded,
+                                    iconColor: AppColors.success,
+                                    label: 'Earned today',
+                                    value: todayEarned > 0
+                                        ? '+$todayEarned'
+                                        : '+0',
+                                    valueColor: AppColors.success,
                                   ),
-                                ),
-                              ]),
-                            ],
+                                  const SizedBox(height: 10),
+                                  _CardStatRow(
+                                    icon: Icons.arrow_downward_rounded,
+                                    iconColor: AppColors.error,
+                                    label: 'Redeemed today',
+                                    value: todayRedeemed > 0
+                                        ? '-$todayRedeemed'
+                                        : '-0',
+                                    valueColor: AppColors.error,
+                                  ),
+                                  if (monthExpired > 0) ...[
+                                    const SizedBox(height: 10),
+                                    _CardStatRow(
+                                      icon: Icons.timer_off_rounded,
+                                      iconColor: const Color(0xFFFBBF24),
+                                      label: 'Expired',
+                                      value: '$monthExpired',
+                                      valueColor: const Color(0xFFFBBF24),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -755,6 +722,64 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   }
 }
 
+// ── Card stat row (inside balance card right column) ──────────────────────────
+class _CardStatRow extends StatelessWidget {
+  final IconData icon;
+  final Color    iconColor;
+  final String   label;
+  final String   value;
+  final Color    valueColor;
+
+  const _CardStatRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, size: 12, color: iconColor),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: valueColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Business card ─────────────────────────────────────────────────────────────
 
 class _BizCard extends StatelessWidget {
@@ -803,7 +828,6 @@ class _BizCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text('$pts', style: AppTextStyles.h4),
               const Text('pts', style: AppTextStyles.caption),
-              // Small expired badge
               if (expiredPts > 0) ...[
                 const SizedBox(height: 4),
                 Container(
@@ -1011,17 +1035,17 @@ class _TxCard extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(children: [
-                _DetailRow(icon: Icons.store_rounded,        label: 'Business', value: tx.business),
+                _DetailRow(icon: Icons.store_rounded,          label: 'Business', value: tx.business),
                 _TxDivider(),
-                _DetailRow(icon: Icons.receipt_outlined,     label: 'Bill No',  value: tx.billNo ?? '-'),
+                _DetailRow(icon: Icons.receipt_outlined,       label: 'Bill No',  value: tx.billNo ?? '-'),
                 _TxDivider(),
-                _DetailRow(icon: Icons.calendar_today_rounded, label: 'Date',   value: _fmtDate(tx.date)),
+                _DetailRow(icon: Icons.calendar_today_rounded, label: 'Date',     value: _fmtDate(tx.date)),
                 _TxDivider(),
-                _DetailRow(icon: Icons.access_time_rounded,  label: 'Time',     value: _fmtTime(tx.date)),
+                _DetailRow(icon: Icons.access_time_rounded,    label: 'Time',     value: _fmtTime(tx.date)),
                 _TxDivider(),
-                _DetailRow(icon: Icons.toll_rounded,         label: 'Points',   value: tx.displayPoints, valueColor: color),
+                _DetailRow(icon: Icons.toll_rounded,           label: 'Points',   value: tx.displayPoints, valueColor: color),
                 _TxDivider(),
-                _DetailRow(icon: Icons.swap_horiz_rounded,   label: 'Type',     value: _txTypeLabel(tx), valueColor: color),
+                _DetailRow(icon: Icons.swap_horiz_rounded,     label: 'Type',     value: _txTypeLabel(tx), valueColor: color),
                 if (tx.note != null && tx.note!.isNotEmpty) ...[
                   _TxDivider(),
                   _DetailRow(icon: Icons.notes_rounded, label: 'Note', value: tx.note!),
