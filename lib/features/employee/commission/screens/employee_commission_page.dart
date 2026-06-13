@@ -1,9 +1,9 @@
 // lib/features/employee/screens/employee_commission_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:loyalty_app/features/employee/data/emp_commission_api_service.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../models/user_model.dart';
+import 'package:loyalty_app/features/employee/commission/data/emp_commission_api_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../models/user_model.dart';
 import '../data/emp_commission_mock_service.dart';
 
 class EmployeeCommissionPage extends StatefulWidget {

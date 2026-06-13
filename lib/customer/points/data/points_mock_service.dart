@@ -1,6 +1,3 @@
-// lib/customer/points/data/points_mock_service.dart
-// IPointsService implementation used exclusively by PointsHistoryScreen.
-
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
@@ -10,31 +7,27 @@ class PointsMockService implements IPointsService {
   static final PointsMockService instance = PointsMockService._();
 
   final List<TransactionModel> _transactions = kMockTransactions.map((m) {
-    final Duration ago = m.containsKey('hoursAgo')
+    final ago = m.containsKey('hoursAgo')
         ? Duration(hours: m['hoursAgo'] as int)
         : Duration(days: (m['daysAgo'] as int? ?? 0));
-
-    final bool expired = (m['isExpired'] as bool? ?? false);
-    final bool earned  = (m['isEarned']  as bool? ?? false);
-    final TransactionType txType = expired
+    final expired = m['isExpired'] as bool? ?? false;
+    final earned  = m['isEarned']  as bool? ?? false;
+    final type = expired
         ? TransactionType.expired
         : earned
             ? TransactionType.earned
             : TransactionType.redeemed;
-
     return TransactionModel(
       id:       m['id']       as String,
       userId:   m['userId']   as String,
       business: m['business'] as String,
       points:   m['points']   as int,
-      type:     txType,
+      type:     type,
       date:     DateTime.now().subtract(ago),
       note:     m['note']     as String?,
       billNo:   m['billNo']   as String?,
     );
   }).toList();
-
-  // ── IPointsService ────────────────────────────────────────────────────────
 
   @override
   Future<List<TransactionModel>> getTransactions(String userId) async {
@@ -64,8 +57,6 @@ class PointsMockService implements IPointsService {
       date:     DateTime.now(),
     ));
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   Future<void> _delay({int ms = 400}) =>
       Future.delayed(Duration(milliseconds: ms));

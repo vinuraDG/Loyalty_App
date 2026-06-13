@@ -8,9 +8,8 @@ class ProfileMockService implements IProfileService {
   @override
   Future<ProfileSummary> getProfileSummary(String userId) async {
     await _delay();
-    final user = AuthMockService.instance.findById(userId);
+    final user = AuthMockService.instance.findByIdSync(userId);
     if (user == null) throw Exception('User not found: $userId');
-
     return ProfileSummary(
       loyaltyTier:      user.loyaltyTier,
       totalPoints:      user.totalPoints,

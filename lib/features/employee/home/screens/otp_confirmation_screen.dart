@@ -12,9 +12,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:loyalty_app/features/employee/data/emp_profile_api_service.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/app_widgets.dart';
+import 'package:loyalty_app/features/employee/profile/data/emp_profile_api_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
 
 class OtpConfirmationScreen extends StatefulWidget {

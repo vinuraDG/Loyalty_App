@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../models/user_model.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../models/user_model.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
   final UserModel employee;

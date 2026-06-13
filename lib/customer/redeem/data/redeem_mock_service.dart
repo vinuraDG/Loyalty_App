@@ -1,7 +1,7 @@
-
 import 'dart:math';
 import 'package:loyalty_app/features/auth/data/auth_mock_service.dart';
 import 'package:loyalty_app/customer/redeem/data/redeem_api_service.dart';
+import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/models/offer_models.dart';
 
 class RedeemMockService implements IRedeemService {
@@ -11,7 +11,6 @@ class RedeemMockService implements IRedeemService {
   @override
   Future<List<OfferModel>> getOffers() async {
     await _delay(ms: 400);
-    var kMockOffers;
     return kMockOffers
         .map((m) => OfferModel(
               id: m['id'] as String,
@@ -26,13 +25,11 @@ class RedeemMockService implements IRedeemService {
   @override
   Future<String> redeemOffer(String userId, OfferModel offer) async {
     await _delay(ms: 600);
-    // Check balance via the shared in-memory user store
-    final user = AuthMockService.instance.findById(userId);
+    final user = AuthMockService.instance.findByIdSync(userId);
     if (user == null) throw Exception('User not found.');
     if (user.totalPoints < offer.pointsCost) {
       throw Exception('Not enough points.');
     }
-    // Deduct points
     AuthMockService.instance.updateUser(
       user.copyWith(totalPoints: user.totalPoints - offer.pointsCost),
     );

@@ -12,8 +12,8 @@
 //   so the home page can refresh its scan list.
 
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/app_widgets.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
 import 'fuel_entry_sheet.dart';
 import 'redeem_flow_screen.dart';

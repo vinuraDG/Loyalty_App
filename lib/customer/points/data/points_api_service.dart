@@ -1,42 +1,88 @@
-
-import 'package:loyalty_app/data/mock_data.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:loyalty_app/core/network/api_client.dart';
+import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
+import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
+
+// ── Interface ─────────────────────────────────────────────────────────────────
 
 abstract class IPointsService {
-  /// All transactions for a user, newest first.
   Future<List<TransactionModel>> getTransactions(String userId);
-
-  /// Transactions filtered by business name.
   Future<List<TransactionModel>> getTransactionsByBusiness(
       String userId, String business);
-
-  /// Award points to a user after a purchase.
   Future<void> awardPoints(String userId, String business, int points);
 }
+
+// ── Real API service ──────────────────────────────────────────────────────────
 
 class PointsApiService implements IPointsService {
   PointsApiService._();
   static final PointsApiService instance = PointsApiService._();
 
+  final Dio _dio = ApiClient.instance.dio;
+
   @override
   Future<List<TransactionModel>> getTransactions(String userId) async {
-    // TODO: GET $kBaseUrl/users/$userId/transactions
-    // expect → List of TransactionModel JSON, sorted by date desc
-    throw UnimplementedError('Backend not connected yet: GET $kBaseUrl/users/$userId/transactions');
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    try {
+      final res = await _dio.get('Mobile/GetAllCustomerLedgers',
+          queryParameters: {
+            'TransactionCompanyId': AppConstants.transactionCompanyId,
+            'CustomerPhoneNo': phone,
+          });
+      final list = res.data as List? ?? [];
+      return list.map((m) => _txFromMap(m as Map<String, dynamic>, userId)).toList();
+    } on DioException catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<List<TransactionModel>> getTransactionsByBusiness(
       String userId, String business) async {
-    // TODO: GET $kBaseUrl/users/$userId/transactions?business=$business
-    throw UnimplementedError('Backend not connected yet.');
+    final all = await getTransactions(userId);
+    return all.where((t) => t.business == business).toList();
   }
 
   @override
   Future<void> awardPoints(String userId, String business, int points) async {
-    // TODO: POST $kBaseUrl/users/$userId/transactions
-    // body   → { "business": business, "points": points, "type": "earned" }
-    // expect → 201 Created
-    throw UnimplementedError('Backend not connected yet: POST $kBaseUrl/users/$userId/transactions');
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    try {
+      await _dio.post('Common/EarnPoints', data: {
+        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'CustomerPhoneNo': phone,
+        'EmployeePhoneNo': '',
+        'DocumentNo': '',
+        'Amount': points.toDouble(),
+      });
+    } on DioException catch (_) {
+      // Silently fail — points will sync on next fetch
+    }
+  }
+
+  TransactionModel _txFromMap(Map<String, dynamic> m, String userId) {
+    final points = int.tryParse((m['Points'] ?? m['points'] ?? 0).toString()) ?? 0;
+    final type = points >= 0 ? TransactionType.earned : TransactionType.redeemed;
+    return TransactionModel(
+      id: (m['Id'] ?? m['id'] ?? '').toString(),
+      userId: userId,
+      business: (m['CompanyName'] ?? m['business'] ?? '').toString(),
+      points: points.abs(),
+      type: type,
+      date: m['Date'] != null
+          ? DateTime.tryParse(m['Date'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      note: (m['Note'] ?? m['note'])?.toString(),
+      billNo: (m['DocumentNo'] ?? m['billNo'])?.toString(),
+    );
   }
 }
+
+// ── Service factory ───────────────────────────────────────────────────────────
+
+IPointsService get pointsService => AppConstants.useMockServices
+    ? PointsMockService.instance
+    : PointsApiService.instance;

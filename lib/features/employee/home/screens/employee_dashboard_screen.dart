@@ -2,13 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../models/user_model.dart';
-import '../../../features/auth/providers/auth_provider.dart';
-import '../../../features/auth/screens/login_screen.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../models/user_model.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../auth/screens/login_screen.dart';
 import 'employee_home_page.dart';
-import 'employee_commission_page.dart';
-import 'employee_profile_page.dart';
+import '../../commission/screens/employee_commission_page.dart';
+import '../../profile/screens/employee_profile_page.dart';
 
 class EmployeeDashboardScreen extends ConsumerStatefulWidget {
   final UserModel employee;

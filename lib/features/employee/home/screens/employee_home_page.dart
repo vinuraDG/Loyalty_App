@@ -1,14 +1,14 @@
 // lib/features/employee/screens/employee_home_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:loyalty_app/features/employee/data/emp_home_api_service.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../models/user_model.dart';
-import '../../../shared/widgets/app_widgets.dart';
+import 'package:loyalty_app/features/employee/home/data/emp_home_api_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../models/user_model.dart';
+import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_mock_service.dart';
 import 'qr_scanner_screen.dart';
 import 'customer_identified_screen.dart';
-import 'employee_total_commission_page.dart';
+import '../../commission/screens/employee_total_commission_page.dart';
 import 'employee_dashboard_screen.dart';
 
 // ── EmployeeHomePage ──────────────────────────────────────────────────────────

@@ -1,6 +1,5 @@
-
-
 import 'dart:math';
+import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/data/auth_api_service.dart';
 import 'package:loyalty_app/models/user_model.dart';
@@ -9,7 +8,6 @@ class AuthMockService implements IAuthService {
   AuthMockService._();
   static final AuthMockService instance = AuthMockService._();
 
-  // Seeded once at startup from mock_data.dart
   final List<UserModel> _users = kMockUsers
       .map((m) => UserModel(
             id: m['id'] as String,
@@ -25,8 +23,6 @@ class AuthMockService implements IAuthService {
       .toList();
 
   final Map<String, String> _otpStore = {};
-
-  // ── Sign up ───────────────────────────────────────────────────────────────
 
   @override
   Future<UserModel> signUpWithEmail({
@@ -57,8 +53,6 @@ class AuthMockService implements IAuthService {
     return user;
   }
 
-  // ── Sign in ───────────────────────────────────────────────────────────────
-
   @override
   Future<UserModel> signInWithEmail({
     required String email,
@@ -71,11 +65,7 @@ class AuthMockService implements IAuthService {
     if (user == null) {
       throw const AuthException('No account found with this email address.');
     }
-    if (password.isEmpty) {
-      throw const AuthException('Password cannot be empty.');
-    }
-    // Passwords stored in kMockPasswords in mock_data.dart.
-    // Newly registered users (no entry) accept any non-empty password.
+    if (password.isEmpty) throw const AuthException('Password cannot be empty.');
     final stored = kMockPasswords[user.id];
     if (stored != null && password != stored) {
       throw const AuthException('Incorrect password. Please try again.');
@@ -83,12 +73,10 @@ class AuthMockService implements IAuthService {
     return user;
   }
 
-  // ── OTP ───────────────────────────────────────────────────────────────────
-
   @override
   Future<void> sendOtp(String phone) async {
     await _delay(ms: 800);
-    _otpStore[phone.trim()] = kMockOtp; // kMockOtp from mock_data.dart
+    _otpStore[phone.trim()] = AppConstants.mockOtp;
   }
 
   @override
@@ -130,8 +118,6 @@ class AuthMockService implements IAuthService {
     return user;
   }
 
-  // ── Profile ───────────────────────────────────────────────────────────────
-
   @override
   Future<UserModel> updateProfile({
     required String id,
@@ -146,9 +132,7 @@ class AuthMockService implements IAuthService {
     final emailTaken = _users.any(
       (u) => u.id != id && u.email.toLowerCase() == email.trim().toLowerCase(),
     );
-    if (emailTaken) {
-      throw const AuthException('This email is already used by another account.');
-    }
+    if (emailTaken) throw const AuthException('This email is already in use.');
     final updated = _users[i].copyWith(
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -169,12 +153,42 @@ class AuthMockService implements IAuthService {
     if (currentPassword.isEmpty || newPassword.isEmpty) {
       throw const AuthException('Password fields cannot be empty.');
     }
-    // Mock: always succeeds when fields are non-empty.
+    // Mock: always succeeds when fields are non-empty
   }
 
-  // ── Helpers (mock-only, used by auth_provider.dart) ───────────────────────
+  @override
+  Future<void> sendOtpForReset(String phone) async {
+    await _delay(ms: 800);
+    _otpStore[phone.trim()] = AppConstants.mockOtp;
+  }
 
-  UserModel? findById(String id) =>
+  @override
+  Future<bool> verifyOtpForReset({
+    required String phone,
+    required String otp,
+  }) async {
+    await _delay(ms: 600);
+    final stored = _otpStore[phone.trim()];
+    if (stored == null || stored != otp.trim()) return false;
+    _otpStore.remove(phone.trim());
+    return true;
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String phone,
+    required String newPassword,
+  }) async {
+    await _delay();
+    // Mock: always succeeds
+  }
+
+  @override
+  Future<UserModel?> findById(String id) async =>
+      _users.where((u) => u.id == id).firstOrNull;
+
+  // Mock-only helpers used by other mock services
+  UserModel? findByIdSync(String id) =>
       _users.where((u) => u.id == id).firstOrNull;
 
   void updateUser(UserModel updated) {
@@ -188,3 +202,6 @@ class AuthMockService implements IAuthService {
   String _genId() =>
       '${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(9999)}';
 }
+
+// ignore: non_constant_identifier_names
+String get AppConstants_mockOtp => AppConstants.mockOtp;
