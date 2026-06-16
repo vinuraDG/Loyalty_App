@@ -29,15 +29,11 @@ class QrScreen extends ConsumerWidget {
         child: Column(children: [
 
           // ── Header with back button ───────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 16, 16, 0),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 16, 16, 0),
             child: Row(children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_rounded,
-                    color: AppColors.textPrimary, size: 20),
-                onPressed: () => Navigator.pop(context),
-              ),
-              const Text('My QR Code', style: AppTextStyles.h3),
+             SizedBox(width: 15),
+              Text('My QR Code', style: AppTextStyles.h3),
             ]),
           ),
           const SizedBox(height: 8),
