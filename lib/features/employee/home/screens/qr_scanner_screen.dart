@@ -232,7 +232,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                                       color: Colors.white, size: 20),
                                   SizedBox(width: 10),
                                   Text(
-                                    'Simulate Scan',
+                                    'Scan',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 15,

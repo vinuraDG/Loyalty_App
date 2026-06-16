@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:loyalty_app/features/employee/commission/data/emp_commission_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
 import '../data/emp_commission_mock_service.dart';
 
@@ -19,37 +20,31 @@ class _EmployeeTotalCommissionPageState
     extends State<EmployeeTotalCommissionPage> {
   final _svc = EmpCommissionMockService.instance;
 
-  List<SaleEntry> _allFuelSales = [];
+  List<SaleEntry> _fuelSales = [];
   bool _loading = true;
+
+  static const _shortMonths = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String get _currentMonthKey {
+    final now = DateTime.now();
+    return '${_shortMonths[now.month - 1]} ${now.year}';
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    _loadCurrentMonth();
   }
 
-  Future<void> _loadAll() async {
-    final now = DateTime.now();
-    const shortMonths = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec',
-    ];
-    final monthKeys = List.generate(6, (i) {
-      int m = now.month - i;
-      int y = now.year;
-      while (m <= 0) { m += 12; y -= 1; }
-      return '${shortMonths[m - 1]} $y';
-    });
-
-    final results = await Future.wait(
-      monthKeys.map((k) => _svc.getSalesForMonth(widget.employee.id, k)),
-    );
+  Future<void> _loadCurrentMonth() async {
+    final sales =
+        await _svc.getSalesForMonth(widget.employee.id, _currentMonthKey);
     if (!mounted) return;
     setState(() {
-      _allFuelSales = results
-          .expand((l) => l)
-          .where((s) => s.business == 'Fuel')
-          .toList();
+      _fuelSales = sales.where((s) => s.business == 'Fuel').toList();
       _loading = false;
     });
   }
@@ -68,7 +63,7 @@ class _EmployeeTotalCommissionPageState
                     color: AppColors.textPrimary, size: 20),
                 onPressed: () => Navigator.pop(context),
               ),
-              const Text('Fuel Commission History', style: AppTextStyles.h3),
+              const Text('Commission History', style: AppTextStyles.h3),
             ]),
           ),
           const SizedBox(height: 8),
@@ -84,15 +79,13 @@ class _EmployeeTotalCommissionPageState
 
   Widget _buildContent() {
     final totalCommission =
-        _allFuelSales.fold<double>(0.0, (a, t) => a + t.commission);
-    final totalSales =
-        _allFuelSales.fold<double>(0.0, (a, t) => a + t.saleAmount);
+        _fuelSales.fold<double>(0.0, (a, t) => a + t.commission);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        // ── Total commission card ─────────────────────────────────────────
+        // ── Monthly commission card ───────────────────────────────────────
         Container(
           width: double.infinity,
           height: 160,
@@ -107,13 +100,12 @@ class _EmployeeTotalCommissionPageState
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Total Commission',
+                    'Monthly Commission',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.white.withValues(alpha: 0.55),
@@ -141,34 +133,26 @@ class _EmployeeTotalCommissionPageState
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'LKR ${totalCommission.toStringAsFixed(2)}',
+                  'LKR ${formatAmount(totalCommission)}',
                   style: AppTextStyles.display.copyWith(fontSize: 34),
                 ),
               ),
+              const SizedBox(height: 20),
               Row(children: [
-                _CardStat(
-                  icon: Icons.payments_outlined,
-                  iconColor: AppColors.success,
-                  label: 'Total Sales',
-                  value: 'LKR ${totalSales.toStringAsFixed(0)}',
-                  valueColor: AppColors.success,
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 1, height: 32,
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
-                const SizedBox(width: 8),
-                _CardStat(
-                  icon: Icons.receipt_long_rounded,
-                  iconColor: Colors.white70,
-                  label: 'Transactions',
-                  value: '${_allFuelSales.length}',
-                  valueColor: Colors.white,
+                Icon(Icons.calendar_today_rounded,
+                    size: 12, color: Colors.white.withValues(alpha: 0.45)),
+                const SizedBox(width: 6),
+                Text(
+                  'Earned from Fuel Sales · This Month',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.45),
+                  ),
                 ),
               ]),
             ],
@@ -181,7 +165,7 @@ class _EmployeeTotalCommissionPageState
         const SizedBox(height: 14),
 
         // ── Transaction list ───────────────────────────────────────────────
-        if (_allFuelSales.isEmpty)
+        if (_fuelSales.isEmpty)
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -198,7 +182,7 @@ class _EmployeeTotalCommissionPageState
             ),
           )
         else
-          ..._allFuelSales.map((s) => Padding(
+          ..._fuelSales.map((s) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: _FuelSaleTile(sale: s),
               )),
@@ -207,50 +191,6 @@ class _EmployeeTotalCommissionPageState
       ]),
     );
   }
-}
-
-// ── Card stat ─────────────────────────────────────────────────────────────────
-
-class _CardStat extends StatelessWidget {
-  final IconData icon;
-  final Color    iconColor;
-  final String   label;
-  final String   value;
-  final Color    valueColor;
-
-  const _CardStat({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.value,
-    required this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: iconColor),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: valueColor,
-                  )),
-              Text(label,
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: Colors.white.withValues(alpha: 0.45),
-                  )),
-            ],
-          ),
-        ],
-      );
 }
 
 // ── Fuel sale tile (no tap / no detail popup) ─────────────────────────────────
@@ -297,13 +237,13 @@ class _FuelSaleTile extends StatelessWidget {
           const SizedBox(width: 8),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(
-              '+LKR ${sale.commission.toStringAsFixed(2)}',
+              '+LKR ${formatAmount(sale.commission)}',
               style: AppTextStyles.labelMedium
                   .copyWith(color: AppColors.success),
             ),
             const SizedBox(height: 2),
             Text(
-              'LKR ${sale.saleAmount.toStringAsFixed(0)} sale',
+              'LKR ${formatAmount(sale.saleAmount)} sale',
               style: AppTextStyles.caption
                   .copyWith(color: AppColors.textSecondary, fontSize: 10),
             ),

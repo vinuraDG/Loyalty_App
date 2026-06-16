@@ -425,7 +425,7 @@ class _Header extends StatelessWidget {
                               ),
                             ),
                           ]),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 25),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [

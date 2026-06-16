@@ -3,8 +3,17 @@
 import 'package:flutter/material.dart';
 import 'package:loyalty_app/features/employee/commission/data/emp_commission_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
 import '../data/emp_commission_mock_service.dart';
+
+// ── Helper: full date with year, derived from SaleEntry.month ────────────────
+extension _SaleDate on SaleEntry {
+  String get fullDate {
+    final year = month.split(' ').last;
+    return '$date $year';
+  }
+}
 
 class EmployeeCommissionPage extends StatefulWidget {
   final UserModel employee;
@@ -24,6 +33,20 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
   List<SaleEntry> _sales = [];
   MonthlySummary? _summary;
   bool _loading = true;
+
+  static const _shortMonths = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String get _currentMonthKey {
+    final now = DateTime.now();
+    return '${_shortMonths[now.month - 1]} ${now.year}';
+  }
+
+  /// Shows "This Month" for the currently active month, real name otherwise.
+  String _monthLabel(String month) =>
+      month == _currentMonthKey ? 'This Month' : month;
 
   @override
   void initState() {
@@ -135,9 +158,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Per-sale earnings breakdown',
-                      style: AppTextStyles.bodySmall),
-                  const SizedBox(height: 20),
+                 
 
                   if (_summary != null) _SummaryCard(summary: _summary!),
                   if (_summary != null) const SizedBox(height: 20),
@@ -167,7 +188,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
                                     size: 13, color: AppColors.primary),
                                 const SizedBox(width: 6),
                                 Text(
-                                  _selectedMonth!,
+                                  _monthLabel(_selectedMonth!),
                                   style: AppTextStyles.labelSmall
                                       .copyWith(color: AppColors.primary),
                                 ),
@@ -220,10 +241,11 @@ class _SummaryCard extends StatelessWidget {
   final MonthlySummary summary;
   const _SummaryCard({required this.summary});
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+      height: 160,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -233,30 +255,36 @@ class _SummaryCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(summary.month,
-            style: AppTextStyles.caption.copyWith(color: Colors.white70)),
-        const SizedBox(height: 6),
-        Text(
-          'LKR ${summary.totalCommission.toStringAsFixed(2)}',
-           style:TextStyle(fontSize: 35, color: Colors.white,fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Total sales: LKR ${summary.totalSales.toStringAsFixed(0)}',
-          style: AppTextStyles.caption.copyWith(color: Colors.white60),
-        ),
-        const SizedBox(height: 16),
-        Row(children: [
-          _MiniStat(
-              label: 'Transactions',
-              value: '${summary.transactionCount}'),
-          const SizedBox(width: 28),
-          _MiniStat(
-              label: 'Customers',
-              value: '${summary.uniqueCustomers}'),
-        ]),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(summary.month,
+              style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'LKR ${formatAmount(summary.totalCommission)}',
+              style: const TextStyle(
+                fontSize: 32,
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+       
+          Row(children: [
+            _MiniStat(
+                label: 'Transactions',
+                value: '${summary.transactionCount}'),
+            const SizedBox(width: 28),
+            _MiniStat(
+                label: 'Customers',
+                value: '${summary.uniqueCustomers}'),
+          ]),
+        ],
+      ),
     );
   }
 }
@@ -323,7 +351,7 @@ class _SaleTile extends StatelessWidget {
                   const SizedBox(width: 3),
                   Flexible(
                     child: Text(
-                      '${sale.date}  ${sale.time}',
+                      '${sale.fullDate}  ${sale.time}',
                       style: AppTextStyles.caption
                           .copyWith(color: AppColors.textMuted),
                       overflow: TextOverflow.ellipsis,
@@ -331,7 +359,7 @@ class _SaleTile extends StatelessWidget {
                   ),
                 ]),
                 const SizedBox(height: 3),
-                Text('Sale: LKR ${sale.saleAmount.toStringAsFixed(0)}',
+                Text('Sale: LKR ${formatAmount(sale.saleAmount)}',
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.textMuted)),
               ],
@@ -345,7 +373,7 @@ class _SaleTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '+LKR ${sale.commission.toStringAsFixed(2)}',
+                '+LKR ${formatAmount(sale.commission)}',
                 style: AppTextStyles.caption.copyWith(
                   color: Colors.greenAccent,
                   fontWeight: FontWeight.w700,
@@ -397,7 +425,7 @@ class _SaleTile extends StatelessWidget {
 
             // ── Commission amount ────────────────────────────────────────
             Text(
-              '+LKR ${sale.commission.toStringAsFixed(2)}',
+              '+LKR ${formatAmount(sale.commission)}',
               style: AppTextStyles.display
                   .copyWith(fontSize: 34, color: Colors.greenAccent),
             ),
@@ -436,7 +464,7 @@ class _SaleTile extends StatelessWidget {
                 _DetailRow(
                     icon: Icons.payments_outlined,
                     label: 'Sale amount',
-                    value: 'LKR ${sale.saleAmount.toStringAsFixed(0)}'),
+                    value: 'LKR ${formatAmount(sale.saleAmount)}'),
                 _TxDivider(),
                 _DetailRow(
                     icon: Icons.water_drop_outlined,
@@ -446,7 +474,7 @@ class _SaleTile extends StatelessWidget {
                 _DetailRow(
                     icon: Icons.calendar_today_rounded,
                     label: 'Date',
-                    value: sale.date),
+                    value: sale.fullDate),
                 _TxDivider(),
                 _DetailRow(
                     icon: Icons.access_time_rounded,
@@ -454,9 +482,9 @@ class _SaleTile extends StatelessWidget {
                     value: sale.time),
                 _TxDivider(),
                 _DetailRow(
-                    icon: Icons.percent_rounded,
+                    icon: Icons.account_balance_wallet_rounded,
                     label: 'Commission',
-                    value: 'LKR ${sale.commission.toStringAsFixed(2)}',
+                    value: 'LKR ${formatAmount(sale.commission)}',
                     valueColor: Colors.greenAccent),
               ]),
             ),

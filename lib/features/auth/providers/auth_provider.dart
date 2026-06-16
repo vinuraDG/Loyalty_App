@@ -42,7 +42,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _restoreSession();
   }
 
-  final _auth = AuthApiService.instance;
+  // ── routes through AppConstants.useMockServices ────────────────────────────
+  final _auth = authService;
 
   // ── Session ───────────────────────────────────────────────────────────────
 

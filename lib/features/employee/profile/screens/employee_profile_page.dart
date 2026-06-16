@@ -8,7 +8,6 @@ import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/screens/login_screen.dart';
-import '../data/emp_profile_api_service.dart';
 import '../data/emp_profile_mock_service.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
@@ -37,6 +36,13 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
     setState(() => _info = info);
   }
 
+  String _initials(String name) {
+    final parts = name.trim().split(' ');
+    final f = parts.isNotEmpty && parts[0].isNotEmpty ? parts[0][0].toUpperCase() : '';
+    final l = parts.length > 1 && parts.last.isNotEmpty ? parts.last[0].toUpperCase() : '';
+    return '$f$l';
+  }
+
   @override
   Widget build(BuildContext context) {
     final rawId   = widget.employee.id.toUpperCase();
@@ -46,119 +52,110 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header ──────────────────────────────────────────────────
-              const Text('Profile', style: AppTextStyles.h3),
-              const SizedBox(height: 24),
+          child: Column(children: [
+            // ── Header ──────────────────────────────────────────────
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(children: [
+                Text('My Profile', style: AppTextStyles.h3),
+                Spacer(),
+              ]),
+            ),
+            const SizedBox(height: 20),
 
-              // ── Avatar + name card ───────────────────────────────────────
-              Container(
-                width: double.infinity,
+            // ── Avatar card ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppColors.bgCard,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: Column(children: [
+                child: Row(children: [
                   InitialsAvatar(
-                      initials: widget.employee.initials, size: 64),
-                  const SizedBox(height: 12),
-                  Text(widget.employee.name, style: AppTextStyles.h4),
-                  const SizedBox(height: 4),
-                  Text('Employee ID: #$shortId',
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.textMuted)),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      _info?.title ?? 'Staff Member',
-                      style: AppTextStyles.caption.copyWith(
-                          color: AppColors.primaryLight,
-                          fontWeight: FontWeight.w600),
+                    initials: _initials(widget.employee.name),
+                    size: 64,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.employee.name, style: AppTextStyles.h4),
+                        const SizedBox(height: 3),
+                        Text(
+                          _info?.phone ?? '—',
+                          style: AppTextStyles.caption,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'ID: #$shortId',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
                     ),
                   ),
                 ]),
               ),
-              const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 20),
 
-              // ── Account section ──────────────────────────────────────────
-              const Text('Account', style: AppTextStyles.h4),
-              const SizedBox(height: 12),
-              _ProfileTile(
-                icon: Icons.person_outline_rounded,
-                label: 'Full Name',
-                value: widget.employee.name,
-              ),
-              _ProfileTile(
-                icon: Icons.badge_outlined,
-                label: 'Employee ID',
-                value: '#$shortId',
-              ),
-              _ProfileTile(
-                icon: Icons.phone_outlined,
-                label: 'Phone',
-                value: _info?.phone ?? '—',
-              ),
-              _ProfileTile(
-                icon: Icons.work_outline_rounded,
-                label: 'Title',
-                value: _info?.title ?? '—',
-              ),
-              const SizedBox(height: 24),
-
-              // ── Security section ─────────────────────────────────────────
-              const Text('Security', style: AppTextStyles.h4),
-              const SizedBox(height: 12),
-              _ChangePasswordTile(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
+            // ── Menu ────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(children: [
+                _MenuSection(title: 'Account', items: [
+                  _MenuItem(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Full Name',
+                    value: widget.employee.name,
+                    color: AppColors.primary,
+                    onTap: () {},
                   ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // ── Sign out ─────────────────────────────────────────────────
-              GestureDetector(
-                onTap: () => _signOut(context, ref),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: Colors.red.withValues(alpha: 0.25)),
+                  _MenuItem(
+                    icon: Icons.phone_outlined,
+                    label: 'Phone',
+                    value: _info?.phone ?? '—',
+                    color: AppColors.primary,
+                    onTap: () {},
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.logout_rounded,
-                          color: Colors.redAccent, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Sign Out',
-                          style: AppTextStyles.labelMedium
-                              .copyWith(color: Colors.redAccent)),
-                    ],
+                  _MenuItem(
+                    icon: Icons.badge_outlined,
+                    label: 'Employee ID',
+                    value: '#$shortId',
+                    color: AppColors.primary,
+                    onTap: () {},
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+                ]),
+                const SizedBox(height: 12),
+                _MenuSection(title: 'Security', items: [
+                  _MenuItem(
+                    icon: Icons.lock_outline_rounded,
+                    label: 'Change Password',
+                    color: AppColors.primary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ChangePasswordScreen()),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                _MenuSection(title: '', items: [
+                  _MenuItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Sign Out',
+                    color: AppColors.error,
+                    textColor: AppColors.error,
+                    onTap: () => _signOut(context, ref),
+                  ),
+                ]),
+                const SizedBox(height: 24),
+              ]),
+            ),
+          ]),
         ),
       ),
     );
@@ -251,95 +248,94 @@ Future<bool> _showSignOutDialog(BuildContext context) async {
       false;
 }
 
-// ── Change Password Tile ──────────────────────────────────────────────────────
+// ── Menu widgets ──────────────────────────────────────────────────────────────
 
-class _ChangePasswordTile extends StatelessWidget {
-  final VoidCallback onTap;
-  const _ChangePasswordTile({required this.onTap});
+class _MenuSection extends StatelessWidget {
+  final String          title;
+  final List<_MenuItem> items;
+  const _MenuSection({required this.title, required this.items});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(children: [
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty) ...[
+            Text(title,
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textMuted, letterSpacing: 0.5)),
+            const SizedBox(height: 8),
+          ],
           Container(
-            width: 38,
-            height: 38,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
+              color: AppColors.bgCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
             ),
-            child: const Icon(
-              Icons.lock_outline_rounded,
-              color: AppColors.primary,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Change Password',
-                  style: AppTextStyles.labelMedium.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Update your account password',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+              children: items.asMap().entries.map((e) {
+                final isLast = e.key == items.length - 1;
+                return Column(children: [
+                  e.value,
+                  if (!isLast)
+                    const Divider(
+                        height: 1,
+                        indent: 56,
+                        endIndent: 0,
+                        color: AppColors.border),
+                ]);
+              }).toList(),
             ),
           ),
-          const Icon(
-            Icons.arrow_forward_ios_rounded,
-            color: AppColors.textSecondary,
-            size: 14,
-          ),
-        ]),
-      ),
-    );
-  }
+        ],
+      );
 }
 
-// ── Profile tile ──────────────────────────────────────────────────────────────
+class _MenuItem extends StatelessWidget {
+  final IconData     icon;
+  final String       label;
+  final String?      value;   // optional trailing value (read-only tiles)
+  final Color        color;
+  final Color?       textColor;
+  final VoidCallback onTap;
 
-class _ProfileTile extends StatelessWidget {
-  final IconData icon;
-  final String   label;
-  final String   value;
-  const _ProfileTile(
-      {required this.icon, required this.label, required this.value});
+  const _MenuItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.value,
+    this.textColor,
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: ListTile(
+          onTap: onTap,
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          title: Text(
+            label,
+            style: AppTextStyles.bodyMedium.copyWith(
+                color: textColor ?? AppColors.textPrimary, fontSize: 14),
+          ),
+          trailing: value != null
+              ? Text(value!,
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textMuted))
+              : const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textHint, size: 20),
+          dense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         ),
-        child: Row(children: [
-          Icon(icon, color: AppColors.primaryLight, size: 20),
-          const SizedBox(width: 14),
-          Expanded(child: Text(label, style: AppTextStyles.bodySmall)),
-          Text(value,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textMuted)),
-        ]),
       );
 }

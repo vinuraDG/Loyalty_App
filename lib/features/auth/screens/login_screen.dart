@@ -127,8 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               const SizedBox(height: 20),
 
               // ── Partner logos ───────────────────────────────────
-              _PartnerLogosStrip(logos: _logoAssets),
-              const SizedBox(height: 24),
+              
 
               // Tab selector
               Container(

@@ -142,6 +142,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 child: Container(
                   width: double.infinity,
+                  height: 160,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(

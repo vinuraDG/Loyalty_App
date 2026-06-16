@@ -1,18 +1,8 @@
 // lib/features/employee/screens/customer_identified_screen.dart
-//
-// Shown after the QR scanner successfully identifies a member.
-// Displays customer info + two primary actions:
-//   • Earn  → opens the fuel-sale entry sheet (existing flow)
-//   • Redeem → navigates to RedeemFlowScreen
-//
-// Navigation contract
-//   Push: Navigator.push(context, MaterialPageRoute(builder: (_) =>
-//           CustomerIdentifiedScreen(member: member, employee: emp, svc: svc)))
-//   After earn / redeem completes, this screen pops itself with a result
-//   so the home page can refresh its scan list.
 
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
 import 'fuel_entry_sheet.dart';
@@ -22,12 +12,16 @@ class CustomerIdentifiedScreen extends StatefulWidget {
   final ScannedMember member;
   final String employeeId;
   final IEmpHomeService svc;
+  final UserModel employee;
+  final VoidCallback? onRedeemComplete; // ← added
 
   const CustomerIdentifiedScreen({
     super.key,
     required this.member,
     required this.employeeId,
     required this.svc,
+    required this.employee,
+    this.onRedeemComplete, // ← added
   });
 
   @override
@@ -41,7 +35,6 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
-  // Keep a live copy so points update after earn/redeem.
   late ScannedMember _member;
 
   @override
@@ -65,16 +58,12 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
     super.dispose();
   }
 
-  // ── Refresh member after a transaction ───────────────────────────────────
-
   Future<void> _refreshMember() async {
     try {
       final updated = await widget.svc.getMemberByQr(_member.userId);
       if (mounted) setState(() => _member = updated);
     } catch (_) {}
   }
-
-  // ── Earn flow ─────────────────────────────────────────────────────────────
 
   Future<void> _startEarnFlow() async {
     final result = await showModalBottomSheet<bool>(
@@ -97,8 +86,6 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
     }
   }
 
-  // ── Redeem flow ───────────────────────────────────────────────────────────
-
   Future<void> _startRedeemFlow() async {
     final result = await Navigator.push<bool>(
       context,
@@ -107,14 +94,16 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
           member: _member,
           employeeId: widget.employeeId,
           svc: widget.svc,
+          employee: widget.employee,
         ),
       ),
     );
-    if (result == true) {
-      await _refreshMember();
-      if (mounted) {
-        _showSuccessSnack('Redemption confirmed for ${_member.name}!');
-      }
+
+    if (result == true && mounted) {
+      // Fire the callback so the dashboard resets to Home tab
+      widget.onRedeemComplete?.call();
+      // Pop everything above the dashboard in one shot
+      Navigator.popUntil(context, (route) => route.isFirst);
     }
   }
 
@@ -141,8 +130,6 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
     );
   }
 
-  // ── UI ────────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final initials =
@@ -156,7 +143,6 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
           child: SlideTransition(
             position: _slideAnim,
             child: Column(children: [
-              // ── App bar ──────────────────────────────────────────────
               _AppBar(onClose: () => Navigator.pop(context)),
 
               Expanded(
@@ -165,20 +151,16 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Identification badge ─────────────────────────
                       _IdentificationBanner(member: _member, initials: initials),
                       const SizedBox(height: 24),
 
-                      // ── Points hero ──────────────────────────────────
                       _PointsHero(member: _member),
                       const SizedBox(height: 32),
 
-                      // ── Action label ─────────────────────────────────
                       const Text('What would you like to do?',
                           style: AppTextStyles.h4),
                       const SizedBox(height: 14),
 
-                      // ── Earn card ────────────────────────────────────
                       _ActionCard(
                         icon: Icons.local_gas_station_rounded,
                         iconColor: AppColors.primaryLight,
@@ -194,7 +176,6 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
                       ),
                       const SizedBox(height: 12),
 
-                      // ── Redeem card ──────────────────────────────────
                       _ActionCard(
                         icon: Icons.redeem_rounded,
                         iconColor: const Color(0xFFFFB347),
@@ -301,13 +282,11 @@ class _IdentificationBanner extends StatelessWidget {
             ],
           ),
         ),
-        // TierBadge removed
       ]),
     );
   }
 }
 
-/// Full-width hero card that shows the member's point balance prominently.
 class _PointsHero extends StatelessWidget {
   final ScannedMember member;
   const _PointsHero({required this.member});
@@ -383,8 +362,7 @@ class _PointsHero extends StatelessWidget {
                 style: AppTextStyles.caption
                     .copyWith(color: AppColors.textMuted),
               ),
-            )
-         
+            ),
         ],
       ),
     );

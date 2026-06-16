@@ -24,6 +24,27 @@ class AuthMockService implements IAuthService {
 
   final Map<String, String> _otpStore = {};
 
+  // ── All-time points helper ────────────────────────────────────────────────
+  // Earned (non-expired) minus redeemed across ALL time = current balance.
+
+  int _computePoints(String userId) {
+    final earned = kMockTransactions
+        .where((t) =>
+            t['userId'] == userId &&
+            (t['isEarned'] as bool? ?? false) == true &&
+            (t['isExpired'] as bool? ?? false) == false)
+        .fold<int>(0, (sum, t) => sum + (t['points'] as int));
+
+    final redeemed = kMockTransactions
+        .where((t) =>
+            t['userId'] == userId &&
+            (t['isEarned'] as bool? ?? false) == false &&
+            (t['isExpired'] as bool? ?? false) == false)
+        .fold<int>(0, (sum, t) => sum + (t['points'] as int));
+
+    return earned - redeemed;
+  }
+
   @override
   Future<UserModel> signUpWithEmail({
     required String firstName,
@@ -70,7 +91,7 @@ class AuthMockService implements IAuthService {
     if (stored != null && password != stored) {
       throw const AuthException('Incorrect password. Please try again.');
     }
-    return user;
+    return user.copyWith(totalPoints: _computePoints(user.id));
   }
 
   @override
@@ -90,7 +111,9 @@ class AuthMockService implements IAuthService {
       throw const AuthException('Invalid OTP. Please check and try again.');
     }
     _otpStore.remove(phone.trim());
-    return _users.where((u) => u.phone.trim() == phone.trim()).firstOrNull;
+    final user = _users.where((u) => u.phone.trim() == phone.trim()).firstOrNull;
+    if (user == null) return null;
+    return user.copyWith(totalPoints: _computePoints(user.id));
   }
 
   @override
@@ -153,7 +176,6 @@ class AuthMockService implements IAuthService {
     if (currentPassword.isEmpty || newPassword.isEmpty) {
       throw const AuthException('Password fields cannot be empty.');
     }
-    // Mock: always succeeds when fields are non-empty
   }
 
   @override
@@ -180,14 +202,15 @@ class AuthMockService implements IAuthService {
     required String newPassword,
   }) async {
     await _delay();
-    // Mock: always succeeds
   }
 
   @override
-  Future<UserModel?> findById(String id) async =>
-      _users.where((u) => u.id == id).firstOrNull;
+  Future<UserModel?> findById(String id) async {
+    final user = _users.where((u) => u.id == id).firstOrNull;
+    if (user == null) return null;
+    return user.copyWith(totalPoints: _computePoints(id));
+  }
 
-  // Mock-only helpers used by other mock services
   UserModel? findByIdSync(String id) =>
       _users.where((u) => u.id == id).firstOrNull;
 

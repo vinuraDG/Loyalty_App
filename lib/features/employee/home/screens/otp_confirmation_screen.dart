@@ -1,14 +1,4 @@
 // lib/features/employee/screens/otp_confirmation_screen.dart
-//
-// Step 2 of the redemption flow:
-//   • Shows that an OTP SMS was sent to the customer's phone.
-//   • Employee types the 4-digit OTP the customer reads aloud.
-//   • On confirm, calls svc.confirmRedemption().
-//   • Navigates back with true on success, stays on error.
-//
-// In mock/dev mode, devOtp is non-empty and displayed in a hint box so
-// testers can verify the flow without a real phone.
-// In production, devOtp should be '' (never shown).
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,15 +6,16 @@ import 'package:loyalty_app/features/employee/profile/data/emp_profile_api_servi
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
+import '../../../../models/user_model.dart';
+import 'employee_dashboard_screen.dart'; // ← was employee_home_page.dart
 
 class OtpConfirmationScreen extends StatefulWidget {
   final ScannedMember member;
   final RedeemableOffer offer;
   final String employeeId;
   final IEmpHomeService svc;
-
-  /// Non-empty only in mock/dev mode — never in production.
   final String devOtp;
+  final UserModel employee;
 
   const OtpConfirmationScreen({
     super.key,
@@ -32,6 +23,7 @@ class OtpConfirmationScreen extends StatefulWidget {
     required this.offer,
     required this.employeeId,
     required this.svc,
+    required this.employee,
     this.devOtp = '',
   });
 
@@ -48,8 +40,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
   String? _error;
   RedemptionResult? _result;
 
-  String get _otp =>
-      _controllers.map((c) => c.text).join();
+  String get _otp => _controllers.map((c) => c.text).join();
 
   @override
   void dispose() {
@@ -78,7 +69,10 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
 
   Future<void> _confirm() async {
     if (_otp.length < 4 || _confirming) return;
-    setState(() { _confirming = true; _error = null; });
+    setState(() {
+      _confirming = true;
+      _error = null;
+    });
     try {
       final result = await widget.svc.confirmRedemption(
         customerId: widget.member.userId,
@@ -89,24 +83,40 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
       if (mounted) setState(() => _result = result);
     } on InvalidOtpException catch (e) {
       if (mounted) {
-        setState(() { _error = e.message; _confirming = false; });
+        setState(() {
+          _error = e.message;
+          _confirming = false;
+        });
         for (final c in _controllers) c.clear();
         _focusNodes[0].requestFocus();
       }
     } on InsufficientPointsException catch (e) {
       if (mounted) {
-        setState(() { _error = e.message; _confirming = false; });
+        setState(() {
+          _error = e.message;
+          _confirming = false;
+        });
       }
     } catch (e) {
       if (mounted) {
-        setState(() { _error = e.toString(); _confirming = false; });
+        setState(() {
+          _error = e.toString();
+          _confirming = false;
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_result != null) return _SuccessView(result: _result!, member: widget.member, offer: widget.offer);
+    if (_result != null) {
+      return _SuccessView(
+        result: _result!,
+        member: widget.member,
+        offer: widget.offer,
+        employee: widget.employee,
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -117,9 +127,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
             padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
             child: Row(children: [
               IconButton(
-                onPressed: _confirming
-                    ? null
-                    : () => Navigator.pop(context),
+                onPressed: _confirming ? null : () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: AppColors.textPrimary, size: 20),
               ),
@@ -202,7 +210,8 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
                   const SizedBox(height: 32),
 
                   // ── Redemption summary ─────────────────────────────
-                  _RedemptionSummary(member: widget.member, offer: widget.offer),
+                  _RedemptionSummary(
+                      member: widget.member, offer: widget.offer),
                   const SizedBox(height: 32),
 
                   // ── OTP input boxes ────────────────────────────────
@@ -210,8 +219,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(4, (i) {
                       return Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: _OtpBox(
                           controller: _controllers[i],
                           focusNode: _focusNodes[i],
@@ -252,13 +260,10 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
 
                   // ── Confirm button ─────────────────────────────────
                   GradientButton(
-                    label: _confirming
-                        ? 'Confirming…'
-                        : 'Confirm Redemption',
+                    label: _confirming ? 'Confirming…' : 'Confirm Redemption',
                     icon: Icons.check_circle_rounded,
-                    onPressed: (_otp.length == 4 && !_confirming)
-                        ? _confirm
-                        : null,
+                    onPressed:
+                        (_otp.length == 4 && !_confirming) ? _confirm : null,
                   ),
                 ],
               ),
@@ -324,9 +329,8 @@ class _OtpBox extends StatelessWidget {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                  color: hasError
-                      ? Colors.redAccent
-                      : AppColors.primaryLight,
+                  color:
+                      hasError ? Colors.redAccent : AppColors.primaryLight,
                   width: 2),
             ),
           ),
@@ -342,8 +346,7 @@ class _RedemptionSummary extends StatelessWidget {
   final ScannedMember member;
   final RedeemableOffer offer;
 
-  const _RedemptionSummary(
-      {required this.member, required this.offer});
+  const _RedemptionSummary({required this.member, required this.offer});
 
   @override
   Widget build(BuildContext context) {
@@ -355,22 +358,15 @@ class _RedemptionSummary extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child:
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Redemption Details',
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.textMuted)),
+            style:
+                AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
         const SizedBox(height: 12),
         _Row(label: 'Customer', value: member.name),
         const SizedBox(height: 8),
-        _Row(label: 'Offer', value: offer.title),
-        const SizedBox(height: 8),
         _Row(label: 'Business', value: offer.business),
-        const SizedBox(height: 8),
-        _Row(
-          label: 'Points to deduct',
-          value: '−${offer.pointsCost} pts',
-          valueColor: Colors.redAccent,
-        ),
         const SizedBox(height: 8),
         _Row(
           label: 'Remaining after',
@@ -413,9 +409,14 @@ class _SuccessView extends StatelessWidget {
   final RedemptionResult result;
   final ScannedMember member;
   final RedeemableOffer offer;
+  final UserModel employee;
 
-  const _SuccessView(
-      {required this.result, required this.member, required this.offer});
+  const _SuccessView({
+    required this.result,
+    required this.member,
+    required this.offer,
+    required this.employee,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -449,7 +450,6 @@ class _SuccessView extends StatelessWidget {
               ),
               const SizedBox(height: 28),
 
-              // Confirmation details card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -483,8 +483,16 @@ class _SuccessView extends StatelessWidget {
               GradientButton(
                 label: 'Done',
                 icon: Icons.check_rounded,
-                onPressed: () =>
-                    Navigator.pop(context, true),
+                // ── KEY FIX: push EmployeeDashboardScreen (has bottom nav)
+                // instead of EmployeeHomePage (bare page, no bottom nav)
+                onPressed: () => Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        EmployeeDashboardScreen(employee: employee),
+                  ),
+                  (route) => false,
+                ),
               ),
             ],
           ),
@@ -500,11 +508,12 @@ class _ConfirmRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  const _ConfirmRow(
-      {required this.icon,
-      required this.label,
-      required this.value,
-      this.valueColor});
+  const _ConfirmRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -516,8 +525,8 @@ class _ConfirmRow extends StatelessWidget {
               style: AppTextStyles.caption
                   .copyWith(color: AppColors.textMuted))),
       Text(value,
-          style: AppTextStyles.labelMedium.copyWith(
-              color: valueColor ?? AppColors.textPrimary)),
+          style: AppTextStyles.labelMedium
+              .copyWith(color: valueColor ?? AppColors.textPrimary)),
     ]);
   }
 }

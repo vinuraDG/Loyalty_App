@@ -316,7 +316,7 @@ class DemoHintBox extends StatelessWidget {
         Text('Demo credentials', style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentGold)),
       ]),
       const SizedBox(height: 7),
-      Text('Employee Email: employee@gmail.com\nCustomer Email: customer@gmail.com\nPassword: any 6+ characters\nPhone: 0771234567  ·  OTP: 1234',
+      Text('Employee Email: employee@gmail.com\nEmployee Password: employee123\nCustomer Email: customer@gmail.com\nCustomer Password: customer123\nPhone: 0771234567  ·  OTP: 1234',
         style: AppTextStyles.caption.copyWith(
           color: AppColors.accentGold.withValues(alpha: 0.85), height: 1.7)),
     ]),

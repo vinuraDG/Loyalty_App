@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
 import 'package:loyalty_app/customer/profile/data/profile_mock_service.dart';
+import 'package:loyalty_app/customer/profile/screens/change_password_screen.dart';
 import 'package:loyalty_app/customer/profile/screens/edit_profile_screen.dart';
 import 'package:loyalty_app/customer/qr/screens/qr_screen.dart';
 import '../../../core/theme/app_theme.dart';
@@ -125,6 +126,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const EditProfileScreen()),
+                    ),
+                  ),
+                  _MenuItem(
+                    icon: Icons.lock_outline_rounded,
+                    label: 'Change Password',
+                    color: AppColors.primary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ChangePasswordScreen()),
                     ),
                   ),
                 ]),

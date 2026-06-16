@@ -2,15 +2,12 @@
 const bool kUseMockData = true;
 
 /// The base URL for the real backend.
-/// Replace this with the URL the backend developer gives you.
-/// Example: 'https://api.yourdomain.com/v1'
 const String kBaseUrl = 'https://api.example.com/v1';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Users
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// All mock user accounts.
 const List<Map<String, dynamic>> kMockUsers = [
   {
     'id': 'cust-001',
@@ -20,7 +17,7 @@ const List<Map<String, dynamic>> kMockUsers = [
     'phone': '0771234567',
     'role': 'customer',
     'address': '42 Galle Road, Colombo 03',
-    'points': 4820,
+    'points': 1160,
   },
   {
     'id': 'emp-001',
@@ -38,8 +35,6 @@ const List<Map<String, dynamic>> kMockUsers = [
 // Employee — Profile Info
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Extra profile info shown on the employee profile page.
-/// The real backend returns this from GET /employees/{id}/profile.
 const Map<String, dynamic> kMockEmployeeProfiles = {
   'emp-001': {
     'phone': '0779876543',
@@ -47,9 +42,6 @@ const Map<String, dynamic> kMockEmployeeProfiles = {
   },
 };
 
-/// Mock passwords keyed by user id.
-/// In a real app passwords are never stored like this — this is only for the
-/// mock/demo flow. The backend will handle authentication properly.
 const Map<String, String> kMockPasswords = {
   'cust-001': 'customer123',
   'emp-001': 'employee123',
@@ -59,26 +51,14 @@ const Map<String, String> kMockPasswords = {
 // OTP
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// The mock OTP used in development/demo mode.
-/// The real backend will send an actual SMS.
 const String kMockOtp = '1234';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Transactions (Customer)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Mock transaction records for customers.
-/// Fields mirror what the real API will return:
-///   id, userId, business, points, isEarned, isExpired,
-///   hoursAgo | daysAgo (relative to now so dates stay accurate at runtime),
-///   note (optional), billNo (optional).
-///
-/// isExpired: true  → points were earned but lapsed before being redeemed.
-///                    isEarned is also true on these rows (they were real earn
-///                    events; they just can no longer be used).
-/// isExpired: false → normal active transaction (default when key is absent).
 const List<Map<String, dynamic>> kMockTransactions = [
-  // ── Active earned ─────────────────────────────────────────────────────────
+  // ── June 2026 — Active earned ─────────────────────────────────────────────
   {
     'id': 't1',
     'userId': 'cust-001',
@@ -87,7 +67,7 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'isEarned': true,
     'isExpired': false,
     'hoursAgo': 3,
-    'billNo': 'FS-20240601-001',
+    'billNo': 'FS-20260616-001',
   },
   {
     'id': 't3',
@@ -97,7 +77,7 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'isEarned': true,
     'isExpired': false,
     'daysAgo': 3,
-    'billNo': 'GS-20240529-003',
+    'billNo': 'GS-20260613-003',
   },
   {
     'id': 't4',
@@ -107,7 +87,7 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'isEarned': true,
     'isExpired': false,
     'daysAgo': 5,
-    'billNo': 'FS-20240527-004',
+    'billNo': 'FS-20260611-004',
   },
   {
     'id': 't5',
@@ -117,7 +97,7 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'isEarned': true,
     'isExpired': false,
     'daysAgo': 7,
-    'billNo': 'LN-20240525-005',
+    'billNo': 'LN-20260609-005',
   },
   {
     'id': 't6',
@@ -127,7 +107,7 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'isEarned': true,
     'isExpired': false,
     'daysAgo': 10,
-    'billNo': 'GS-20240522-006',
+    'billNo': 'GS-20260606-006',
   },
   {
     'id': 't7',
@@ -137,22 +117,88 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'isEarned': true,
     'isExpired': false,
     'daysAgo': 12,
-    'billNo': 'FS-20240520-007',
+    'billNo': 'FS-20260604-007',
   },
 
-  // ── Redeemed ──────────────────────────────────────────────────────────────
+  // ── June 2026 — Redeemed ──────────────────────────────────────────────────
   {
     'id': 't2',
     'userId': 'cust-001',
     'business': 'Laundry',
-    'points': 200,
+    'points': 250,
     'isEarned': false,
     'isExpired': false,
     'daysAgo': 1,
     'note': 'Free wash service',
   },
 
-  // ── Expired (earned but lapsed — cannot be redeemed) ──────────────────────
+  // ── May 2026 — Active earned ──────────────────────────────────────────────
+  {
+    'id': 't11',
+    'userId': 'cust-001',
+    'business': 'Fuel Station',
+    'points': 120,
+    'isEarned': true,
+    'isExpired': false,
+    'daysAgo': 20,
+    'billNo': 'FS-20260527-011',
+  },
+  {
+    'id': 't12',
+    'userId': 'cust-001',
+    'business': 'Gold Shop',
+    'points': 200,
+    'isEarned': true,
+    'isExpired': false,
+    'daysAgo': 25,
+    'billNo': 'GS-20260522-012',
+  },
+  {
+    'id': 't13',
+    'userId': 'cust-001',
+    'business': 'Laundry',
+    'points': 80,
+    'isEarned': true,
+    'isExpired': false,
+    'daysAgo': 30,
+    'billNo': 'LN-20260517-013',
+  },
+
+  // ── May 2026 — Redeemed ───────────────────────────────────────────────────
+  {
+    'id': 't16',
+    'userId': 'cust-001',
+    'business': 'Gold Shop',
+    'points': 150,
+    'isEarned': false,
+    'isExpired': false,
+    'daysAgo': 22,
+    'note': 'Gold valuation service',
+  },
+
+  // ── April 2026 — Active earned ────────────────────────────────────────────
+  {
+    'id': 't14',
+    'userId': 'cust-001',
+    'business': 'Fuel Station',
+    'points': 120,
+    'isEarned': true,
+    'isExpired': false,
+    'daysAgo': 45,
+    'billNo': 'FS-20260502-014',
+  },
+  {
+    'id': 't15',
+    'userId': 'cust-001',
+    'business': 'Gold Shop',
+    'points': 200,
+    'isEarned': true,
+    'isExpired': false,
+    'daysAgo': 55,
+    'billNo': 'GS-20260422-015',
+  },
+
+  // ── Expired (older — won't affect active balance) ─────────────────────────
   {
     'id': 't8',
     'userId': 'cust-001',
@@ -160,8 +206,8 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'points': 150,
     'isEarned': true,
     'isExpired': true,
-    'daysAgo': 45,
-    'billNo': 'GS-20240417-008',
+    'daysAgo': 75,
+    'billNo': 'GS-20260402-008',
     'note': 'Points expired — not redeemed in time',
   },
   {
@@ -171,8 +217,8 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'points': 120,
     'isEarned': true,
     'isExpired': true,
-    'daysAgo': 60,
-    'billNo': 'FS-20240402-009',
+    'daysAgo': 90,
+    'billNo': 'FS-20260317-009',
     'note': 'Points expired — not redeemed in time',
   },
   {
@@ -182,8 +228,8 @@ const List<Map<String, dynamic>> kMockTransactions = [
     'points': 80,
     'isEarned': true,
     'isExpired': true,
-    'daysAgo': 90,
-    'billNo': 'LN-20240303-010',
+    'daysAgo': 110,
+    'billNo': 'LN-20260226-010',
     'note': 'Points expired — not redeemed in time',
   },
 ];
@@ -192,8 +238,6 @@ const List<Map<String, dynamic>> kMockTransactions = [
 // Weekly Points (Home Screen Chart)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Mock weekly points per user, index 0 = Monday … index 6 = Sunday.
-/// The real backend will compute these from the transaction history.
 const Map<String, List<int>> kMockWeeklyPoints = {
   'cust-001': [80, 210, 150, 60, 320, 200, 120],
   'emp-001': [0, 0, 0, 0, 0, 0, 0],
@@ -203,8 +247,6 @@ const Map<String, List<int>> kMockWeeklyPoints = {
 // Advertisement Banners (Home Screen)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Mock promotional banners shown on the home screen carousel.
-/// The real backend will return these as a list from a CMS or promotions API.
 const List<Map<String, dynamic>> kMockAds = [
   {
     'id': 'ad_001',
@@ -239,10 +281,6 @@ const List<Map<String, dynamic>> kMockAds = [
 // Offers / Rewards
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Mock redeemable offers shown on the rewards screen.
-/// isExpired: true  → offer has passed its validity window (cannot be redeemed).
-/// isExpired: false → offer is currently active.
-/// The real backend will serve these from a promotions API.
 const List<Map<String, dynamic>> kMockOffers = [
   // ── Laundry ───────────────────────────────────────────────────────────────
   {
@@ -289,7 +327,7 @@ const List<Map<String, dynamic>> kMockOffers = [
   // ── Gold Shop ─────────────────────────────────────────────────────────────
   {
     'id': 'o3',
-    'title': 'Free gold jewellery polish',
+    'title': 'Gold jewellery polish',
     'description': 'Professional polish for any gold item',
     'business': 'Gold Shop',
     'pointsCost': 500,
@@ -317,15 +355,12 @@ const List<Map<String, dynamic>> kMockOffers = [
 // Business Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Points earned per visit at each business type.
-/// When the backend is ready these values will come from a config API endpoint.
 const Map<String, int> kBusinessPoints = {
   'Fuel Station': 120,
   'Laundry': 80,
   'Gold Shop': 200,
 };
 
-/// Business display names (single source — used in transactions and UI).
 const String kBusinessFuel    = 'Fuel Station';
 const String kBusinessLaundry = 'Laundry';
 const String kBusinessGold    = 'Gold Shop';
@@ -334,9 +369,6 @@ const String kBusinessGold    = 'Gold Shop';
 // Employee — Scanned Member
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// The member returned when an employee scans a customer QR code.
-/// Fields: name, memberId, tier, currentPoints.
-/// The real backend returns this from GET /members/{userId}.
 const Map<String, dynamic> kMockScannedMember = {
   'name': 'Amal Perera',
   'memberId': 'AP2024X1',
@@ -349,9 +381,6 @@ const Map<String, dynamic> kMockScannedMember = {
 // Employee — Today's Scans (seed data)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Seed scan entries shown in the employee home on first load.
-/// Fields: memberName (String), saleAmount (double), points (int), time (String).
-/// The real backend returns these from GET /employees/{id}/scans/today.
 const List<Map<String, dynamic>> kMockTodayScans = [
   {
     'memberName': 'Nimal Silva',
@@ -383,9 +412,6 @@ const List<Map<String, dynamic>> kMockTodayScans = [
 // Employee — Weekly Commission Chart
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Weekly commission amounts per employee in LKR cents (÷100 = LKR).
-/// Index 0 = Monday … index 6 = Sunday.
-/// The real backend returns this from GET /employees/{id}/commission/weekly.
 const Map<String, List<int>> kMockEmployeeWeeklyCommission = {
   'emp-001': [1240, 3800, 2650, 4200, 5100, 3200, 800],
 };
@@ -394,15 +420,8 @@ const Map<String, List<int>> kMockEmployeeWeeklyCommission = {
 // Employee — Commission Sales History
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Commission rate applied to every fuel sale.
-/// The real backend will return this from a config endpoint.
 const double kCommissionRate = 0.02; // 2 %
 
-/// All sale records used in the commission page.
-/// Fields: id, employeeId, business, customerName, litres, saleAmount,
-///         time, date, month.
-/// business: 'Fuel' | 'Laundry' | 'Gold Shop'
-/// The real backend returns these from GET /employees/{id}/sales?month={month}.
 const List<Map<String, dynamic>> kMockCommissionSales = [
   // ── June 2026 ─────────────────────────────────────────────────────────────
   {
@@ -458,6 +477,116 @@ const List<Map<String, dynamic>> kMockCommissionSales = [
     'saleAmount': 1800.0,
     'time': '3:45 PM',
     'date': '8 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-106',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Ruwan Jayawardena',
+    'litres': 45.0,
+    'saleAmount': 10350.0,
+    'time': '8:20 AM',
+    'date': '10 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-107',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Thilini Kumari',
+    'litres': 28.5,
+    'saleAmount': 6555.0,
+    'time': '11:40 AM',
+    'date': '10 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-108',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Priya Wijesinghe',
+    'litres': 50.0,
+    'saleAmount': 11500.0,
+    'time': '1:15 PM',
+    'date': '10 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-109',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Kasun Madushanka',
+    'litres': 18.0,
+    'saleAmount': 4140.0,
+    'time': '3:30 PM',
+    'date': '9 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-110',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Chamara Dissanayake',
+    'litres': 35.0,
+    'saleAmount': 8050.0,
+    'time': '4:50 PM',
+    'date': '9 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-111',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Ishara Mendis',
+    'litres': 22.0,
+    'saleAmount': 5060.0,
+    'time': '9:00 AM',
+    'date': '8 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-112',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Roshan Gunawardena',
+    'litres': 60.0,
+    'saleAmount': 13800.0,
+    'time': '11:10 AM',
+    'date': '7 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-113',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Suresh Bandara',
+    'litres': 12.5,
+    'saleAmount': 2875.0,
+    'time': '2:20 PM',
+    'date': '7 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-114',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Dilini Ratnayake',
+    'litres': 40.0,
+    'saleAmount': 9200.0,
+    'time': '10:05 AM',
+    'date': '6 Jun',
+    'month': 'Jun 2026',
+  },
+  {
+    'id': 'sale-115',
+    'employeeId': 'emp-001',
+    'business': 'Fuel',
+    'customerName': 'Amal Perera',
+    'litres': 25.0,
+    'saleAmount': 5750.0,
+    'time': '8:45 AM',
+    'date': '5 Jun',
     'month': 'Jun 2026',
   },
 
@@ -855,124 +984,4 @@ const List<Map<String, dynamic>> kMockCommissionSales = [
     'date': '5 Jan',
     'month': 'Jan 2026',
   },
-
-  // ─────────────────────────────────────────────────────────────────────────────
-// ADD these entries into kMockCommissionSales in lib/data/mock_data.dart
-// Paste them inside the existing list, right after the last "June 2026" entry
-// (after sale-105). These add more fuel entries for June 2026 to make the
-// commission page look richer with real data.
-// ─────────────────────────────────────────────────────────────────────────────
-
-  // ── June 2026 — additional Fuel entries ───────────────────────────────────
-  {
-    'id': 'sale-106',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Ruwan Jayawardena',
-    'litres': 45.0,
-    'saleAmount': 10350.0,
-    'time': '8:20 AM',
-    'date': '10 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-107',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Thilini Kumari',
-    'litres': 28.5,
-    'saleAmount': 6555.0,
-    'time': '11:40 AM',
-    'date': '10 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-108',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Priya Wijesinghe',
-    'litres': 50.0,
-    'saleAmount': 11500.0,
-    'time': '1:15 PM',
-    'date': '10 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-109',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Kasun Madushanka',
-    'litres': 18.0,
-    'saleAmount': 4140.0,
-    'time': '3:30 PM',
-    'date': '9 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-110',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Chamara Dissanayake',
-    'litres': 35.0,
-    'saleAmount': 8050.0,
-    'time': '4:50 PM',
-    'date': '9 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-111',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Ishara Mendis',
-    'litres': 22.0,
-    'saleAmount': 5060.0,
-    'time': '9:00 AM',
-    'date': '8 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-112',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Roshan Gunawardena',
-    'litres': 60.0,
-    'saleAmount': 13800.0,
-    'time': '11:10 AM',
-    'date': '7 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-113',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Suresh Bandara',
-    'litres': 12.5,
-    'saleAmount': 2875.0,
-    'time': '2:20 PM',
-    'date': '7 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-114',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Dilini Ratnayake',
-    'litres': 40.0,
-    'saleAmount': 9200.0,
-    'time': '10:05 AM',
-    'date': '6 Jun',
-    'month': 'Jun 2026',
-  },
-  {
-    'id': 'sale-115',
-    'employeeId': 'emp-001',
-    'business': 'Fuel',
-    'customerName': 'Amal Perera',
-    'litres': 25.0,
-    'saleAmount': 5750.0,
-    'time': '8:45 AM',
-    'date': '5 Jun',
-    'month': 'Jun 2026',
-  },
 ];
-

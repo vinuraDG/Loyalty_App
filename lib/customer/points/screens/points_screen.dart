@@ -438,120 +438,125 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     children: [
 
                       // ── Balance card (left: balance, right: stats) ────────
-                      Container(
-                        width: double.infinity,
-                        height: 160,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: AppColors.cardGradient,
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // ── Left: month label + big balance ──────────────
-                            Expanded(
-                              flex: 5,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
-                                    Icon(Icons.calendar_month_rounded,
-                                        size: 12,
-                                        color: Colors.white.withValues(alpha: 0.55)),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      sel['label'] as String,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white.withValues(alpha: 0.55),
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                    ),
-                                  ]),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '$monthBalance',
-                                        style: AppTextStyles.display
-                                            .copyWith(fontSize: 42),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Padding(
-                                        padding: const EdgeInsets.only(bottom: 7),
-                                        child: Text(
-                                          'pts',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            color: Colors.white
-                                                .withValues(alpha: 0.6),
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
+Container(
+  width: double.infinity,
+  height: 160,
+  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+  decoration: BoxDecoration(
+    gradient: const LinearGradient(
+      colors: AppColors.cardGradient,
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    borderRadius: BorderRadius.circular(22),
+  ),
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      // ── Left: month label + big balance ──────────────
+      Expanded(
+        flex: 5,
+        child: Column(
+          mainAxisSize: MainAxisSize.max,          // ← fill full height
+          mainAxisAlignment: MainAxisAlignment.center, // ← center vertically
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.calendar_month_rounded,
+                  size: 12,
+                  color: Colors.white.withValues(alpha: 0.55)),
+              const SizedBox(width: 5),
+              Text(
+                sel['label'] as String,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$monthBalance',
+                  style: AppTextStyles.display.copyWith(fontSize: 46),
+                ),
+                const SizedBox(width: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'pts',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'This month balance',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.white.withValues(alpha: 0.40),
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
 
-                            // Vertical divider
-                            Container(
-                              width: 1,
-                              height: 70,
-                              margin: const EdgeInsets.symmetric(horizontal: 16),
-                              color: Colors.white.withValues(alpha: 0.15),
-                            ),
+      // Vertical divider
+      Container(
+        width: 1,
+        height: 90,                             
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: Colors.white.withValues(alpha: 0.15),
+      ),
 
-                            // ── Right: earned / redeemed / expired stats ──────
-                            Expanded(
-                              flex: 5,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _CardStatRow(
-                                    icon: Icons.arrow_upward_rounded,
-                                    iconColor: AppColors.success,
-                                    label: 'Earned today',
-                                    value: todayEarned > 0
-                                        ? '+$todayEarned'
-                                        : '+0',
-                                    valueColor: AppColors.success,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _CardStatRow(
-                                    icon: Icons.arrow_downward_rounded,
-                                    iconColor: AppColors.error,
-                                    label: 'Redeemed today',
-                                    value: todayRedeemed > 0
-                                        ? '-$todayRedeemed'
-                                        : '-0',
-                                    valueColor: AppColors.error,
-                                  ),
-                                  if (monthExpired > 0) ...[
-                                    const SizedBox(height: 10),
-                                    _CardStatRow(
-                                      icon: Icons.timer_off_rounded,
-                                      iconColor: const Color(0xFFFBBF24),
-                                      label: 'Expired',
-                                      value: '$monthExpired',
-                                      valueColor: const Color(0xFFFBBF24),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+      // ── Right: earned / redeemed / expired stats ──────
+      Expanded(
+        flex: 5,
+        child: Column(
+          mainAxisSize: MainAxisSize.max,         
+          mainAxisAlignment: MainAxisAlignment.center, 
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CardStatRow(
+              icon: Icons.arrow_upward_rounded,
+              iconColor: AppColors.success,
+              label: 'Earned today',
+              value: todayEarned > 0 ? '+$todayEarned' : '+0',
+              valueColor: AppColors.success,
+            ),
+            const SizedBox(height: 14),           
+            _CardStatRow(
+              icon: Icons.arrow_downward_rounded,
+              iconColor: AppColors.error,
+              label: 'Redeemed today',
+              value: todayRedeemed > 0 ? '-$todayRedeemed' : '-0',
+              valueColor: AppColors.error,
+            ),
+            if (monthExpired > 0) ...[
+              const SizedBox(height: 14),
+              _CardStatRow(
+                icon: Icons.timer_off_rounded,
+                iconColor: const Color(0xFFFBBF24),
+                label: 'Expired',
+                value: '$monthExpired',
+                valueColor: const Color(0xFFFBBF24),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ],
+  ),
+),
                       const SizedBox(height: 16),
 
                       // ── Per-business breakdown cards ───────────────────────

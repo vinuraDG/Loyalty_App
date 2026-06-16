@@ -129,37 +129,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
                 setState(() {});
               },
             ),
-            const SizedBox(height: 14),
-            if (_amount > 0)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: Colors.green.withValues(alpha: 0.2)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.stars_rounded,
-                      color: Colors.greenAccent, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Member earns  +$_points pts',
-                      style: AppTextStyles.labelMedium
-                          .copyWith(color: Colors.greenAccent),
-                    ),
-                  ),
-                  Text(
-                    'LKR ${_amount.toStringAsFixed(0)} × 0.1',
-                    style: AppTextStyles.caption
-                        .copyWith(color: Colors.green.shade300),
-                  ),
-                ]),
-              ),
+            
           ]),
         ),
 
@@ -185,7 +155,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
           Expanded(
             flex: 2,
             child: GradientButton(
-              label: _confirming ? 'Confirming…' : 'Confirm & Award',
+              label: _confirming ? 'Confirming…' : 'Confirm',
               icon: Icons.check_rounded,
               onPressed: (_amount > 0 && !_confirming) ? _confirm : null,
             ),

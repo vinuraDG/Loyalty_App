@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
 import 'otp_confirmation_screen.dart';
+import '../../../../models/user_model.dart';
 
 const _kRedeemBusiness = 'Gold Shop';
 
@@ -13,12 +14,14 @@ class RedeemFlowScreen extends StatefulWidget {
   final ScannedMember member;
   final String employeeId;
   final IEmpHomeService svc;
+  final UserModel employee;
 
   const RedeemFlowScreen({
     super.key,
     required this.member,
     required this.employeeId,
     required this.svc,
+    required this.employee,
   });
 
   @override
@@ -33,7 +36,6 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   bool _sendingOtp = false;
   String? _error;
 
-  // ── NEW: points input ─────────────────────────────────────────────────────
   final _pointsController = TextEditingController();
   int? _pointsToRedeem;
   String? _pointsError;
@@ -52,7 +54,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
 
   void _onPointsChanged(String raw) {
     final parsed = int.tryParse(raw.trim());
-    final available = _activeTotalPoints(_selectedBusiness ?? '');
+    final available = widget.member.currentPoints;
     setState(() {
       if (raw.trim().isEmpty) {
         _pointsToRedeem = null;
@@ -80,6 +82,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     return map;
   }
 
+  /// Only active (non-expired) offers
   List<RedeemableOffer> _activeOffers(String business) =>
       (_grouped[business] ?? []).where((o) => !o.isExpired).toList();
 
@@ -110,18 +113,15 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
         for (final o in offers) {
           grouped.putIfAbsent(o.business, () => []).add(o);
         }
-        final firstBusiness =
-            grouped.keys.isNotEmpty ? grouped.keys.first : null;
+        // Always default to Gold Shop since tabs are hidden
+        final active = (grouped[_kRedeemBusiness] ?? [])
+            .where((o) => !o.isExpired)
+            .toList();
         setState(() {
           _offers = offers;
           _loading = false;
-          _selectedBusiness = firstBusiness;
-          if (_selectedBusiness == _kRedeemBusiness) {
-            final active = (grouped[_kRedeemBusiness] ?? [])
-                .where((o) => !o.isExpired)
-                .toList();
-            _selectedOffer = active.isNotEmpty ? active.first : null;
-          }
+          _selectedBusiness = _kRedeemBusiness;
+          _selectedOffer = active.isNotEmpty ? active.first : null;
         });
       }
     } catch (e) {
@@ -141,7 +141,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
       _selectedBusiness = business;
       _selectedOffer =
           (business == _kRedeemBusiness && active.isNotEmpty) ? active.first : null;
-      _resetPointsInput(); // clear input when switching tabs
+      _resetPointsInput();
     });
   }
 
@@ -154,7 +154,6 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
       final otp = await widget.svc.sendRedemptionOtp(
         customerId: widget.member.userId,
         offerId: _selectedOffer!.id,
-        // TODO: pass _pointsToRedeem! to your service/OTP screen as needed
       );
       if (!mounted) return;
       final confirmed = await Navigator.push<bool>(
@@ -166,7 +165,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
             employeeId: widget.employeeId,
             svc: widget.svc,
             devOtp: otp,
-            // TODO: pass pointsToRedeem: _pointsToRedeem! if your screen accepts it
+            employee: widget.employee,
           ),
         ),
       );
@@ -195,7 +194,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
         child: Column(children: [
           // ── Header ────────────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+            padding: const EdgeInsets.fromLTRB(8, 12, 16, 0),
             child: Row(children: [
               IconButton(
                 onPressed: () => Navigator.pop(context),
@@ -208,123 +207,40 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Redeem Points', style: AppTextStyles.h4),
-                    Text('For ${widget.member.name}',
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.textMuted)),
+                    Text(
+                      'For ${widget.member.name}',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textMuted),
+                    ),
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFD700).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.3)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.stars_rounded,
-                      size: 14, color: Color(0xFFFFD700)),
-                  const SizedBox(width: 4),
-                  Text('${widget.member.currentPoints} pts',
-                      style: AppTextStyles.caption.copyWith(
-                          color: const Color(0xFFFFD700),
-                          fontWeight: FontWeight.w700)),
-                ]),
-              ),
+              
             ]),
           ),
 
-          const SizedBox(height: 12),
-
-          if (!_loading && _error == null) _buildCompanyTabs(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           Expanded(child: _buildBody()),
 
           // ── Gold Shop: points input + confirm ─────────────────────────────
           if (!_loading && _error == null && _isGoldSelected)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-
-                // ── Points input field ─────────────────────────────────────
-                _PointsInputField(
-                  controller: _pointsController,
-                  availablePoints: _activeTotalPoints(_kRedeemBusiness),
-                  errorText: _pointsError,
-                  onChanged: _onPointsChanged,
-                ),
-                const SizedBox(height: 12),
-
-                // ── Selected summary (shows entered pts if valid) ───────────
-                if (_selectedOffer != null) ...[
-                  _SelectedSummary(
-                    offer: _selectedOffer!,
-                    customerPoints: widget.member.currentPoints,
-                    overridePoints: _pointsToRedeem,
-                  ),
-                  const SizedBox(height: 14),
-                ],
-
-                GradientButton(
-                  label: _sendingOtp ? 'Sending OTP…' : 'Send OTP to Customer',
-                  icon: Icons.sms_rounded,
-                  onPressed:
-                      (_selectedOffer != null &&
-                          !_sendingOtp &&
-                          _pointsToRedeem != null)
-                          ? _sendOtpAndProceed
-                          : null,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'An OTP will be sent to the customer\'s registered phone number.',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.textMuted, fontSize: 11),
-                ),
-              ]),
-            ),
-
-          // ── Display-only notice for non-Gold ──────────────────────────────
-          if (!_loading &&
-              _error == null &&
-              _selectedBusiness != null &&
-              !_isGoldSelected)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.textMuted.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppColors.textMuted.withValues(alpha: 0.18)),
-                ),
-                child: Row(children: [
-                  Icon(Icons.info_outline_rounded,
-                      size: 16,
-                      color: AppColors.textMuted.withValues(alpha: 0.7)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Redemption is only available for Gold Shop points.',
-                      style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textMuted, fontSize: 11),
-                    ),
-                  ),
-                ]),
-              ),
+            _GoldRedeemPanel(
+              controller: _pointsController,
+              customerPoints: widget.member.currentPoints,
+              pointsError: _pointsError,
+              pointsToRedeem: _pointsToRedeem,
+              selectedOffer: _selectedOffer,
+              sendingOtp: _sendingOtp,
+              onPointsChanged: _onPointsChanged,
+              onSendOtp: _sendOtpAndProceed,
             ),
         ]),
       ),
     );
   }
 
-  // ── Horizontal company tab bar (unchanged) ────────────────────────────────
+  // ── Company tab bar (kept for reference but not rendered) ─────────────────
 
   Widget _buildCompanyTabs() {
     final grouped = _grouped;
@@ -332,7 +248,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     if (businesses.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
-      height: 44,
+      height: 46,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -347,17 +263,16 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
           return GestureDetector(
             onTap: () => _onTabTapped(business),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: isActive
                     ? theme.color.withValues(alpha: 0.15)
                     : AppColors.bgCard,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(23),
                 border: Border.all(
                   color: isActive
-                      ? theme.color.withValues(alpha: 0.6)
+                      ? theme.color.withValues(alpha: 0.65)
                       : AppColors.border,
                   width: isActive ? 1.5 : 1,
                 ),
@@ -411,10 +326,12 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     );
   }
 
-  // ── Body (unchanged) ──────────────────────────────────────────────────────
+  // ── Body ──────────────────────────────────────────────────────────────────
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     if (_error != null) {
       return Center(
@@ -429,13 +346,15 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
                     .copyWith(color: AppColors.textMuted),
                 textAlign: TextAlign.center),
             const SizedBox(height: 20),
-            GradientButton(label: 'Retry', onPressed: () {
-              setState(() {
-                _loading = true;
-                _error = null;
-              });
-              _loadOffers();
-            }),
+            GradientButton(
+                label: 'Retry',
+                onPressed: () {
+                  setState(() {
+                    _loading = true;
+                    _error = null;
+                  });
+                  _loadOffers();
+                }),
           ]),
         ),
       );
@@ -468,17 +387,134 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   }
 }
 
-// ── NEW: Points input field ────────────────────────────────────────────────────
+// ── Gold Redeem Panel ─────────────────────────────────────────────────────────
+
+class _GoldRedeemPanel extends StatelessWidget {
+  final TextEditingController controller;
+  final int customerPoints;
+  final String? pointsError;
+  final int? pointsToRedeem;
+  final RedeemableOffer? selectedOffer;
+  final bool sendingOtp;
+  final ValueChanged<String> onPointsChanged;
+  final VoidCallback onSendOtp;
+
+  const _GoldRedeemPanel({
+    required this.controller,
+    required this.customerPoints,
+    required this.pointsError,
+    required this.pointsToRedeem,
+    required this.selectedOffer,
+    required this.sendingOtp,
+    required this.onPointsChanged,
+    required this.onSendOtp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final canSend =
+        selectedOffer != null && !sendingOtp && pointsToRedeem != null;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFFFD700).withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Section title ──────────────────────────────────────────────
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.diamond_rounded,
+                  size: 16, color: Color(0xFFFFD700)),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Gold Shop Redemption',
+              style: AppTextStyles.labelMedium
+                  .copyWith(color: AppColors.textPrimary),
+            ),
+          ]),
+
+          const SizedBox(height: 18),
+
+          // ── Points input ───────────────────────────────────────────────
+          _PointsInputField(
+            controller: controller,
+            customerPoints: customerPoints,
+            errorText: pointsError,
+            onChanged: onPointsChanged,
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Selected summary ───────────────────────────────────────────
+          if (selectedOffer != null) ...[
+            _SelectedSummary(
+              offer: selectedOffer!,
+              customerPoints: customerPoints,
+              overridePoints: pointsToRedeem,
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // ── CTA Button ─────────────────────────────────────────────────
+          GradientButton(
+            label: sendingOtp ? 'Sending OTP…' : 'Send OTP',
+            icon: Icons.sms_rounded,
+            onPressed: canSend ? onSendOtp : null,
+          ),
+
+          const SizedBox(height: 10),
+
+          // ── Helper note ────────────────────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.phone_iphone_rounded,
+                  size: 12,
+                  color: AppColors.textMuted.withValues(alpha: 0.6)),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  'OTP will be sent to the customer\'s registered number.',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textMuted, fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Points input field ────────────────────────────────────────────────────────
 
 class _PointsInputField extends StatelessWidget {
   final TextEditingController controller;
-  final int availablePoints;
+  final int customerPoints;
   final String? errorText;
   final ValueChanged<String> onChanged;
 
   const _PointsInputField({
     required this.controller,
-    required this.availablePoints,
+    required this.customerPoints,
     required this.onChanged,
     this.errorText,
   });
@@ -490,40 +526,34 @@ class _PointsInputField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label row
-        Row(children: [
-          const Icon(Icons.toll_rounded, size: 14, color: Color(0xFFFFD700)),
-          const SizedBox(width: 6),
-          Text(
-            'Points to redeem',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
+        // Label
+        Text(
+          'Enter points to redeem',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
           ),
-          const Spacer(),
-          Text(
-            'Available: $availablePoints pts',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textMuted,
-              fontSize: 11,
-            ),
-          ),
-        ]),
+        ),
         const SizedBox(height: 8),
 
-        // Input container
-        Container(
+        // Input box
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: AppColors.bgCard,
+            color: AppColors.bgDark,
             borderRadius: BorderRadius.circular(14),
-            // REPLACE with:
-
+            border: Border.all(
+              color: hasError
+                  ? AppColors.error.withValues(alpha: 0.7)
+                  : const Color(0xFFFFD700).withValues(alpha: 0.25),
+              width: 1.5,
+            ),
           ),
           child: Row(children: [
             const SizedBox(width: 14),
             const Icon(Icons.stars_rounded,
-                size: 18, color: Color(0xFFFFD700)),
+                size: 20, color: Color(0xFFFFD700)),
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
@@ -533,13 +563,13 @@ class _PointsInputField extends StatelessWidget {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: AppTextStyles.h4.copyWith(
                   color: AppColors.textPrimary,
-                  fontSize: 22,
+                  fontSize: 24,
                 ),
                 decoration: InputDecoration(
                   hintText: '0',
                   hintStyle: AppTextStyles.h4.copyWith(
-                    color: AppColors.textMuted.withValues(alpha: 0.4),
-                    fontSize: 22,
+                    color: AppColors.textMuted.withValues(alpha: 0.35),
+                    fontSize: 24,
                   ),
                   border: InputBorder.none,
                   contentPadding:
@@ -547,23 +577,22 @@ class _PointsInputField extends StatelessWidget {
                 ),
               ),
             ),
-            // "pts" label
             Padding(
               padding: const EdgeInsets.only(right: 14),
               child: Text(
                 'pts',
-                style: AppTextStyles.caption.copyWith(
+                style: AppTextStyles.labelMedium.copyWith(
                   color: AppColors.textMuted,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ]),
         ),
 
-        // Error text
+        // Error
         if (hasError) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Row(children: [
             const SizedBox(width: 2),
             Icon(Icons.warning_amber_rounded,
@@ -583,7 +612,7 @@ class _PointsInputField extends StatelessWidget {
   }
 }
 
-// ── Points summary card (unchanged) ───────────────────────────────────────────
+// ── Points summary card (active only, no expired) ─────────────────────────────
 
 class _PointsSummaryCard extends StatelessWidget {
   final String business;
@@ -600,99 +629,165 @@ class _PointsSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasExpired = expiredTotalPoints > 0;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: theme.color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: theme.color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top row: icon + name + active pts ───────────────────────────
+          Row(children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: theme.color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(theme.icon, color: theme.color, size: 23),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    business,
+                    style: AppTextStyles.labelMedium
+                        .copyWith(color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Points summary',
+                    style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textMuted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            // Active points badge
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.25)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.stars_rounded,
+                    size: 13, color: Color(0xFFFFD700)),
+                const SizedBox(width: 5),
+                Text(
+                  '$activeTotalPoints pts',
+                  style: AppTextStyles.caption.copyWith(
+                      color: const Color(0xFFFFD700),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13),
+                ),
+              ]),
+            ),
+          ]),
+
+          // ── Expiring soon row (only if exists) ───────────────────────────
+          if (hasExpired) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B35).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: const Color(0xFFFF6B35).withValues(alpha: 0.30)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.access_time_rounded,
+                    size: 14, color: Color(0xFFFF6B35)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Points expiring soon',
+                    style: AppTextStyles.caption.copyWith(
+                        color: const Color(0xFFFF6B35),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B35).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$expiredTotalPoints pts',
+                    style: AppTextStyles.caption.copyWith(
+                      color: const Color(0xFFFF6B35),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Non-Gold notice ───────────────────────────────────────────────────────────
+
+class _NonGoldNotice extends StatelessWidget {
+  final String business;
+  const _NonGoldNotice({required this.business});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: AppColors.textMuted.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: AppColors.textMuted.withValues(alpha: 0.15)),
       ),
       child: Row(children: [
         Container(
-          width: 44,
-          height: 44,
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: theme.color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(12),
+            color: AppColors.textMuted.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(9),
           ),
-          child: Icon(theme.icon, color: theme.color, size: 22),
+          child: Icon(Icons.info_outline_rounded,
+              size: 15,
+              color: AppColors.textMuted.withValues(alpha: 0.7)),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            business,
-            style: AppTextStyles.labelMedium
-                .copyWith(color: AppColors.textPrimary),
+            'Redemption is only available for Gold Shop points.',
+            style: AppTextStyles.caption.copyWith(
+                color: AppColors.textMuted, fontSize: 12),
           ),
-        ),
-        _StatColumn(
-          label: 'Active',
-          value: '$activeTotalPoints pts',
-          valueColor: const Color(0xFFFFD700),
-          icon: Icons.stars_rounded,
-        ),
-        const SizedBox(width: 16),
-        _StatColumn(
-          label: 'Expired',
-          value: expiredTotalPoints > 0 ? '$expiredTotalPoints pts' : '—',
-          valueColor: AppColors.textMuted,
-          icon: Icons.timer_off_rounded,
-          strikethrough: expiredTotalPoints > 0,
         ),
       ]),
     );
   }
 }
 
-class _StatColumn extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color valueColor;
-  final IconData icon;
-  final bool strikethrough;
-
-  const _StatColumn({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-    required this.icon,
-    this.strikethrough = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(label,
-            style: AppTextStyles.caption.copyWith(
-                color: AppColors.textMuted,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.4)),
-        const SizedBox(height: 4),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 11, color: valueColor),
-          const SizedBox(width: 3),
-          Text(
-            value,
-            style: AppTextStyles.caption.copyWith(
-              color: valueColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              decoration:
-                  strikethrough ? TextDecoration.lineThrough : TextDecoration.none,
-              decorationColor: valueColor,
-              decorationThickness: 1.8,
-            ),
-          ),
-        ]),
-      ],
-    );
-  }
-}
-
-// ── Business theme (unchanged) ─────────────────────────────────────────────────
+// ── Business theme ────────────────────────────────────────────────────────────
 
 class _BusinessTheme {
   final Color color;
@@ -734,12 +829,12 @@ class _BusinessTheme {
   }
 }
 
-// ── Selected summary strip — now accepts overridePoints ───────────────────────
+// ── Selected summary strip ────────────────────────────────────────────────────
 
 class _SelectedSummary extends StatelessWidget {
   final RedeemableOffer offer;
   final int customerPoints;
-  final int? overridePoints; // NEW: uses entered value when not null
+  final int? overridePoints;
 
   const _SelectedSummary({
     required this.offer,
@@ -750,25 +845,23 @@ class _SelectedSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = _BusinessTheme.of(offer.business);
-    final cost = overridePoints ?? offer.pointsCost;
-    final remaining = customerPoints - cost;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: theme.color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: theme.color.withValues(alpha: 0.3)),
       ),
       child: Row(children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
             color: theme.color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(theme.icon, color: theme.color, size: 16),
+          child: Icon(theme.icon, color: theme.color, size: 17),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -782,7 +875,7 @@ class _SelectedSummary extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 1),
+              const SizedBox(height: 2),
               Text(
                 offer.title,
                 style: AppTextStyles.caption
@@ -791,45 +884,6 @@ class _SelectedSummary extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '−$cost pts',
-                style: AppTextStyles.caption.copyWith(
-                    color: const Color(0xFFFFD700),
-                    fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(
-                remaining >= 0
-                    ? Icons.account_balance_wallet_rounded
-                    : Icons.warning_amber_rounded,
-                size: 11,
-                color: remaining >= 0 ? Colors.greenAccent : Colors.redAccent,
-              ),
-              const SizedBox(width: 3),
-              Text(
-                '$remaining pts left',
-                style: AppTextStyles.caption.copyWith(
-                  color: remaining >= 0 ? Colors.greenAccent : Colors.redAccent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ]),
-          ],
         ),
       ]),
     );

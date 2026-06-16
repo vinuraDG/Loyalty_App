@@ -1,17 +1,17 @@
 // lib/features/employee/screens/employee_home_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:loyalty_app/features/employee/commission/screens/employee_total_commission_page.dart';
 import 'package:loyalty_app/features/employee/home/data/emp_home_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_mock_service.dart';
+import '../../commission/data/emp_commission_mock_service.dart';
 import 'qr_scanner_screen.dart';
 import 'customer_identified_screen.dart';
-import '../../commission/screens/employee_total_commission_page.dart';
-import 'employee_dashboard_screen.dart';
-
-// ── EmployeeHomePage ──────────────────────────────────────────────────────────
+import 'employee_dashboard_screen.dart'; // needed for EmployeeDashboardScreenState
 
 class EmployeeHomePage extends StatefulWidget {
   final UserModel employee;
@@ -23,10 +23,32 @@ class EmployeeHomePage extends StatefulWidget {
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
   final IEmpHomeService _svc = EmpHomeMockService.instance;
+  final _commissionSvc = EmpCommissionMockService.instance;
 
   List<ScanEntry> _todayScans = [];
   List<int> _weeklyCommission = List.filled(7, 0);
+  double _monthlyCommission = 0.0;
   bool _loading = true;
+
+  static const _shortMonths = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String get _currentMonthKey {
+    final now = DateTime.now();
+    return '${_shortMonths[now.month - 1]} ${now.year}';
+  }
 
   @override
   void initState() {
@@ -37,10 +59,17 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   Future<void> _load() async {
     final scans = await _svc.getTodayScans(widget.employee.id);
     final commission = await _svc.getWeeklyCommission(widget.employee.id);
+    final fuelSales = await _commissionSvc.getSalesForMonth(
+        widget.employee.id, _currentMonthKey);
+    final monthlyCommission = fuelSales
+        .where((s) => s.business == 'Fuel')
+        .fold<double>(0.0, (a, s) => a + s.commission);
+
     if (!mounted) return;
     setState(() {
       _todayScans = scans.toList();
       _weeklyCommission = commission;
+      _monthlyCommission = monthlyCommission;
       _loading = false;
     });
   }
@@ -53,8 +82,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
   double get _weeklyTotal =>
       _weeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
-
-  double get _monthlyCommission => _weeklyTotal * 4.3;
 
   Future<void> _startScanFlow(BuildContext context) async {
     final member = await Navigator.push<ScannedMember>(
@@ -76,6 +103,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           member: member,
           employeeId: widget.employee.id,
           svc: _svc,
+          employee: widget.employee,
         ),
       ),
     );
@@ -83,13 +111,16 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     await _refreshScans();
   }
 
-  /// Switches the dashboard bottom nav to the Commission tab.
+  // ── KEY FIX: switch the bottom nav tab via the dashboard ancestor state ──
+  // Using Navigator.push here would bypass the IndexedStack shell entirely,
+  // which is why the commission card previously lost the bottom nav bar.
   void _goToCommission(BuildContext context) {
-    final dashState = context
-        .findAncestorStateOfType<EmployeeDashboardScreenState>();
+    final dashState =
+        context.findAncestorStateOfType<EmployeeDashboardScreenState>();
     if (dashState != null) {
       dashState.switchToCommission();
     }
+    // No fallback push — EmployeeHomePage is always inside EmployeeDashboardScreen.
   }
 
   @override
@@ -122,24 +153,15 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3)),
-                  ),
-                  child: Text('Staff',
-                      style: AppTextStyles.caption.copyWith(
-                          color: AppColors.primaryLight,
-                          fontWeight: FontWeight.w600)),
-                ),
+               
               ]),
               const SizedBox(height: 24),
 
-              // ── Commission card (tappable → switches to Commission tab) ──
+              // ── Commission card ────────────────────────────────────────
+              // ── KEY FIX: onTap calls _goToCommission (switches bottom nav
+              //    tab index) instead of Navigator.push (which would open a
+              //    new route without the bottom nav bar shell).
+              // AFTER
               GestureDetector(
                 onTap: () => Navigator.push(
                   context,
@@ -173,6 +195,8 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   icon: Icons.payments_outlined,
                   label: 'My Commission',
                   color: AppColors.primary,
+                  // ── Also use _goToCommission here so both entry points
+                  //    correctly switch the bottom nav tab.
                   onTap: () => _goToCommission(context),
                 ),
               ]),
@@ -231,17 +255,18 @@ class _CommissionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // ── Left: label + amount + tap hint ───────────────────────
           Expanded(
             flex: 5,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 Row(children: [
                   Icon(Icons.payments_outlined,
-                      size: 13,
-                      color: Colors.white.withValues(alpha: 0.55)),
+                      size: 13, color: Colors.white.withValues(alpha: 0.55)),
                   const SizedBox(width: 5),
                   Text('commission',
                       style: TextStyle(
@@ -251,54 +276,36 @@ class _CommissionCard extends StatelessWidget {
                 ]),
                 const SizedBox(height: 6),
                 Text(
-                  'LKR ${monthlyCommission.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 35, color: Colors.white, fontWeight: FontWeight.w800),
+                  'LKR ${formatAmount(monthlyCommission)}',
+                  style: const TextStyle(
+                      fontSize: 22,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  height: 1,
-                  width: 80,
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
-                const SizedBox(height: 6),
-                Row(children: [
-                  Icon(Icons.calendar_view_week_rounded,
-                      size: 11,
-                      color: Colors.white.withValues(alpha: 0.45)),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      'This week  LKR ${weeklyTotal.toStringAsFixed(0)}',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5)),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 Row(children: [
                   Icon(Icons.open_in_new_rounded,
-                      size: 10,
-                      color: Colors.white.withValues(alpha: 0.4)),
+                      size: 10, color: Colors.white.withValues(alpha: 0.4)),
                   const SizedBox(width: 4),
-                  Text('Tap to view history',
+                  Text('Tap to view commission',
                       style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.4),
-                      )),
+                          fontSize: 10,
+                          color: Colors.white.withValues(alpha: 0.4))),
                 ]),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
+
+          // ── Right: "Last 7 days" label + chart + "This week" ──────
           Expanded(
             flex: 5,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // label at top
                 Text(
                   'Last 7 days',
                   style: TextStyle(
@@ -306,10 +313,41 @@ class _CommissionCard extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.5),
                       letterSpacing: 0.3),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
+                // chart
                 SizedBox(
-                  height: 80,
+                  height: 72,
                   child: _WeeklyCommissionChart(data: weeklyCommission),
+                ),
+                const SizedBox(height: 8),
+                // divider
+                Container(
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+                const SizedBox(height: 7),
+                // "This week" centered below chart
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.calendar_view_week_rounded,
+                        size: 11,
+                        color: Colors.white.withValues(alpha: 0.55)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'This week  ',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white.withValues(alpha: 0.55)),
+                    ),
+                    Text(
+                      'LKR ${formatAmount(weeklyTotal)}',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -373,8 +411,7 @@ class _WeeklyCommissionChart extends StatelessWidget {
                 color: isToday
                     ? Colors.white.withValues(alpha: 0.9)
                     : Colors.white.withValues(alpha: 0.4),
-                fontWeight:
-                    isToday ? FontWeight.w700 : FontWeight.w400,
+                fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
           );
@@ -424,7 +461,7 @@ class _TodayScanTile extends StatelessWidget {
                 const SizedBox(width: 3),
                 Flexible(
                   child: Text(
-                    'LKR ${scan.saleAmount.toStringAsFixed(0)}  •  ${scan.time}',
+                    'LKR ${formatAmount(scan.saleAmount)}  •  ${scan.time}',
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.textMuted),
                     overflow: TextOverflow.ellipsis,
@@ -442,8 +479,7 @@ class _TodayScanTile extends StatelessWidget {
           ),
           child: Text('+${scan.points} pts',
               style: AppTextStyles.caption.copyWith(
-                  color: Colors.greenAccent,
-                  fontWeight: FontWeight.w600)),
+                  color: Colors.greenAccent, fontWeight: FontWeight.w600)),
         ),
       ]),
     );
@@ -489,8 +525,8 @@ class _EmpQuickAction extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 label,
-                style: AppTextStyles.caption.copyWith(
-                    fontSize: 11, color: AppColors.textSecondary),
+                style: AppTextStyles.caption
+                    .copyWith(fontSize: 11, color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ]),
