@@ -27,9 +27,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _phoneCtrl    = TextEditingController();
 
   final List<String> _logoAssets = [
-    'assets/images/logo1.jpg',
-    'assets/images/logo2.jpg',
-    'assets/images/logo3.jpg',
+    'assets/images/logo 1.png',
+    'assets/images/logo 2.png',
+    'assets/images/logo 3.png',
   ];
 
   @override
@@ -127,7 +127,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               const SizedBox(height: 20),
 
               // ── Partner logos ───────────────────────────────────
-              
+              _PartnerLogosStrip(logos: _logoAssets),
+              const SizedBox(height: 20),
 
               // Tab selector
               Container(
