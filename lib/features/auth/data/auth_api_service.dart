@@ -156,7 +156,7 @@ class AuthApiService implements IAuthService {
     required String password,
   }) async {
     try {
-      final res = await _dio.post('Common/RegisterCustomer', data: {
+      await _dio.post('Common/RegisterCustomer', data: {
         'TransactionCompanyId': AppConstants.transactionCompanyId,
         'FirstName': firstName.trim(),
         'LastName': lastName.trim(),
@@ -166,10 +166,11 @@ class AuthApiService implements IAuthService {
         'Password': password,
         'ConfirmPassword': password,
       });
-      final data = res.data as Map<String, dynamic>;
-      final user = _userFromResponse(data);
-      await _persistSession(_extractToken(data), user);
-      return user;
+      // Server returns an empty body on success — sign in to get token + user.
+      return await signInWithEmail(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -208,7 +209,7 @@ class AuthApiService implements IAuthService {
     required String phone,
   }) async {
     try {
-      final res = await _dio.post('Common/RegisterCustomer', data: {
+      await _dio.post('Common/RegisterCustomer', data: {
         'TransactionCompanyId': AppConstants.transactionCompanyId,
         'FirstName': firstName.trim(),
         'LastName': lastName.trim(),
@@ -216,9 +217,11 @@ class AuthApiService implements IAuthService {
         'Email': email.trim().toLowerCase(),
         'PhoneNo': phone.trim(),
       });
-      final data = res.data as Map<String, dynamic>;
-      final user = _userFromResponse(data);
-      await _persistSession(_extractToken(data), user);
+      // Server returns an empty body — fetch the newly created user by phone.
+      final res = await _dio.get('Common/GetCustomerByPhoneNo',
+          queryParameters: {'PhoneNo': phone.trim()});
+      final user = _userFromResponse(res.data as Map<String, dynamic>);
+      await _persistSession('', user);
       return user;
     } on DioException catch (e) {
       throw _handleError(e);
