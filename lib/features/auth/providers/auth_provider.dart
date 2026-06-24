@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/features/auth/data/auth_api_service.dart';
@@ -62,6 +63,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.unauthenticated);
   }
 
+  Future<void> _saveSession(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.prefIsLoggedIn, true);
+    await prefs.setString(AppConstants.prefUserId, user.id);
+    await prefs.setString(AppConstants.prefUserRole, user.role);
+    await prefs.setString(AppConstants.prefUserPhone, user.phone);
+    await prefs.setString('userJson', jsonEncode(user.toJson()));
+  }
+
   Future<void> _clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.prefIsLoggedIn);
@@ -69,6 +79,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove(AppConstants.prefUserRole);
     await prefs.remove(AppConstants.prefAuthToken);
     await prefs.remove(AppConstants.prefUserPhone);
+    await prefs.remove('userJson');
   }
 
   // ── Email / username login ────────────────────────────────────────────────
@@ -80,6 +91,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
+      await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
       state = state.copyWith(
@@ -107,6 +119,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         phone:     phone,
         password:  password,
       );
+      await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
       state = state.copyWith(
@@ -143,6 +156,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user =
           await _auth.verifyOtp(phone: state.pendingPhone!, otp: otp);
       if (user != null) {
+        await _saveSession(user);
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
       } else {
         state = state.copyWith(status: AuthStatus.unauthenticated);
@@ -166,6 +180,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email:     email,
         phone:     state.pendingPhone!,
       );
+      await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
       state = state.copyWith(

@@ -159,6 +159,8 @@ class AuthApiService implements IAuthService {
         'Address': '',
         'Email': email.trim().toLowerCase(),
         'PhoneNo': phone.trim(),
+        'Password': password,
+        'ConfirmPassword': password,
       });
       final data = res.data as Map<String, dynamic>;
       final user = _userFromResponse(data);

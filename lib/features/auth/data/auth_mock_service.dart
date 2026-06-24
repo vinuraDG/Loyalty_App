@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/data/auth_api_service.dart';
 import 'package:loyalty_app/models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthMockService implements IAuthService {
   AuthMockService._();
@@ -80,9 +82,15 @@ class AuthMockService implements IAuthService {
     required String password,
   }) async {
     await _delay();
-    final user = _users
+    var user = _users
         .where((u) => u.email.toLowerCase() == email.trim().toLowerCase())
         .firstOrNull;
+
+    // Not in memory (e.g. after app restart) — try SharedPreferences cache
+    if (user == null) {
+      user = await _restoreUserByEmail(email.trim().toLowerCase());
+    }
+
     if (user == null) {
       throw const AuthException('No account found with this email address.');
     }
@@ -92,6 +100,22 @@ class AuthMockService implements IAuthService {
       throw const AuthException('Incorrect password. Please try again.');
     }
     return user.copyWith(totalPoints: _computePoints(user.id));
+  }
+
+  /// Reads the last-logged-in user from SharedPreferences.
+  /// Used as a fallback when `_users` doesn't contain the user (after restart).
+  Future<UserModel?> _restoreUserByEmail(String emailLower) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json  = prefs.getString('userJson');
+      if (json == null) return null;
+      final u = UserModel.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      if (u.email.toLowerCase() != emailLower) return null;
+      if (!_users.any((x) => x.id == u.id)) _users.add(u);
+      return u;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -207,9 +231,22 @@ class AuthMockService implements IAuthService {
 
   @override
   Future<UserModel?> findById(String id) async {
-    final user = _users.where((u) => u.id == id).firstOrNull;
-    if (user == null) return null;
-    return user.copyWith(totalPoints: _computePoints(id));
+    var user = _users.where((u) => u.id == id).firstOrNull;
+    if (user != null) return user.copyWith(totalPoints: _computePoints(id));
+
+    // Fallback: user was registered in a previous session — restore from prefs
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedId = prefs.getString(AppConstants.prefUserId);
+      if (storedId != id) return null;
+      final json = prefs.getString('userJson');
+      if (json == null) return null;
+      final restored = UserModel.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      if (!_users.any((x) => x.id == restored.id)) _users.add(restored);
+      return restored.copyWith(totalPoints: _computePoints(id));
+    } catch (_) {
+      return null;
+    }
   }
 
   UserModel? findByIdSync(String id) =>
