@@ -152,8 +152,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   labelColor: AppColors.textPrimary,
                   unselectedLabelColor: AppColors.textMuted,
                   tabs: const [
-                    Tab(text: 'Email'),
-                    Tab(text: 'Phone number'),
+                    Tab(text: 'Password'),
+                    Tab(text: 'OTP'),
                   ],
                 ),
               ),
@@ -166,24 +166,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   controller: _tab,
                   children: [
 
-                    // ── Email form ──────────────────────────────────
+                    // ── Phone + Password form ───────────────────────
                     Form(
                       key: _emailFormKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           AppTextField(
-                            label: 'Email address',
-                            hint: 'you@example.com',
+                            label: 'Phone number',
+                            hint: '07X XXX XXXX',
                             controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            prefixIconData: Icons.email_outlined,
+                            keyboardType: TextInputType.phone,
+                            maxLength: 10,
+                            prefixIconData: Icons.phone_outlined,
                             validator: (v) {
                               if (v == null || v.isEmpty) {
-                                return 'Email is required';
+                                return 'Phone number is required';
                               }
-                              if (!v.contains('@')) {
-                                return 'Enter a valid email';
+                              if (v.length < 9) {
+                                return 'Enter a valid phone number';
                               }
                               return null;
                             },

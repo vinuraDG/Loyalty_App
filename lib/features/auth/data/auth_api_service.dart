@@ -137,7 +137,7 @@ class AuthApiService implements IAuthService {
   }) async {
     try {
       final res = await _dio.post('Common/Login', data: {
-        'UserName': email.trim(),
+        'UserName': email.trim(), // 'email' parameter is the phone number
         'Password': password,
       });
       final data = res.data as Map<String, dynamic>;
@@ -168,9 +168,9 @@ class AuthApiService implements IAuthService {
         'Password': password,
         'ConfirmPassword': password,
       });
-      // Server returns an empty body on success — sign in to get token + user.
+      // Server returns an empty body on success — sign in with phone to get token + user.
       return await signInWithEmail(
-        email: email.trim().toLowerCase(),
+        email: phone.trim(),
         password: password,
       );
     } on DioException catch (e) {
