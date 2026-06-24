@@ -1,5 +1,8 @@
 // lib/features/employee/profile/data/emp_profile_api_service.dart
 
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'emp_profile_mock_service.dart';
 
@@ -29,16 +32,19 @@ abstract class IEmpProfileService {
   });
 }
 
-// ── Real API service (stubs) ──────────────────────────────────────────────────
+// ── Real API service ──────────────────────────────────────────────────────────
 
 class EmpProfileApiService implements IEmpProfileService {
   EmpProfileApiService._();
   static final EmpProfileApiService instance = EmpProfileApiService._();
 
+  final Dio _dio = ApiClient.instance.dio;
+
   @override
   Future<EmployeeProfileInfo> getProfileInfo(String employeeId) async {
-    // TODO(backend): GET /employees/$employeeId/profile
-    throw UnimplementedError();
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    return EmployeeProfileInfo(phone: phone, title: 'Staff Member');
   }
 
   @override
@@ -47,8 +53,25 @@ class EmpProfileApiService implements IEmpProfileService {
     required String currentPassword,
     required String newPassword,
   }) async {
-    // TODO(backend): POST /employees/$employeeId/change-password
-    throw UnimplementedError();
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    try {
+      await _dio.post('Common/ResetPassword', data: {
+        'UserName':        phone,
+        'OldPassword':     currentPassword,
+        'NewPassword':     newPassword,
+        'ConfirmPassword': newPassword,
+      });
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String? msg;
+      if (data is Map) {
+        msg = (data['message'] ?? data['Message'] ?? data['error'])?.toString();
+      } else if (data is String && data.isNotEmpty) {
+        msg = data;
+      }
+      throw Exception(msg ?? 'Failed to change password. Please try again.');
+    }
   }
 }
 

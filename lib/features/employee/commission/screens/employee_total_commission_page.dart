@@ -5,7 +5,6 @@ import 'package:loyalty_app/features/employee/commission/data/emp_commission_api
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
-import '../data/emp_commission_mock_service.dart';
 
 class EmployeeTotalCommissionPage extends StatefulWidget {
   final UserModel employee;
@@ -18,7 +17,7 @@ class EmployeeTotalCommissionPage extends StatefulWidget {
 
 class _EmployeeTotalCommissionPageState
     extends State<EmployeeTotalCommissionPage> {
-  final _svc = EmpCommissionMockService.instance;
+  final _svc = empCommissionService;
 
   List<SaleEntry> _fuelSales = [];
   bool _loading = true;

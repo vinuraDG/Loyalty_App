@@ -8,7 +8,7 @@ import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/screens/login_screen.dart';
-import '../data/emp_profile_mock_service.dart';
+import '../data/emp_profile_api_service.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
   final UserModel employee;
@@ -20,7 +20,7 @@ class EmployeeProfilePage extends ConsumerStatefulWidget {
 }
 
 class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
-  final _svc = EmpProfileMockService.instance;
+  final _svc = empProfileService;
 
   dynamic _info;
 

@@ -5,7 +5,6 @@ import 'package:loyalty_app/features/employee/commission/data/emp_commission_api
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
-import '../data/emp_commission_mock_service.dart';
 
 // ── Helper: full date with year, derived from SaleEntry.month ────────────────
 extension _SaleDate on SaleEntry {
@@ -25,7 +24,7 @@ class EmployeeCommissionPage extends StatefulWidget {
 }
 
 class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
-  final _svc = EmpCommissionMockService.instance;
+  final _svc = empCommissionService;
 
   List<String> _months = [];
   String? _selectedMonth;

@@ -7,8 +7,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
-import '../data/emp_home_mock_service.dart';
-import '../../commission/data/emp_commission_mock_service.dart';
+import '../data/emp_home_real_service.dart';
+import '../../commission/data/emp_commission_api_service.dart';
 import 'qr_scanner_screen.dart';
 import 'customer_identified_screen.dart';
 import 'employee_dashboard_screen.dart'; // needed for EmployeeDashboardScreenState
@@ -22,8 +22,8 @@ class EmployeeHomePage extends StatefulWidget {
 }
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
-  final IEmpHomeService _svc = EmpHomeMockService.instance;
-  final _commissionSvc = EmpCommissionMockService.instance;
+  final IEmpHomeService _svc = empHomeService;
+  final _commissionSvc = empCommissionService;
 
   List<ScanEntry> _todayScans = [];
   List<int> _weeklyCommission = List.filled(7, 0);

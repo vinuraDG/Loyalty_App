@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
-import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
@@ -21,7 +20,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   int    _monthIdx = 0;
 
   IPointsService get _svc =>
-      widget.service ?? PointsMockService.instance;
+      widget.service ?? pointsService;
 
   static const _filterLabels = [
     'All',

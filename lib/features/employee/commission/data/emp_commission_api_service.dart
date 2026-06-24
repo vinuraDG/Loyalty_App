@@ -1,5 +1,8 @@
 // lib/features/employee/commission/data/emp_commission_api_service.dart
 
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/employee/commission/data/emp_commission_mock_service.dart';
@@ -72,28 +75,145 @@ abstract class IEmpCommissionService {
   Future<List<String>>     getAvailableMonths(String employeeId);
 }
 
-// ── Real API service (stubs) ──────────────────────────────────────────────────
+// ── Real API service ──────────────────────────────────────────────────────────
 
 class EmpCommissionApiService implements IEmpCommissionService {
   EmpCommissionApiService._();
   static final EmpCommissionApiService instance = EmpCommissionApiService._();
 
+  final Dio _dio = ApiClient.instance.dio;
+
+  static const _shortMonths = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  Future<String> get _empPhone async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.prefUserPhone) ?? '';
+  }
+
+  // Parse "Jun 2026" → [DateTime start, DateTime end] covering the full month
+  List<DateTime> _monthRange(String month) {
+    final parts = month.split(' ');
+    final monthIdx = _shortMonths.indexOf(parts[0]) + 1;
+    final year = int.parse(parts[1]);
+    return [
+      DateTime(year, monthIdx, 1),
+      DateTime(year, monthIdx + 1, 0), // last day of month
+    ];
+  }
+
+  String _fmt(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  String _timeFromDate(DateTime d) {
+    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final m = d.minute.toString().padLeft(2, '0');
+    return '$h:$m ${d.hour >= 12 ? 'PM' : 'AM'}';
+  }
+
+  String _dateLabelFromDate(DateTime d) =>
+      '${d.day} ${_shortMonths[d.month - 1]}';
+
   @override
-  Future<List<SaleEntry>> getSalesForMonth(String employeeId, String month) async {
-    // TODO(backend): GET /employees/$employeeId/sales?month=$month
-    throw UnimplementedError();
+  Future<List<SaleEntry>> getSalesForMonth(
+      String employeeId, String month) async {
+    final phone = await _empPhone;
+    if (phone.isEmpty) return [];
+    final range = _monthRange(month);
+    try {
+      final res = await _dio.get(
+        'Mobile/GetAllEmployeeLedgers',
+        queryParameters: {
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'CompanyId':            AppConstants.transactionCompanyId,
+          'EmployeePhoneNo':      phone,
+          'DateFrom':             _fmt(range[0]),
+          'DateTo':               _fmt(range[1]),
+        },
+      );
+      final list = res.data as List? ?? [];
+      return list.map((entry) {
+        final m = entry as Map<String, dynamic>;
+        final amount =
+            double.tryParse((m['Amount'] ?? m['saleAmount'] ?? 0).toString()) ?? 0;
+        final dateStr = (m['Date'] ?? m['date'] ?? '').toString();
+        final parsed  = DateTime.tryParse(dateStr);
+        return SaleEntry(
+          id:           (m['Id']           ?? m['id']           ?? '').toString(),
+          business:     (m['CompanyName']   ?? m['Business']     ?? '').toString(),
+          customerName: (m['CustomerName']  ?? m['MemberName']   ??
+                         m['customerName']  ?? '').toString(),
+          litres:       0.0,
+          saleAmount:   amount,
+          commission:   amount * kCommissionRate,
+          time:         parsed != null ? _timeFromDate(parsed)  : '',
+          date:         parsed != null ? _dateLabelFromDate(parsed) : dateStr,
+          month:        month,
+        );
+      }).toList();
+    } on DioException catch (_) {
+      return [];
+    }
   }
 
   @override
-  Future<MonthlySummary> getMonthlySummary(String employeeId, String month) async {
-    // TODO(backend): GET /employees/$employeeId/commission/summary?month=$month
-    throw UnimplementedError();
+  Future<MonthlySummary> getMonthlySummary(
+      String employeeId, String month) async {
+    final phone = await _empPhone;
+    final range = _monthRange(month);
+    double totalCommission = 0;
+
+    // Try dedicated commission endpoint first
+    try {
+      final res = await _dio.get(
+        'Common/CalculateCommission',
+        queryParameters: {
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'EmployeePhoneNo':      phone,
+          'DateFrom':             _fmt(range[0]),
+          'DateTo':               _fmt(range[1]),
+        },
+      );
+      final data = res.data;
+      totalCommission = double.tryParse(
+            (data is Map
+                    ? (data['commission'] ?? data['Commission'] ?? 0)
+                    : 0)
+                .toString()) ??
+          0;
+    } on DioException catch (_) {}
+
+    final sales = await getSalesForMonth(employeeId, month);
+    final totalSales =
+        sales.fold<double>(0, (sum, s) => sum + s.saleAmount);
+
+    // Fallback: derive from sales when endpoint returns 0
+    if (totalCommission == 0 && totalSales > 0) {
+      totalCommission = totalSales * kCommissionRate;
+    }
+
+    return MonthlySummary(
+      month:            month,
+      totalCommission:  totalCommission,
+      totalSales:       totalSales,
+      transactionCount: sales.length,
+      uniqueCustomers:  sales
+          .map((s) => s.customerName)
+          .where((n) => n.isNotEmpty)
+          .toSet()
+          .length,
+    );
   }
 
   @override
   Future<List<String>> getAvailableMonths(String employeeId) async {
-    // TODO(backend): GET /employees/$employeeId/sales/months
-    throw UnimplementedError();
+    final now = DateTime.now();
+    return List.generate(6, (i) {
+      final d = DateTime(now.year, now.month - i, 1);
+      return '${_shortMonths[d.month - 1]} ${d.year}';
+    });
   }
 }
 

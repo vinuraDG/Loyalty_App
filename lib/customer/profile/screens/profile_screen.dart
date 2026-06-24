@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
-import 'package:loyalty_app/customer/profile/data/profile_mock_service.dart';
 import 'package:loyalty_app/customer/profile/screens/change_password_screen.dart';
 import 'package:loyalty_app/customer/profile/screens/edit_profile_screen.dart';
 import 'package:loyalty_app/customer/qr/screens/qr_screen.dart';
@@ -20,7 +19,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   IProfileService get _svc =>
-      widget.service ?? ProfileMockService.instance;
+      widget.service ?? profileService;
 
   Future<ProfileSummary>? _summaryFuture;
   String? _loadedUserId;
