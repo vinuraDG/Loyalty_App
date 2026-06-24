@@ -72,15 +72,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isSaving = true);
     FocusScope.of(context).unfocus();
 
-    // TODO: wire to authProvider.updateProfile(...)
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (!mounted) return;
-    setState(() { _isSaving = false; _hasChanges = false; });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated successfully!')),
-    );
-    Navigator.pop(context);
+    try {
+      await ref.read(authProvider.notifier).updateProfile(
+        firstName: _firstNameCtrl.text.trim(),
+        lastName:  _lastNameCtrl.text.trim(),
+        email:     _emailCtrl.text.trim(),
+        address:   _addressCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() { _isSaving = false; _hasChanges = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully!')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   Future<void> _confirmDiscard(BuildContext context) async {

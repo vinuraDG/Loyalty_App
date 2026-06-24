@@ -52,6 +52,7 @@ abstract class IAuthService {
   Future<bool> verifyOtpForReset({required String phone, required String otp});
   Future<void> resetPassword({
     required String phone,
+    required String otp,
     required String newPassword,
   });
   Future<UserModel?> findById(String id);
@@ -277,28 +278,21 @@ class AuthApiService implements IAuthService {
     required String phone,
     required String otp,
   }) async {
-    try {
-      await _dio.post('Common/ResetPassword', data: {
-        'UserName': phone.trim(),
-        'OTP': otp.trim(),
-        'NewPassword': '',
-        'ConfirmPassword': '',
-      });
-      return true;
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 400) return false;
-      throw _handleError(e);
-    }
+    // OTP is validated by the server when resetPassword is called.
+    // We just check it is non-empty client-side here.
+    return otp.trim().length == 4;
   }
 
   @override
   Future<void> resetPassword({
     required String phone,
+    required String otp,
     required String newPassword,
   }) async {
     try {
       await _dio.post('Common/ResetPassword', data: {
         'UserName': phone.trim(),
+        'OTP': otp.trim(),
         'NewPassword': newPassword,
         'ConfirmPassword': newPassword,
       });

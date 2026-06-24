@@ -188,9 +188,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> resetPassword({
     required String phone,
+    required String otp,
     required String newPassword,
   }) async {
-    await _auth.resetPassword(phone: phone, newPassword: newPassword);
+    await _auth.resetPassword(phone: phone, otp: otp, newPassword: newPassword);
   }
 
   // ── Profile ───────────────────────────────────────────────────────────────

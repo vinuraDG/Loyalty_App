@@ -199,6 +199,7 @@ class AuthMockService implements IAuthService {
   @override
   Future<void> resetPassword({
     required String phone,
+    required String otp,
     required String newPassword,
   }) async {
     await _delay();
