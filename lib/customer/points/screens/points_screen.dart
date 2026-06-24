@@ -347,11 +347,41 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 }
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text(
-                      'Could not load transactions.\n${snapshot.error}',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textSecondary),
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.wifi_off_rounded,
+                              color: AppColors.textMuted, size: 40),
+                          const SizedBox(height: 12),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              final userId = ref.read(currentUserProvider)?.id;
+                              if (userId != null) {
+                                setState(() {
+                                  _txFuture = _svc.getTransactions(userId);
+                                });
+                              }
+                            },
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Retry'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }

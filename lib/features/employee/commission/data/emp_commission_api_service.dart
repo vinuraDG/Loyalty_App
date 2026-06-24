@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/core/errors/app_exception.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/employee/commission/data/emp_commission_mock_service.dart';
 
@@ -153,8 +154,8 @@ class EmpCommissionApiService implements IEmpCommissionService {
           month:        month,
         );
       }).toList();
-    } on DioException catch (_) {
-      return [];
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
     }
   }
 

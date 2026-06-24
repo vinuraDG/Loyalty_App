@@ -29,6 +29,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   List<int> _weeklyCommission = List.filled(7, 0);
   double _monthlyCommission = 0.0;
   bool _loading = true;
+  String? _error;
 
   static const _shortMonths = [
     'Jan',
@@ -57,27 +58,43 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   }
 
   Future<void> _load() async {
-    final scans = await _svc.getTodayScans(widget.employee.id);
-    final commission = await _svc.getWeeklyCommission(widget.employee.id);
-    final fuelSales = await _commissionSvc.getSalesForMonth(
-        widget.employee.id, _currentMonthKey);
-    final monthlyCommission = fuelSales
-        .where((s) => s.business == 'Fuel')
-        .fold<double>(0.0, (a, s) => a + s.commission);
-
     if (!mounted) return;
-    setState(() {
-      _todayScans = scans.toList();
-      _weeklyCommission = commission;
-      _monthlyCommission = monthlyCommission;
-      _loading = false;
-    });
+    setState(() { _loading = true; _error = null; });
+    try {
+      final scans      = await _svc.getTodayScans(widget.employee.id);
+      final commission = await _svc.getWeeklyCommission(widget.employee.id);
+      final fuelSales  = await _commissionSvc.getSalesForMonth(
+          widget.employee.id, _currentMonthKey);
+      final monthlyCommission = fuelSales
+          .where((s) => s.business == 'Fuel')
+          .fold<double>(0.0, (a, s) => a + s.commission);
+      if (!mounted) return;
+      setState(() {
+        _todayScans       = scans.toList();
+        _weeklyCommission = commission;
+        _monthlyCommission = monthlyCommission;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString(); });
+    }
   }
 
   Future<void> _refreshScans() async {
-    final scans = await _svc.getTodayScans(widget.employee.id);
-    if (!mounted) return;
-    setState(() => _todayScans = scans.toList());
+    try {
+      final scans = await _svc.getTodayScans(widget.employee.id);
+      if (!mounted) return;
+      setState(() => _todayScans = scans.toList());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   double get _weeklyTotal =>
@@ -129,6 +146,43 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       return const Scaffold(
         backgroundColor: AppColors.bgDark,
         body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.bgDark,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off_rounded,
+                    color: AppColors.textMuted, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

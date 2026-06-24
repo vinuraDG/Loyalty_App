@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/core/errors/app_exception.dart';
 import 'package:loyalty_app/customer/profile/data/profile_mock_service.dart';
 
 // ── Model ─────────────────────────────────────────────────────────────────────
@@ -48,9 +49,8 @@ class ProfileApiService implements IProfileService {
         totalPoints: points,
         pointsToNextTier: _nextTier(points),
       );
-    } on DioException catch (_) {
-      return const ProfileSummary(
-          loyaltyTier: 'Bronze', totalPoints: 0, pointsToNextTier: 1000);
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
     }
   }
 

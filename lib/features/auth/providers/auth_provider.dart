@@ -272,8 +272,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void refreshUser() async {
     if (state.user == null) return;
-    final fresh = await _auth.findById(state.user!.id);
-    if (fresh != null) state = state.copyWith(user: fresh);
+    try {
+      final fresh = await _auth.findById(state.user!.id);
+      if (fresh != null) state = state.copyWith(user: fresh);
+    } catch (_) {
+      // Non-critical: stale user data remains in state.
+    }
   }
 }
 

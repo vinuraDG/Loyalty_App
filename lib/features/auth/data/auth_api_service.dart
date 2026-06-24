@@ -67,12 +67,16 @@ class AuthApiService implements IAuthService {
   final Dio _dio = ApiClient.instance.dio;
 
   Future<void> _persistSession(String token, UserModel user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.prefAuthToken, token);
-    await prefs.setBool(AppConstants.prefIsLoggedIn, true);
-    await prefs.setString(AppConstants.prefUserId, user.id);
-    await prefs.setString(AppConstants.prefUserRole, user.role);
-    await prefs.setString(AppConstants.prefUserPhone, user.phone);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConstants.prefAuthToken, token);
+      await prefs.setBool(AppConstants.prefIsLoggedIn, true);
+      await prefs.setString(AppConstants.prefUserId, user.id);
+      await prefs.setString(AppConstants.prefUserRole, user.role);
+      await prefs.setString(AppConstants.prefUserPhone, user.phone);
+    } catch (_) {
+      // Session persistence failure is non-fatal; user re-authenticates on restart.
+    }
   }
 
   AuthException _handleError(DioException e) {

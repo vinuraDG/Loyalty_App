@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/core/errors/app_exception.dart';
 import 'emp_home_api_service.dart';
 import 'emp_home_mock_service.dart';
 
@@ -104,8 +105,8 @@ class EmpHomeRealService implements IEmpHomeService {
       return list
           .map((m) => ScanEntry.fromJson(m as Map<String, dynamic>))
           .toList();
-    } on DioException catch (_) {
-      return [];
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
     }
   }
 
@@ -171,8 +172,8 @@ class EmpHomeRealService implements IEmpHomeService {
           isExpired: map['IsExpired'] as bool? ?? false,
         );
       }).toList();
-    } on DioException catch (_) {
-      return [];
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
     }
   }
 

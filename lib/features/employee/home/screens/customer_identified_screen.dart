@@ -62,7 +62,14 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
     try {
       final updated = await widget.svc.getMemberByQr(_member.userId);
       if (mounted) setState(() => _member = updated);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not refresh member: ${e.toString()}'),
+          backgroundColor: Colors.redAccent,
+        ));
+      }
+    }
   }
 
   Future<void> _startEarnFlow() async {

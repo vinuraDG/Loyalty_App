@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/core/errors/app_exception.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
 
@@ -34,8 +35,8 @@ class PointsApiService implements IPointsService {
           });
       final list = res.data as List? ?? [];
       return list.map((m) => _txFromMap(m as Map<String, dynamic>, userId)).toList();
-    } on DioException catch (_) {
-      return [];
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
     }
   }
 
@@ -58,8 +59,8 @@ class PointsApiService implements IPointsService {
         'DocumentNo': '',
         'Amount': points.toDouble(),
       });
-    } on DioException catch (_) {
-      // Silently fail — points will sync on next fetch
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
     }
   }
 
