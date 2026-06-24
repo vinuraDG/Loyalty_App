@@ -20,7 +20,7 @@ class AppConstants {
   static const transactionCompanyId = 1;
 
   // ── Flip this ONE line to switch the entire app ───────────────────────────
-  static const bool useMockServices = true; // false = real backend
+  static const bool useMockServices = true;
 }
 
 class AppRoutes {
