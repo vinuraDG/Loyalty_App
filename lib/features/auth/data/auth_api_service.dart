@@ -79,7 +79,7 @@ class AuthApiService implements IAuthService {
     }
   }
 
-  AuthException _handleError(DioException e) {
+  AuthException _handleError(DioException e, {bool isLogin = false}) {
     final status = e.response?.statusCode;
     String? msg;
     final data = e.response?.data;
@@ -90,10 +90,12 @@ class AuthApiService implements IAuthService {
     }
     switch (status) {
       case 400: return AuthException(msg ?? 'Invalid request.');
-      case 401: return AuthException(msg ?? 'Incorrect credentials.');
+      case 401: return AuthException(msg ?? 'Incorrect email or password.');
       case 404: return AuthException(msg ?? 'Account not found.');
-      case 409: return AuthException(msg ?? 'Account already exists.');
-      case 500: return AuthException(msg ?? 'Server error. Try again later.');
+      case 409: return AuthException(msg ?? 'An account with this email already exists.');
+      // Backend returns 500 for wrong credentials — show a credential hint.
+      case 500: return AuthException(
+          msg ?? (isLogin ? 'Incorrect email or password.' : 'Server error. Try again later.'));
     }
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
@@ -143,7 +145,7 @@ class AuthApiService implements IAuthService {
       await _persistSession(_extractToken(data), user);
       return user;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw _handleError(e, isLogin: true);
     }
   }
 
