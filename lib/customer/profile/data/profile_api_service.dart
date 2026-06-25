@@ -38,12 +38,21 @@ class ProfileApiService implements IProfileService {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     try {
-      final res = await _dio.get('Common/GetCustomerByPhoneNo',
-          queryParameters: {'CustomerPhoneNo': phone});
-      final data = (res.data['customer'] ?? res.data['data'] ?? res.data)
-          as Map<String, dynamic>;
-      final points =
-          int.tryParse((data['TotalPoints'] ?? data['totalPoints'] ?? 0).toString()) ?? 0;
+      // GetCustomerByPhoneNo has no TotalPoints — calculate from ledger
+      final ledgerRes = await _dio.get('Mobile/GetAllCustomerLedgers', data: {
+        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'CustomerPhoneNo': phone,
+      });
+      final entries = _asList(ledgerRes.data);
+      int earned = 0, redeemed = 0;
+      for (final e in entries) {
+        final m = e as Map<String, dynamic>;
+        final pts = int.tryParse((m['PointsValue'] ?? 0).toString()) ?? 0;
+        final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        if (type == 'earn') earned += pts;
+        else redeemed += pts;
+      }
+      final points = earned - redeemed;
       return ProfileSummary(
         loyaltyTier: _tierFromPoints(points),
         totalPoints: points,
@@ -52,6 +61,15 @@ class ProfileApiService implements IProfileService {
     } on DioException catch (e) {
       throw Exception(dioErrorMessage(e));
     }
+  }
+
+  List _asList(dynamic data) {
+    if (data is List) return data;
+    if (data is Map) {
+      final inner = data['Value'] ?? data['value'] ?? data['data'];
+      if (inner is List) return inner;
+    }
+    return [];
   }
 
   String _tierFromPoints(int p) {

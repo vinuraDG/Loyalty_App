@@ -37,20 +37,36 @@ class EmpHomeRealService implements IEmpHomeService {
       // userId from QR is the customer's phone number
       final res = await _dio.get('Common/GetCustomerByPhoneNo',
           queryParameters: {'CustomerPhoneNo': userId});
-      final data = (res.data['customer'] ?? res.data['data'] ?? res.data)
-          as Map<String, dynamic>;
+      if (res.data == null || res.data is! Map) throw Exception('Member not found.');
+      final data = res.data as Map<String, dynamic>;
+      final phone = (data['PhoneNo'] ?? data['phoneNo'] ?? userId).toString();
 
-      final points =
-          int.tryParse((data['TotalPoints'] ?? data['totalPoints'] ?? 0).toString()) ?? 0;
+      // Fetch ledger to calculate current balance
+      int points = 0;
+      try {
+        final ledgerRes = await _dio.get('Mobile/GetAllCustomerLedgers', data: {
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'CustomerPhoneNo': phone,
+        });
+        final entries = _asList(ledgerRes.data);
+        int earned = 0, redeemed = 0;
+        for (final e in entries) {
+          final m = e as Map<String, dynamic>;
+          final pts = int.tryParse((m['PointsValue'] ?? 0).toString()) ?? 0;
+          final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+          if (type == 'earn') earned += pts;
+          else redeemed += pts;
+        }
+        points = earned - redeemed;
+      } catch (_) {}
 
       return ScannedMember(
-        userId: (data['PhoneNo'] ?? data['phoneNo'] ?? userId).toString(),
-        name:
-            '${data['FirstName'] ?? ''} ${data['LastName'] ?? ''}'.trim(),
-        memberId: (data['Id'] ?? data['CustomerId'] ?? '').toString(),
+        userId: phone,
+        name: '${data['FirstName'] ?? ''} ${data['LastName'] ?? ''}'.trim(),
+        memberId: phone,
         tier: _tierFromPoints(points),
         currentPoints: points,
-        phone: (data['PhoneNo'] ?? data['phoneNo'] ?? userId).toString(),
+        phone: phone,
       );
     } on DioException catch (e) {
       throw Exception(_msg(e) ?? 'Member not found.');

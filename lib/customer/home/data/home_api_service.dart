@@ -89,13 +89,17 @@ class HomeApiService implements IHomeService {
 
       for (final entry in list) {
         final m = entry as Map<String, dynamic>;
-        final points =
-            int.tryParse((m['Points'] ?? m['points'] ?? 0).toString()) ?? 0;
-        if (points <= 0) continue; // skip redemptions
+        final points = int.tryParse(
+                (m['PointsValue'] ?? m['Points'] ?? m['points'] ?? 0).toString()) ??
+            0;
+        final typeStr =
+            (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        if (points <= 0 || typeStr == 'redeem') continue; // only earned pts
 
-        final dateStr = (m['Date'] ?? m['date'] ?? '').toString();
+        final dateStr =
+            (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
         final date = DateTime.tryParse(dateStr);
-        if (date == null) continue;
+        if (date == null || date.year < 2000) continue;
 
         final dayIdx = date.difference(weekStart).inDays;
         if (dayIdx >= 0 && dayIdx < 7) result[dayIdx] += points;

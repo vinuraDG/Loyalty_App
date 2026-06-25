@@ -137,20 +137,24 @@ class EmpCommissionApiService implements IEmpCommissionService {
       final list = _asList(res.data);
       return list.map((entry) {
         final m = entry as Map<String, dynamic>;
-        final amount =
-            double.tryParse((m['Amount'] ?? m['saleAmount'] ?? 0).toString()) ?? 0;
-        final dateStr = (m['Date'] ?? m['date'] ?? '').toString();
-        final parsed  = DateTime.tryParse(dateStr);
+        final amount = double.tryParse(
+                (m['ValueFrom'] ?? m['Amount'] ?? m['saleAmount'] ?? 0).toString()) ??
+            0;
+        final dateStr =
+            (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
+        final parsed = DateTime.tryParse(dateStr);
+        final safeDate =
+            (parsed == null || parsed.year < 2000) ? null : parsed;
         return SaleEntry(
           id:           (m['Id']           ?? m['id']           ?? '').toString(),
-          business:     (m['CompanyName']   ?? m['Business']     ?? '').toString(),
+          business:     (m['CompanyName']   ?? m['MerchantName'] ?? '').toString(),
           customerName: (m['CustomerName']  ?? m['MemberName']   ??
                          m['customerName']  ?? '').toString(),
           litres:       0.0,
           saleAmount:   amount,
           commission:   amount * kCommissionRate,
-          time:         parsed != null ? _timeFromDate(parsed)  : '',
-          date:         parsed != null ? _dateLabelFromDate(parsed) : dateStr,
+          time:         safeDate != null ? _timeFromDate(safeDate) : '',
+          date:         safeDate != null ? _dateLabelFromDate(safeDate) : '',
           month:        month,
         );
       }).toList();

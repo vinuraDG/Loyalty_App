@@ -65,17 +65,29 @@ class PointsApiService implements IPointsService {
   }
 
   TransactionModel _txFromMap(Map<String, dynamic> m, String userId) {
-    final points = int.tryParse((m['Points'] ?? m['points'] ?? 0).toString()) ?? 0;
-    final type = points >= 0 ? TransactionType.earned : TransactionType.redeemed;
+    // Backend fields: PointsValue, PointsTransactionType ("Earn"/"Redeem"), DateExpire
+    final points = int.tryParse(
+            (m['PointsValue'] ?? m['Points'] ?? m['points'] ?? 0).toString()) ??
+        0;
+    final typeStr =
+        (m['PointsTransactionType'] ?? m['transactionType'] ?? '').toString();
+    final type = typeStr.toLowerCase() == 'redeem'
+        ? TransactionType.redeemed
+        : TransactionType.earned;
+
+    // DateExpire is the only date field; redemptions have default year 0001
+    final dateStr =
+        (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
+    final parsed = DateTime.tryParse(dateStr);
+    final date = (parsed == null || parsed.year < 2000) ? DateTime.now() : parsed;
+
     return TransactionModel(
       id: (m['Id'] ?? m['id'] ?? '').toString(),
       userId: userId,
-      business: (m['CompanyName'] ?? m['business'] ?? '').toString(),
+      business: (m['CompanyName'] ?? m['MerchantName'] ?? '').toString(),
       points: points.abs(),
       type: type,
-      date: m['Date'] != null
-          ? DateTime.tryParse(m['Date'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      date: date,
       note: (m['Note'] ?? m['note'])?.toString(),
       billNo: (m['DocumentNo'] ?? m['billNo'])?.toString(),
     );
