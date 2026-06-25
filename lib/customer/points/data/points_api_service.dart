@@ -77,11 +77,13 @@ class PointsApiService implements IPointsService {
         ? TransactionType.redeemed
         : TransactionType.earned;
 
-    // DateExpire is the only date field; redemptions have default year 0001
+    // DateExpire is the expiry date, not the transaction date.
+    // Earn points expire in 1 year, so transaction date = DateExpire - 1 year.
+    // Redeem entries have DateExpire = 0001-01-01, so fall back to now.
     final dateStr =
         (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
     final parsed = DateTime.tryParse(dateStr);
-    final date = (parsed == null || parsed.year < 2000) ? DateTime.now() : parsed;
+    final date = _txDate(parsed);
 
     return TransactionModel(
       id: (m['Id'] ?? m['id'] ?? '').toString(),
@@ -94,6 +96,18 @@ class PointsApiService implements IPointsService {
       billNo: (m['DocumentNo'] ?? m['billNo'])?.toString(),
     );
   }
+}
+
+// DateExpire is the expiry date. If it's in the future, the transaction
+// happened 1 year earlier (loyalty points expire after 1 year).
+DateTime _txDate(DateTime? parsed) {
+  if (parsed == null || parsed.year < 2000) return DateTime.now();
+  final now = DateTime.now();
+  if (parsed.year > now.year) {
+    return DateTime(parsed.year - 1, parsed.month, parsed.day,
+        parsed.hour, parsed.minute, parsed.second);
+  }
+  return parsed;
 }
 
 // Backend wraps lists in {"Value": [...], "StatusCode": 200}

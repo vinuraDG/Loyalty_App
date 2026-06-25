@@ -143,8 +143,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
         final dateStr =
             (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
         final parsed = DateTime.tryParse(dateStr);
-        final safeDate =
-            (parsed == null || parsed.year < 2000) ? null : parsed;
+        final safeDate = (parsed == null || parsed.year < 2000) ? null : _txDate(parsed);
         return SaleEntry(
           id:           (m['Id']           ?? m['id']           ?? '').toString(),
           business:     (m['CompanyName']   ?? m['MerchantName'] ?? '').toString(),
@@ -220,6 +219,16 @@ class EmpCommissionApiService implements IEmpCommissionService {
       return '${_shortMonths[d.month - 1]} ${d.year}';
     });
   }
+}
+
+DateTime _txDate(DateTime? parsed) {
+  if (parsed == null || parsed.year < 2000) return DateTime.now();
+  final now = DateTime.now();
+  if (parsed.year > now.year) {
+    return DateTime(parsed.year - 1, parsed.month, parsed.day,
+        parsed.hour, parsed.minute, parsed.second);
+  }
+  return parsed;
 }
 
 // Backend wraps lists in {"Value": [...], "StatusCode": 200}

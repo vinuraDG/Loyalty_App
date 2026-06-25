@@ -98,8 +98,9 @@ class HomeApiService implements IHomeService {
 
         final dateStr =
             (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
-        final date = DateTime.tryParse(dateStr);
-        if (date == null || date.year < 2000) continue;
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed == null) continue;
+        final date = _txDate(parsed);
 
         final dayIdx = date.difference(weekStart).inDays;
         if (dayIdx >= 0 && dayIdx < 7) result[dayIdx] += points;
@@ -112,6 +113,16 @@ class HomeApiService implements IHomeService {
 
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+DateTime _txDate(DateTime? parsed) {
+  if (parsed == null || parsed.year < 2000) return DateTime.now();
+  final now = DateTime.now();
+  if (parsed.year > now.year) {
+    return DateTime(parsed.year - 1, parsed.month, parsed.day,
+        parsed.hour, parsed.minute, parsed.second);
+  }
+  return parsed;
 }
 
 // Backend wraps lists in {"Value": [...], "StatusCode": 200}
