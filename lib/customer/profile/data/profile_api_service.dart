@@ -39,7 +39,7 @@ class ProfileApiService implements IProfileService {
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     try {
       final res = await _dio.get('Common/GetCustomerByPhoneNo',
-          queryParameters: {'PhoneNo': phone});
+          queryParameters: {'CustomerPhoneNo': phone});
       final data = (res.data['customer'] ?? res.data['data'] ?? res.data)
           as Map<String, dynamic>;
       final points =

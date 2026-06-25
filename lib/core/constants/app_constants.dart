@@ -20,7 +20,15 @@ class AppConstants {
   static const transactionCompanyId = 1;
 
   // ── Flip this ONE line to switch the entire app ───────────────────────────
-  static const bool useMockServices = true; // false = real backend
+  static const bool useMockServices = false; // false = real backend
+
+  // ── Set true while backend auth is not yet implemented ──────────────────
+  // Set false once auth (Login) endpoint is working on the backend.
+  static const bool devBypass = true;
+
+  // Test data used when devBypass = true
+  static const String devCustomerPhone = '0772274383';
+  static const String devEmployeePhone = '0772274383';
 }
 
 class AppRoutes {

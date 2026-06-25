@@ -261,6 +261,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ── Dev bypass login (no backend auth required) ───────────────────────────
+
+  void devLogin(UserModel user) {
+    state = state.copyWith(status: AuthStatus.authenticated, user: user);
+  }
+
   // ── Sign out ──────────────────────────────────────────────────────────────
 
   Future<void> signOut() async {

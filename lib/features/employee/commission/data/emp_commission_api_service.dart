@@ -126,7 +126,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
     try {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
-        queryParameters: {
+        data: {
           'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CompanyId':            AppConstants.transactionCompanyId,
           'EmployeePhoneNo':      phone,
@@ -170,7 +170,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
     try {
       final res = await _dio.get(
         'Common/CalculateCommission',
-        queryParameters: {
+        data: {
           'TransactionCompanyId': AppConstants.transactionCompanyId,
           'EmployeePhoneNo':      phone,
           'DateFrom':             _fmt(range[0]),

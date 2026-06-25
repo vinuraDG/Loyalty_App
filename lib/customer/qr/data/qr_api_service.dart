@@ -27,7 +27,7 @@ class QrApiService implements IQrService {
       // QR payload = phone number encoded — employee scans to identify customer
       // Backend can later return a signed token from a dedicated endpoint
       final res = await _dio.get('Common/GetCustomerByPhoneNo',
-          queryParameters: {'PhoneNo': phone});
+          queryParameters: {'CustomerPhoneNo': phone});
       final data = (res.data['customer'] ?? res.data['data'] ?? res.data)
           as Map<String, dynamic>;
       return jsonEncode({

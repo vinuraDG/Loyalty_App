@@ -4,7 +4,9 @@ import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
 import 'package:loyalty_app/features/employee/home/screens/employee_dashboard_screen.dart';
 import 'package:loyalty_app/features/employee/employee_screens.dart';
+import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/customer/home/screens/main_screen.dart';
+import 'package:loyalty_app/features/dev/dev_bypass_screen.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'onboarding_screen.dart';
 
@@ -52,13 +54,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final auth = ref.read(authProvider);
 
     Widget destination;
-    if (!auth.isAuthenticated) {
+    if (AppConstants.devBypass && !auth.isAuthenticated) {
+      destination = const DevBypassScreen();
+    } else if (!auth.isAuthenticated) {
       destination = const OnboardingScreen();
     } else if (auth.isEmployee) {
-      // Restored employee session → go to employee dashboard
       destination = EmployeeDashboardScreen(employee: auth.user!);
     } else {
-      // Restored customer session → go to main screen
       destination = const MainScreen();
     }
 

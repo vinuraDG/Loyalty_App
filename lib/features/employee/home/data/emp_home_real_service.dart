@@ -36,7 +36,7 @@ class EmpHomeRealService implements IEmpHomeService {
     try {
       // userId from QR is the customer's phone number
       final res = await _dio.get('Common/GetCustomerByPhoneNo',
-          queryParameters: {'PhoneNo': userId});
+          queryParameters: {'CustomerPhoneNo': userId});
       final data = (res.data['customer'] ?? res.data['data'] ?? res.data)
           as Map<String, dynamic>;
 
@@ -94,7 +94,7 @@ class EmpHomeRealService implements IEmpHomeService {
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     try {
       final res = await _dio.get('Mobile/GetAllEmployeeLedgers',
-          queryParameters: {
+          data: {
             'TransactionCompanyId': AppConstants.transactionCompanyId,
             'CompanyId': AppConstants.transactionCompanyId,
             'EmployeePhoneNo': phone,
@@ -126,7 +126,7 @@ class EmpHomeRealService implements IEmpHomeService {
           '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
       try {
         final res = await _dio.get('Common/CalculateCommission',
-            queryParameters: {
+            data: {
               'TransactionCompanyId': AppConstants.transactionCompanyId,
               'EmployeePhoneNo': phone,
               'DateFrom': dateStr,
@@ -152,7 +152,7 @@ class EmpHomeRealService implements IEmpHomeService {
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
     try {
       final res = await _dio.get('Mobile/GetAllCustomerLedgers',
-          queryParameters: {
+          data: {
             'TransactionCompanyId': AppConstants.transactionCompanyId,
             'CustomerPhoneNo': customerId,
           });

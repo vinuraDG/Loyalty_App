@@ -75,7 +75,7 @@ class HomeApiService implements IHomeService {
     try {
       final res = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
-        queryParameters: {
+        data: {
           'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CustomerPhoneNo': phone,
           'DateFrom': _fmt(monday),
