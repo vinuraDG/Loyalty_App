@@ -33,7 +33,7 @@ class PointsApiService implements IPointsService {
             'TransactionCompanyId': AppConstants.transactionCompanyId,
             'CustomerPhoneNo': phone,
           });
-      final list = res.data as List? ?? [];
+      final list = _asList(res.data);
       return list.map((m) => _txFromMap(m as Map<String, dynamic>, userId)).toList();
     } on DioException catch (e) {
       throw Exception(dioErrorMessage(e));
@@ -80,6 +80,16 @@ class PointsApiService implements IPointsService {
       billNo: (m['DocumentNo'] ?? m['billNo'])?.toString(),
     );
   }
+}
+
+// Backend wraps lists in {"Value": [...], "StatusCode": 200}
+List _asList(dynamic data) {
+  if (data is List) return data;
+  if (data is Map) {
+    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    if (inner is List) return inner;
+  }
+  return [];
 }
 
 // ── Service factory ───────────────────────────────────────────────────────────

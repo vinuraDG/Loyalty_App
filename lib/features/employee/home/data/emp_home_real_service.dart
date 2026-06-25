@@ -101,7 +101,7 @@ class EmpHomeRealService implements IEmpHomeService {
             'DateFrom': dateStr,
             'DateTo': dateStr,
           });
-      final list = res.data as List? ?? [];
+      final list = _asList(res.data);
       return list
           .map((m) => ScanEntry.fromJson(m as Map<String, dynamic>))
           .toList();
@@ -135,9 +135,9 @@ class EmpHomeRealService implements IEmpHomeService {
         final data = res.data;
         final val = data is Map
             ? int.tryParse(
-                    (data['commission'] ?? data['Commission'] ?? 0).toString()) ??
+                    (data['Value'] ?? data['commission'] ?? data['Commission'] ?? 0).toString()) ??
                 0
-            : 0;
+            : (data is num ? data.toInt() : 0);
         result.add(val);
       } on DioException catch (_) {
         result.add(0);
@@ -156,7 +156,7 @@ class EmpHomeRealService implements IEmpHomeService {
             'TransactionCompanyId': AppConstants.transactionCompanyId,
             'CustomerPhoneNo': customerId,
           });
-      final list = res.data as List? ?? [];
+      final list = _asList(res.data);
       // Map ledger entries → RedeemableOffer shape
       return list.map((m) {
         final map = m as Map<String, dynamic>;
@@ -248,6 +248,16 @@ class EmpHomeRealService implements IEmpHomeService {
     if (p >= 500) return 'Silver';
     return 'Bronze';
   }
+}
+
+// Backend wraps lists in {"Value": [...], "StatusCode": 200}
+List _asList(dynamic data) {
+  if (data is List) return data;
+  if (data is Map) {
+    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    if (inner is List) return inner;
+  }
+  return [];
 }
 
 // ── Service factory ───────────────────────────────────────────────────────────

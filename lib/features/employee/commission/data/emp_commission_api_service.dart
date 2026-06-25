@@ -134,7 +134,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
           'DateTo':               _fmt(range[1]),
         },
       );
-      final list = res.data as List? ?? [];
+      final list = _asList(res.data);
       return list.map((entry) {
         final m = entry as Map<String, dynamic>;
         final amount =
@@ -180,8 +180,8 @@ class EmpCommissionApiService implements IEmpCommissionService {
       final data = res.data;
       totalCommission = double.tryParse(
             (data is Map
-                    ? (data['commission'] ?? data['Commission'] ?? 0)
-                    : 0)
+                    ? (data['Value'] ?? data['commission'] ?? data['Commission'] ?? 0)
+                    : (data is num ? data : 0))
                 .toString()) ??
           0;
     } on DioException catch (_) {}
@@ -216,6 +216,16 @@ class EmpCommissionApiService implements IEmpCommissionService {
       return '${_shortMonths[d.month - 1]} ${d.year}';
     });
   }
+}
+
+// Backend wraps lists in {"Value": [...], "StatusCode": 200}
+List _asList(dynamic data) {
+  if (data is List) return data;
+  if (data is Map) {
+    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    if (inner is List) return inner;
+  }
+  return [];
 }
 
 // ── Factory ───────────────────────────────────────────────────────────────────

@@ -83,7 +83,7 @@ class HomeApiService implements IHomeService {
         },
       );
 
-      final list = res.data as List? ?? [];
+      final list = _asList(res.data);
       final result = List<int>.filled(7, 0);
       final weekStart = DateTime(monday.year, monday.month, monday.day);
 
@@ -108,6 +108,16 @@ class HomeApiService implements IHomeService {
 
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+// Backend wraps lists in {"Value": [...], "StatusCode": 200}
+List _asList(dynamic data) {
+  if (data is List) return data;
+  if (data is Map) {
+    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    if (inner is List) return inner;
+  }
+  return [];
 }
 
 // ── Service factory ───────────────────────────────────────────────────────────
