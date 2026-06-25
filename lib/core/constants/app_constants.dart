@@ -17,7 +17,7 @@ class AppConstants {
   static const goldPoints    = 200;
 
   static const baseUrl              = 'http://124.43.27.57:8080/';
-  static const transactionCompanyId = 1;
+  static const transactionCompanyId = 3;
 
   // ── Flip this ONE line to switch the entire app ───────────────────────────
   static const bool useMockServices = false; // false = real backend
