@@ -388,7 +388,16 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
                 final allTxs = snapshot.data ?? [];
 
-                // ── Month slice ────────────────────────────────────────────
+                // ── Total balance (all time) for header ────────────────────
+                final allEarned = allTxs
+                    .where((t) => t.isEarned)
+                    .fold<int>(0, (s, t) => s + t.points);
+                final allRedeemed = allTxs
+                    .where((t) => t.isRedeemed)
+                    .fold<int>(0, (s, t) => s + t.points);
+                final totalBalance = allEarned - allRedeemed;
+
+                // ── Month slice (for list only) ────────────────────────────
                 final sel        = _months[_monthIdx];
                 final int tMonth = sel['month'] as int;
                 final int tYear  = sel['year']  as int;
@@ -509,7 +518,7 @@ Container(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '$monthBalance',
+                  '$totalBalance',
                   style: AppTextStyles.display.copyWith(fontSize: 46),
                 ),
                 const SizedBox(width: 6),
@@ -528,7 +537,7 @@ Container(
             ),
             const SizedBox(height: 4),
             Text(
-              'This month balance',
+              'Current balance',
               style: TextStyle(
                 fontSize: 10,
                 color: Colors.white.withValues(alpha: 0.40),

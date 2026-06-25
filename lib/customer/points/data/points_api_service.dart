@@ -34,7 +34,9 @@ class PointsApiService implements IPointsService {
             'CustomerPhoneNo': phone,
           });
       final list = _asList(res.data);
-      return list.map((m) => _txFromMap(m as Map<String, dynamic>, userId)).toList();
+      final txs = list.map((m) => _txFromMap(m as Map<String, dynamic>, userId)).toList();
+      txs.sort((a, b) => b.date.compareTo(a.date)); // newest first
+      return txs;
     } on DioException catch (e) {
       throw Exception(dioErrorMessage(e));
     }

@@ -4,7 +4,10 @@ import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
 import 'package:loyalty_app/customer/points/screens/points_history_screen.dart';
-import 'package:loyalty_app/services/mock_points_service.dart';
+import 'package:loyalty_app/customer/home/data/home_api_service.dart';
+import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
+import 'package:loyalty_app/customer/points/data/points_api_service.dart';
+import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'main_screen.dart';
 
@@ -19,6 +22,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final PageController _adController = PageController(viewportFraction: 0.82);
   int _adIndex = 0;
 
+  int _totalPoints = 0;
+  List<int> _weeklyPts = List.filled(7, 0);
+  List<TransactionModel> _recentTxs = [];
+  String? _loadedUserId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final user = ref.read(currentUserProvider);
+    if (user != null && user.id != _loadedUserId) {
+      _loadedUserId = user.id;
+      _fetchHomeData(user.id);
+    }
+  }
+
+  Future<void> _fetchHomeData(String userId) async {
+    try {
+      final profile = await profileService.getProfileSummary(userId);
+      if (mounted) setState(() => _totalPoints = profile.totalPoints);
+    } catch (_) {}
+    try {
+      final weekly = await homeService.getWeeklyPoints(userId);
+      if (mounted) setState(() => _weeklyPts = weekly);
+    } catch (_) {}
+    try {
+      final txs = await pointsService.getTransactions(userId);
+      final today = DateTime.now();
+      final todayTxs = txs
+          .where((t) =>
+              t.date.year == today.year &&
+              t.date.month == today.month &&
+              t.date.day == today.day)
+          .take(3)
+          .toList();
+      if (mounted) setState(() => _recentTxs = todayTxs);
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _adController.dispose();
@@ -30,10 +71,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
 
-    final svc         = MockPointsService.instance;
-    final txs         = svc.getForUser(user.id).take(3).toList();
-    final weeklyPts   = svc.getWeeklyPoints(user.id);
-    final totalPoints = user.totalPoints;
+    final txs         = _recentTxs;
+    final weeklyPts   = _weeklyPts;
+    final totalPoints = _totalPoints;
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
