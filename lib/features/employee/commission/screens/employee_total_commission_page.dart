@@ -43,7 +43,7 @@ class _EmployeeTotalCommissionPageState
         await _svc.getSalesForMonth(widget.employee.id, _currentMonthKey);
     if (!mounted) return;
     setState(() {
-      _fuelSales = sales.where((s) => s.business == 'Fuel').toList();
+      _fuelSales = sales;
       _loading = false;
     });
   }

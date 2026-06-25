@@ -65,9 +65,8 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       final commission = await _svc.getWeeklyCommission(widget.employee.id);
       final fuelSales  = await _commissionSvc.getSalesForMonth(
           widget.employee.id, _currentMonthKey);
-      final monthlyCommission = fuelSales
-          .where((s) => s.business == 'Fuel')
-          .fold<double>(0.0, (a, s) => a + s.commission);
+      final monthlyCommission =
+          fuelSales.fold<double>(0.0, (a, s) => a + s.commission);
       if (!mounted) return;
       setState(() {
         _todayScans       = scans.toList();
@@ -98,7 +97,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   }
 
   double get _weeklyTotal =>
-      _weeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
+      _weeklyCommission.fold(0.0, (s, v) => s + v.toDouble());
 
   Future<void> _startScanFlow(BuildContext context) async {
     final member = await Navigator.push<ScannedMember>(

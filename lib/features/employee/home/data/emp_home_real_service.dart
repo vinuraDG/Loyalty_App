@@ -149,11 +149,10 @@ class EmpHomeRealService implements IEmpHomeService {
               'DateTo': dateStr,
             });
         final data = res.data;
-        final val = data is Map
-            ? int.tryParse(
-                    (data['Value'] ?? data['commission'] ?? data['Commission'] ?? 0).toString()) ??
-                0
-            : (data is num ? data.toInt() : 0);
+        final raw = data is Map
+            ? (data['Value'] ?? data['commission'] ?? data['Commission'] ?? 0)
+            : (data is num ? data : 0);
+        final val = (double.tryParse(raw.toString()) ?? 0.0).round();
         result.add(val);
       } on DioException catch (_) {
         result.add(0);

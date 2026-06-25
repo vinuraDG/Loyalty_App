@@ -31,15 +31,22 @@ class ScanEntry {
     required this.time,
   });
 
-  factory ScanEntry.fromJson(Map<String, dynamic> j) => ScanEntry(
-        memberName: (j['memberName'] ?? j['MemberName'] ?? '').toString(),
-        saleAmount:
-            double.tryParse((j['saleAmount'] ?? j['Amount'] ?? 0).toString()) ??
-                0,
-        points:
-            int.tryParse((j['points'] ?? j['Points'] ?? 0).toString()) ?? 0,
-        time: (j['time'] ?? j['Date'] ?? '').toString(),
-      );
+  factory ScanEntry.fromJson(Map<String, dynamic> j) {
+    // Backend fields: CustomerName, ValueFrom, PointsValue, DateExpire
+    final parsed = DateTime.tryParse((j['DateExpire'] ?? '').toString());
+    final txDate = _scanTxDate(parsed);
+    final h = txDate.hour % 12 == 0 ? 12 : txDate.hour % 12;
+    final m = txDate.minute.toString().padLeft(2, '0');
+    final timeStr = '$h:$m ${txDate.hour >= 12 ? 'PM' : 'AM'}';
+    return ScanEntry(
+      memberName: (j['CustomerName'] ?? j['MemberName'] ?? j['memberName'] ?? '').toString(),
+      saleAmount: double.tryParse(
+              (j['ValueFrom'] ?? j['saleAmount'] ?? j['Amount'] ?? 0).toString()) ?? 0,
+      points: int.tryParse(
+              (j['PointsValue'] ?? j['points'] ?? j['Points'] ?? 0).toString()) ?? 0,
+      time: timeStr,
+    );
+  }
 }
 
 class RedeemableOffer {
@@ -96,6 +103,17 @@ class InsufficientPointsException implements Exception {
   String get message => 'Not enough points to redeem this offer.';
   @override
   String toString() => message;
+}
+
+// DateExpire is the expiry date. If in the future, transaction happened 1 yr earlier.
+DateTime _scanTxDate(DateTime? parsed) {
+  if (parsed == null || parsed.year < 2000) return DateTime.now();
+  final now = DateTime.now();
+  if (parsed.year > now.year) {
+    return DateTime(parsed.year - 1, parsed.month, parsed.day,
+        parsed.hour, parsed.minute, parsed.second);
+  }
+  return parsed;
 }
 
 // ── Interface ─────────────────────────────────────────────────────────────────
