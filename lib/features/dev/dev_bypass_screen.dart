@@ -49,7 +49,8 @@ class _DevBypassScreenState extends ConsumerState<DevBypassScreen> {
     try {
       final user = await _fetchCustomer(AppConstants.devCustomerPhone);
       if (!mounted) return;
-      ref.read(authProvider.notifier).devLogin(user);
+      await ref.read(authProvider.notifier).devLogin(user);
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),
@@ -82,7 +83,8 @@ class _DevBypassScreenState extends ConsumerState<DevBypassScreen> {
         createdAt: user.createdAt,
       );
       if (!mounted) return;
-      ref.read(authProvider.notifier).devLogin(employee);
+      await ref.read(authProvider.notifier).devLogin(employee);
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(

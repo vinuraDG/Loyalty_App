@@ -195,7 +195,7 @@ class AuthApiService implements IAuthService {
     try {
       final res = await _dio.get('Common/GetCustomerByPhoneNo',
           queryParameters: {'CustomerPhoneNo': phone.trim()});
-      if (res.data == null) return null;
+      if (res.data == null || res.data is! Map) return null;
       return _userFromResponse(res.data as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
@@ -222,6 +222,7 @@ class AuthApiService implements IAuthService {
       // Server returns an empty body — fetch the newly created user by phone.
       final res = await _dio.get('Common/GetCustomerByPhoneNo',
           queryParameters: {'CustomerPhoneNo': phone.trim()});
+      if (res.data == null || res.data is! Map) throw const AuthException('Account not found.');
       final user = _userFromResponse(res.data as Map<String, dynamic>);
       await _persistSession('', user);
       return user;
@@ -320,7 +321,7 @@ class AuthApiService implements IAuthService {
     try {
       final res = await _dio.get('Common/GetCustomerByPhoneNo',
           queryParameters: {'CustomerPhoneNo': phone});
-      if (res.data == null) return null;
+      if (res.data == null || res.data is! Map) return null;
       return _userFromResponse(res.data as Map<String, dynamic>);
     } on DioException catch (_) {
       return null;
