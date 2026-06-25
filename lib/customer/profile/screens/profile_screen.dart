@@ -8,6 +8,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/screens/login_screen.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../features/dev/dev_bypass_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final IProfileService? service; // injectable for testing
@@ -186,9 +188,12 @@ Future<void> _signOut(BuildContext context, WidgetRef ref) async {
   if (!confirmed) return;
   await ref.read(authProvider.notifier).signOut();
   if (!context.mounted) return;
+  final dest = AppConstants.devBypass
+      ? const DevBypassScreen()
+      : const LoginScreen();
   Navigator.pushAndRemoveUntil(
     context,
-    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    MaterialPageRoute(builder: (_) => dest),
     (_) => false,
   );
 }
