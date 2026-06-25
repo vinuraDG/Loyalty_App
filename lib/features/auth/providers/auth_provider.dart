@@ -54,7 +54,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final userId   = prefs.getString(AppConstants.prefUserId);
 
     if (loggedIn && userId != null) {
-      final user = await _auth.findById(userId);
+      final user = await _auth.findById(userId).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
       if (user != null) {
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
         return;

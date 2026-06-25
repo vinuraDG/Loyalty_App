@@ -45,9 +45,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
 
-    // Wait until auth state resolves from initial
+    // Wait until auth state resolves from initial (max 7 s safety net)
+    int _waited = 0;
     while (ref.read(authProvider).status == AuthStatus.initial) {
       await Future.delayed(const Duration(milliseconds: 100));
+      _waited += 100;
+      if (_waited >= 7000) break;
     }
     if (!mounted) return;
 
