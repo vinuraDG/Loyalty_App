@@ -1,6 +1,6 @@
+// signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loyalty_app/customer/home/screens/main_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
@@ -33,15 +33,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please agree to the terms and conditions.')));
+      _showError('Please agree to the terms and conditions.');
       return;
     }
     FocusScope.of(context).unfocus();
+
     await ref.read(authProvider.notifier).signUpWithEmail(
       firstName: _firstNameCtrl.text.trim(),
       lastName:  _lastNameCtrl.text.trim(),
@@ -49,27 +66,46 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       phone:     _phoneCtrl.text.trim(),
       password:  _passCtrl.text,
     );
+
     if (!mounted) return;
-    if (ref.read(authProvider).isAuthenticated) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-        (_) => false,
-      );
+    final auth = ref.read(authProvider);
+
+    if (auth.errorMessage != null) {
+      _showError(auth.errorMessage!);
+      ref.read(authProvider.notifier).clearError();
+      return;
+    }
+
+    if (auth.registrationSuccess) {
+      Navigator.pop(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_outline_rounded,
+                    color: Colors.white, size: 18),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Account created! Sign in with your phone number and password.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-
-    ref.listen<AuthState>(authProvider, (_, next) {
-      if (next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.errorMessage!)));
-        ref.read(authProvider.notifier).clearError();
-      }
-    });
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -89,7 +125,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // Header
                 const Center(
                   child: Column(children: [
                     AppLogo(size: 60),
@@ -105,7 +140,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ),
                 const SizedBox(height: 28),
 
-                // First name + Last name
                 Row(children: [
                   Expanded(
                     child: AppTextField(
@@ -190,16 +224,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textInputAction: TextInputAction.done,
                   prefixIconData: Icons.lock_outline,
                   validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Please confirm your password';
-                    }
+                    if (v == null || v.isEmpty) return 'Please confirm your password';
                     if (v != _passCtrl.text) return 'Passwords do not match';
                     return null;
                   },
                 ),
                 const SizedBox(height: 22),
 
-                // Terms checkbox
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   GestureDetector(
                     onTap: () => setState(() => _agreed = !_agreed),
@@ -208,19 +239,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       width: 22,
                       height: 22,
                       decoration: BoxDecoration(
-                        color: _agreed
-                            ? AppColors.primary
-                            : Colors.transparent,
+                        color: _agreed ? AppColors.primary : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: _agreed
-                              ? AppColors.primary
-                              : AppColors.border,
+                          color: _agreed ? AppColors.primary : AppColors.border,
                           width: 1.5,
                         ),
                       ),
                       child: _agreed
-                          ? const Icon(Icons.check_rounded,
+                          ? const Icon(Icons.check_circle_outline_rounded,
                               size: 14, color: Colors.white)
                           : null,
                     ),

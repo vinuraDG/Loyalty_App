@@ -1,3 +1,4 @@
+// auth_provider.dart
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
@@ -12,12 +13,14 @@ class AuthState {
   final UserModel? user;
   final String?    errorMessage;
   final String?    pendingPhone;
+  final bool       registrationSuccess;
 
   const AuthState({
     this.status = AuthStatus.initial,
     this.user,
     this.errorMessage,
     this.pendingPhone,
+    this.registrationSuccess = false,
   });
 
   bool get isLoading       => status == AuthStatus.loading;
@@ -29,12 +32,14 @@ class AuthState {
     UserModel?  user,
     String?     errorMessage,
     String?     pendingPhone,
+    bool?       registrationSuccess,
   }) =>
       AuthState(
-        status:       status       ?? this.status,
-        user:         user         ?? this.user,
-        errorMessage: errorMessage,
-        pendingPhone: pendingPhone ?? this.pendingPhone,
+        status:              status              ?? this.status,
+        user:                user                ?? this.user,
+        errorMessage:        errorMessage,
+        pendingPhone:        pendingPhone        ?? this.pendingPhone,
+        registrationSuccess: registrationSuccess ?? false,
       );
 }
 
@@ -43,25 +48,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _restoreSession();
   }
 
-  // ── routes through AppConstants.useMockServices ────────────────────────────
   final _auth = authService;
 
   // ── Session ───────────────────────────────────────────────────────────────
 
   Future<void> _restoreSession() async {
-    final prefs   = await SharedPreferences.getInstance();
+    final prefs    = await SharedPreferences.getInstance();
     final loggedIn = prefs.getBool(AppConstants.prefIsLoggedIn) ?? false;
     final userId   = prefs.getString(AppConstants.prefUserId);
 
     if (loggedIn && userId != null) {
       final user = await _auth.findById(userId).timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 8),
         onTimeout: () => null,
       );
       if (user != null) {
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
         return;
       }
+      await _clearSession();
     }
     state = state.copyWith(status: AuthStatus.unauthenticated);
   }
@@ -85,26 +90,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove('userJson');
   }
 
-  // ── Email / username login ────────────────────────────────────────────────
+  // ── Error helper — raw message, zero transformation ───────────────────────
+
+  void _setError(String message, {bool preserveAuthenticated = false}) {
+    final targetStatus = preserveAuthenticated && state.isAuthenticated
+        ? AuthStatus.authenticated
+        : AuthStatus.unauthenticated;
+    state = state.copyWith(status: targetStatus, errorMessage: message);
+  }
+
+  // ── Sign in ───────────────────────────────────────────────────────────────
 
   Future<void> signInWithEmail(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      final user = await _auth.signInWithEmail(
-        email: email,
-        password: password,
-      );
+      final user = await _auth.signInWithEmail(email: email, password: password);
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated, errorMessage: e.message);
-    } catch (_) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated,
-          errorMessage: 'Something went wrong.');
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
     }
   }
+
+  // ── Sign up ───────────────────────────────────────────────────────────────
 
   Future<void> signUpWithEmail({
     required String firstName,
@@ -115,22 +125,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      final user = await _auth.signUpWithEmail(
+      await _auth.signUpWithEmail(
         firstName: firstName,
         lastName:  lastName,
         email:     email,
         phone:     phone,
         password:  password,
       );
-      await _saveSession(user);
-      state = state.copyWith(status: AuthStatus.authenticated, user: user);
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        registrationSuccess: true,
+      );
+    } on RegistrationSuccessException {
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        registrationSuccess: true,
+      );
     } on AuthException catch (e) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated, errorMessage: e.message);
-    } catch (_) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated,
-          errorMessage: 'Something went wrong.');
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
     }
   }
 
@@ -143,12 +157,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(
           status: AuthStatus.unauthenticated, pendingPhone: phone);
     } on AuthException catch (e) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated, errorMessage: e.message);
-    } catch (_) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated,
-          errorMessage: 'Failed to send OTP.');
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
     }
   }
 
@@ -156,18 +167,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (state.pendingPhone == null) return null;
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      final user =
-          await _auth.verifyOtp(phone: state.pendingPhone!, otp: otp);
+      final user = await _auth.verifyOtp(phone: state.pendingPhone!, otp: otp);
       if (user != null) {
         await _saveSession(user);
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
       } else {
-        state = state.copyWith(status: AuthStatus.unauthenticated);
+        _setError('Invalid OTP. Please try again.');
       }
       return user;
     } on AuthException catch (e) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated, errorMessage: e.message);
+      _setError(e.message);
+      return null;
+    } catch (e) {
+      _setError(e.toString());
       return null;
     }
   }
@@ -186,8 +198,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
-      state = state.copyWith(
-          status: AuthStatus.unauthenticated, errorMessage: e.message);
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
     }
   }
 
@@ -232,12 +245,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       state = state.copyWith(status: AuthStatus.authenticated, user: updated);
     } on AuthException catch (e) {
-      state = state.copyWith(
-          status: AuthStatus.authenticated, errorMessage: e.message);
-    } catch (_) {
-      state = state.copyWith(
-          status: AuthStatus.authenticated,
-          errorMessage: 'Something went wrong.');
+      _setError(e.message, preserveAuthenticated: true);
+    } catch (e) {
+      _setError(e.toString(), preserveAuthenticated: true);
     }
   }
 
@@ -255,16 +265,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       state = state.copyWith(status: AuthStatus.authenticated);
     } on AuthException catch (e) {
-      state = state.copyWith(
-          status: AuthStatus.authenticated, errorMessage: e.message);
-    } catch (_) {
-      state = state.copyWith(
-          status: AuthStatus.authenticated,
-          errorMessage: 'Something went wrong.');
+      _setError(e.message, preserveAuthenticated: true);
+    } catch (e) {
+      _setError(e.toString(), preserveAuthenticated: true);
     }
   }
 
-  // ── Dev bypass login (no backend auth required) ───────────────────────────
+  // ── Dev bypass ────────────────────────────────────────────────────────────
 
   Future<void> devLogin(UserModel user) async {
     await _saveSession(user);
@@ -278,16 +285,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
-  void clearError() => state = state.copyWith(errorMessage: null);
+  void clearError() =>
+      state = state.copyWith(status: state.status, errorMessage: null);
 
   void refreshUser() async {
     if (state.user == null) return;
     try {
       final fresh = await _auth.findById(state.user!.id);
       if (fresh != null) state = state.copyWith(user: fresh);
-    } catch (_) {
-      // Non-critical: stale user data remains in state.
-    }
+    } catch (_) {}
   }
 }
 

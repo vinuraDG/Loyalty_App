@@ -35,31 +35,79 @@ class ProfileApiService implements IProfileService {
 
   @override
   Future<ProfileSummary> getProfileSummary(String userId) async {
+    // FIX: guard against empty phone before firing a request
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    if (phone.isEmpty) {
+      throw Exception('No authenticated user found. Please log in again.');
+    }
+
     try {
-      // GetCustomerByPhoneNo has no TotalPoints — calculate from ledger
-      final ledgerRes = await _dio.get('Mobile/GetAllCustomerLedgers', data: {
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
-        'CustomerPhoneNo': phone,
-      });
+      final ledgerRes = await _dio.get(
+        'Mobile/GetAllCustomerLedgers',
+        // FIX: use queryParameters for GET requests, not `data`.
+        // Dio sends `data` as a body, which many servers ignore on GET.
+        // Your backend IS accepting it (confirmed in logs), but using
+        // queryParameters is the correct approach and avoids server-side
+        // ambiguity.
+        queryParameters: {
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'CustomerPhoneNo': phone,
+        },
+      );
+
       final entries = _asList(ledgerRes.data);
+
+      // FIX: handle null/malformed entries gracefully instead of crashing
       int earned = 0, redeemed = 0;
       for (final e in entries) {
+        if (e is! Map) continue;
         final m = e as Map<String, dynamic>;
         final pts = int.tryParse((m['PointsValue'] ?? 0).toString()) ?? 0;
-        final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
-        if (type == 'earn') earned += pts;
-        else redeemed += pts;
+        final type =
+            (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        if (type == 'earn') {
+          earned += pts;
+        } else if (type == 'redeem') {
+          redeemed += pts;
+        }
+        // Unknown transaction types are silently ignored instead of
+        // being misclassified.
       }
-      final points = earned - redeemed;
+
+      // Use PointBalance from the most recent Earn entry if available,
+      // since the server already tracks the running balance.
+      // Falls back to the computed earned - redeemed.
+      int points = earned - redeemed;
+      for (final e in entries) {
+        if (e is Map) {
+          final type =
+              (e['PointsTransactionType'] ?? '').toString().toLowerCase();
+          if (type == 'earn') {
+            final balance =
+                int.tryParse((e['PointBalance'] ?? 0).toString()) ?? 0;
+            // PointBalance reflects the balance AFTER that transaction,
+            // so the last Earn entry gives the current balance.
+            points = balance;
+            break;
+          }
+        }
+      }
+
       return ProfileSummary(
         loyaltyTier: _tierFromPoints(points),
         totalPoints: points,
         pointsToNextTier: _nextTier(points),
       );
+
     } on DioException catch (e) {
+      // FIX: throw a plain Exception with a clean message so the UI can
+      // display it without the "DioException [...]" noise.
       throw Exception(dioErrorMessage(e));
+    } catch (e) {
+      // Re-throw anything else as a clean Exception
+      if (e is Exception) rethrow;
+      throw Exception(e.toString());
     }
   }
 

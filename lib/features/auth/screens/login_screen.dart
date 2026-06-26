@@ -1,3 +1,4 @@
+// login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/features/employee/home/screens/employee_dashboard_screen.dart';
@@ -47,15 +48,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   Future<void> _signIn() async {
     if (!_emailFormKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    await ref
-        .read(authProvider.notifier)
-        .signInWithEmail(_emailCtrl.text.trim(), _passCtrl.text);
+
+    await ref.read(authProvider.notifier).signInWithEmail(
+      _emailCtrl.text.trim(),
+      _passCtrl.text,
+    );
+
     if (!mounted) return;
     final auth = ref.read(authProvider);
-    if (auth.isAuthenticated) _navigateByRole(auth);
+
+    if (auth.isAuthenticated) {
+      _navigateByRole(auth);
+    } else if (auth.errorMessage != null) {
+      _showError(auth.errorMessage!);
+      ref.read(authProvider.notifier).clearError();
+    }
+  }
+
+  Future<void> _sendOtp() async {
+    if (!_phoneFormKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+
+    await ref.read(authProvider.notifier).sendOtp(_phoneCtrl.text.trim());
+
+    if (!mounted) return;
+    final auth = ref.read(authProvider);
+
+    if (auth.errorMessage != null) {
+      _showError(auth.errorMessage!);
+      ref.read(authProvider.notifier).clearError();
+    } else {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const OtpScreen()));
+    }
   }
 
   void _navigateByRole(AuthState auth) {
@@ -75,30 +121,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  Future<void> _sendOtp() async {
-    if (!_phoneFormKey.currentState!.validate()) return;
-    FocusScope.of(context).unfocus();
-    await ref
-        .read(authProvider.notifier)
-        .sendOtp(_phoneCtrl.text.trim());
-    if (!mounted) return;
-    if (ref.read(authProvider).errorMessage == null) {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const OtpScreen()));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-
-    ref.listen<AuthState>(authProvider, (_, next) {
-      if (next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.errorMessage!)));
-        ref.read(authProvider.notifier).clearError();
-      }
-    });
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -110,7 +135,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             children: [
               const SizedBox(height: 24),
 
-              // Logo row
               const Row(children: [
                 AppLogo(size: 38),
                 SizedBox(width: 10),
@@ -126,11 +150,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
               const SizedBox(height: 20),
 
-              // ── Partner logos ───────────────────────────────────
               _PartnerLogosStrip(logos: _logoAssets),
               const SizedBox(height: 20),
 
-              // Tab selector
               Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -159,14 +181,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
               const SizedBox(height: 24),
 
-              // Tab views — fixed height
               SizedBox(
                 height: 290,
                 child: TabBarView(
                   controller: _tab,
                   children: [
 
-                    // ── Phone + Password form ───────────────────────
+                    // ── Phone + Password ──────────────────────────────
                     Form(
                       key: _emailFormKey,
                       child: Column(
@@ -180,12 +201,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             maxLength: 10,
                             prefixIconData: Icons.phone_outlined,
                             validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Phone number is required';
-                              }
-                              if (v.length < 9) {
-                                return 'Enter a valid phone number';
-                              }
+                              if (v == null || v.isEmpty) return 'Phone number is required';
+                              if (v.length < 9) return 'Enter a valid phone number';
                               return null;
                             },
                           ),
@@ -198,9 +215,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             textInputAction: TextInputAction.done,
                             prefixIconData: Icons.lock_outline,
                             validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Password is required';
-                              }
+                              if (v == null || v.isEmpty) return 'Password is required';
                               if (v.length < 6) return 'Min 6 characters';
                               return null;
                             },
@@ -211,9 +226,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               onPressed: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const ForgotPasswordScreen(),
-                                ),
+                                    builder: (_) => const ForgotPasswordScreen()),
                               ),
                               child: const Text('Forgot password?'),
                             ),
@@ -227,7 +240,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                     ),
 
-                    // ── Phone form ──────────────────────────────────
+                    // ── OTP tab ───────────────────────────────────────
                     Form(
                       key: _phoneFormKey,
                       child: Column(
@@ -242,12 +255,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             textInputAction: TextInputAction.done,
                             prefixIconData: Icons.phone_outlined,
                             validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Phone is required';
-                              }
-                              if (v.length < 9) {
-                                return 'Enter a valid phone number';
-                              }
+                              if (v == null || v.isEmpty) return 'Phone is required';
+                              if (v.length < 9) return 'Enter a valid phone number';
                               return null;
                             },
                           ),
@@ -258,8 +267,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               color: AppColors.primary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: AppColors.primary
-                                      .withValues(alpha: 0.25)),
+                                  color: AppColors.primary.withValues(alpha: 0.25)),
                             ),
                             child: Row(children: [
                               const Icon(Icons.info_outline,
@@ -291,12 +299,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               const DividerText(text: 'or'),
               const SizedBox(height: 14),
 
-              // Sign up link
               Center(
                 child: GestureDetector(
                   onTap: () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const SignupScreen())),
+                      MaterialPageRoute(builder: (_) => const SignupScreen())),
                   child: RichText(
                     text: TextSpan(
                       style: AppTextStyles.bodySmall,

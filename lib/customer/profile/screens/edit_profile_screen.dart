@@ -20,6 +20,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _addressCtrl;
 
+  // Snapshot of values AT screen-open time — never updated after save
+  // so _onChanged always compares against the original baseline.
+  late String _origFirstName;
+  late String _origLastName;
+  late String _origEmail;
+  late String _origAddress;
+
   bool _isSaving   = false;
   bool _hasChanges = false;
 
@@ -27,11 +34,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void initState() {
     super.initState();
     final user = ref.read(currentUserProvider);
-    _firstNameCtrl = TextEditingController(text: user?.firstName ?? '');
-    _lastNameCtrl  = TextEditingController(text: user?.lastName  ?? '');
-    _emailCtrl     = TextEditingController(text: user?.email     ?? '');
-    _phoneCtrl     = TextEditingController(text: user?.phone     ?? '');
-    _addressCtrl   = TextEditingController(text: user?.address   ?? '');
+
+    // Capture baseline ONCE
+    _origFirstName = user?.firstName ?? '';
+    _origLastName  = user?.lastName  ?? '';
+    _origEmail     = user?.email     ?? '';
+    _origAddress   = user?.address   ?? '';
+
+    _firstNameCtrl = TextEditingController(text: _origFirstName);
+    _lastNameCtrl  = TextEditingController(text: _origLastName);
+    _emailCtrl     = TextEditingController(text: _origEmail);
+    _phoneCtrl     = TextEditingController(text: user?.phone ?? '');
+    _addressCtrl   = TextEditingController(text: _origAddress);
 
     for (final c in [_firstNameCtrl, _lastNameCtrl, _emailCtrl, _addressCtrl]) {
       c.addListener(_onChanged);
@@ -44,18 +58,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _firstNameCtrl, _lastNameCtrl, _emailCtrl,
       _phoneCtrl, _addressCtrl,
     ]) {
+      c.removeListener(_onChanged);
       c.dispose();
     }
     super.dispose();
   }
 
   void _onChanged() {
-    final user = ref.read(currentUserProvider);
+    // Compare against the ORIGINAL baseline, not the current provider state.
+    // This prevents the re-save loop where a successful update refreshes the
+    // provider, which triggers _onChanged, which sets _hasChanges = true again.
     final changed =
-        _firstNameCtrl.text != (user?.firstName ?? '') ||
-        _lastNameCtrl.text  != (user?.lastName  ?? '') ||
-        _emailCtrl.text     != (user?.email     ?? '') ||
-        _addressCtrl.text   != (user?.address   ?? '');
+        _firstNameCtrl.text != _origFirstName ||
+        _lastNameCtrl.text  != _origLastName  ||
+        _emailCtrl.text     != _origEmail     ||
+        _addressCtrl.text   != _origAddress;
     if (changed != _hasChanges) setState(() => _hasChanges = changed);
   }
 
@@ -65,6 +82,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final l = _lastNameCtrl.text.isNotEmpty
         ? _lastNameCtrl.text[0].toUpperCase() : '';
     return '$f$l';
+  }
+
+  /// Formats a raw exception message for display:
+  /// strips the ugly "Exception: " prefix that Dart adds by default.
+  String _friendlyError(Object e) {
+    final raw = e.toString();
+    if (raw.startsWith('Exception: ')) return raw.substring('Exception: '.length);
+    return raw;
   }
 
   Future<void> _save() async {
@@ -80,17 +105,55 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         address:   _addressCtrl.text.trim(),
       );
       if (!mounted) return;
+
+      // Update the baseline so _onChanged no longer sees a difference.
+      // Do this BEFORE setState so the listener fires with the right baseline.
+      _origFirstName = _firstNameCtrl.text.trim();
+      _origLastName  = _lastNameCtrl.text.trim();
+      _origEmail     = _emailCtrl.text.trim();
+      _origAddress   = _addressCtrl.text.trim();
+
       setState(() { _isSaving = false; _hasChanges = false; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
-      );
+
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: const Row(children: [
+              Icon(Icons.check_circle_outline_rounded,
+                  color: Colors.white, size: 18),
+              SizedBox(width: 10),
+              Text('Profile updated successfully!'),
+            ]),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       Navigator.pop(context);
-    } catch (e) {
+
+    } on Exception catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Row(children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Expanded(child: Text(_friendlyError(e))),
+            ]),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
     }
   }
 
@@ -110,7 +173,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text('Keep editing',
-                style: AppTextStyles.caption.copyWith(color: AppColors.primaryLight)),
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.primaryLight)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -128,147 +192,158 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
 
-    return Scaffold(
-      backgroundColor: AppColors.bgDark,
-      body: SafeArea(
-        child: Column(children: [
+    return PopScope(
+      // Intercept the Android back gesture / button
+      canPop: !_hasChanges,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmDiscard(context);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.bgDark,
+        body: SafeArea(
+          child: Column(children: [
 
-          // ── Header ────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 16, 16, 0),
-            child: Row(children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_rounded,
-                    color: AppColors.textPrimary, size: 20),
-                onPressed: () => _confirmDiscard(context),
-              ),
-              const Text('Edit Profile', style: AppTextStyles.h3),
-              const Spacer(),
-              if (_hasChanges)
-                TextButton(
-                  onPressed: _isSaving ? null : _save,
-                  child: Text('Save',
-                      style: AppTextStyles.labelMedium
-                          .copyWith(color: AppColors.primary)),
+            // ── Header ──────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 16, 16, 0),
+              child: Row(children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_rounded,
+                      color: AppColors.textPrimary, size: 20),
+                  onPressed: () => _confirmDiscard(context),
                 ),
-            ]),
-          ),
-          const SizedBox(height: 24),
+                const Text('Edit Profile', style: AppTextStyles.h3),
+                const Spacer(),
+                if (_hasChanges)
+                  TextButton(
+                    onPressed: _isSaving ? null : _save,
+                    child: Text('Save',
+                        style: AppTextStyles.labelMedium
+                            .copyWith(color: AppColors.primary)),
+                  ),
+              ]),
+            ),
+            const SizedBox(height: 24),
 
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
 
-                    // ── Avatar ────────────────────────────────────────
-                    Center(
-                      child: AnimatedBuilder(
-                        animation: Listenable.merge([_firstNameCtrl, _lastNameCtrl]),
-                        builder: (_, __) =>
-                            InitialsAvatar(initials: _initials, size: 80),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // ── Personal Info Form ────────────────────────────
-                    const _SectionLabel(label: 'PERSONAL INFO'),
-                    const SizedBox(height: 12),
-
-                    _ProfileField(
-                      controller: _firstNameCtrl,
-                      label: 'First Name',
-                      icon: Icons.person_outline_rounded,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'First name is required';
-                        if (v.trim().length < 2) return 'Too short';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    _ProfileField(
-                      controller: _lastNameCtrl,
-                      label: 'Last Name',
-                      icon: Icons.person_outline_rounded,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Last name is required';
-                        if (v.trim().length < 2) return 'Too short';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    _ProfileField(
-                      controller: _emailCtrl,
-                      label: 'Email Address',
-                      icon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Email is required';
-                        final emailRegex =
-                            RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-                        if (!emailRegex.hasMatch(v.trim())) return 'Enter a valid email';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    _ProfileField(
-                      controller: _phoneCtrl,
-                      label: 'Phone Number',
-                      icon: Icons.phone_outlined,
-                      readOnly: true,
-                      hint: 'Verified via OTP',
-                      validator: (_) => null,
-                    ),
-                    const SizedBox(height: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Row(children: [
-                        const Icon(Icons.verified_rounded,
-                            color: AppColors.primary, size: 13),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Phone verified — cannot be changed here',
-                          style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textMuted, fontSize: 11),
+                      // ── Avatar ───────────────────────────────────
+                      Center(
+                        child: AnimatedBuilder(
+                          animation: Listenable.merge(
+                              [_firstNameCtrl, _lastNameCtrl]),
+                          builder: (_, __) =>
+                              InitialsAvatar(initials: _initials, size: 80),
                         ),
-                      ]),
-                    ),
-                    const SizedBox(height: 14),
+                      ),
+                      const SizedBox(height: 32),
 
-                    _ProfileField(
-                      controller: _addressCtrl,
-                      label: 'Address',
-                      icon: Icons.location_on_outlined,
-                      keyboardType: TextInputType.streetAddress,
-                      maxLines: 2,
-                      validator: (_) => null,
-                    ),
-                    const SizedBox(height: 32),
+                      const _SectionLabel(label: 'PERSONAL INFO'),
+                      const SizedBox(height: 12),
 
-                    GradientButton(
-                      label: 'Save Changes',
-                      isLoading: _isSaving,
-                      onPressed: _hasChanges ? _save : null,
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+                      _ProfileField(
+                        controller: _firstNameCtrl,
+                        label: 'First Name',
+                        icon: Icons.person_outline_rounded,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty)
+                            return 'First name is required';
+                          if (v.trim().length < 2) return 'Too short';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      _ProfileField(
+                        controller: _lastNameCtrl,
+                        label: 'Last Name',
+                        icon: Icons.person_outline_rounded,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty)
+                            return 'Last name is required';
+                          if (v.trim().length < 2) return 'Too short';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      _ProfileField(
+                        controller: _emailCtrl,
+                        label: 'Email Address',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty)
+                            return 'Email is required';
+                          final emailRegex =
+                              RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          if (!emailRegex.hasMatch(v.trim()))
+                            return 'Enter a valid email';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      _ProfileField(
+                        controller: _phoneCtrl,
+                        label: 'Phone Number',
+                        icon: Icons.phone_outlined,
+                        readOnly: true,
+                        hint: 'Verified via OTP',
+                        validator: (_) => null,
+                      ),
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Row(children: [
+                          const Icon(Icons.verified_rounded,
+                              color: AppColors.primary, size: 13),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Phone verified — cannot be changed here',
+                            style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textMuted, fontSize: 11),
+                          ),
+                        ]),
+                      ),
+                      const SizedBox(height: 14),
+
+                      _ProfileField(
+                        controller: _addressCtrl,
+                        label: 'Address',
+                        icon: Icons.location_on_outlined,
+                        keyboardType: TextInputType.streetAddress,
+                        maxLines: 2,
+                        validator: (_) => null,
+                      ),
+                      const SizedBox(height: 32),
+
+                      GradientButton(
+                        label: 'Save Changes',
+                        isLoading: _isSaving,
+                        onPressed: _hasChanges && !_isSaving ? _save : null,
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ]),
+          ]),
+        ),
       ),
     );
   }
 }
 
-// ── Shared sub-widgets ────────────────────────────────────────────────────────
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String label;
@@ -321,8 +396,9 @@ class _ProfileField extends StatelessWidget {
               color: AppColors.textMuted, size: 16)
           : null,
       filled: true,
+      // FIX: withValues(alpha:) is Flutter 3.27+ only — use withOpacity instead
       fillColor: readOnly
-          ? AppColors.bgCard.withValues(alpha: 0.5)
+          ? AppColors.bgCard.withOpacity(0.5)
           : AppColors.bgCard,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -340,7 +416,8 @@ class _ProfileField extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.error, width: 1.5),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
   );
 }

@@ -4,6 +4,8 @@ import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/core/errors/app_exception.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
+import 'package:loyalty_app/models/company_model.dart';
+import 'package:loyalty_app/data/companies_api_service.dart';
 import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
 
 // ── Interface ─────────────────────────────────────────────────────────────────
@@ -27,19 +29,30 @@ class PointsApiService implements IPointsService {
   Future<List<TransactionModel>> getTransactions(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
-    try {
-      final res = await _dio.get('Mobile/GetAllCustomerLedgers',
-          data: {
-            'TransactionCompanyId': AppConstants.transactionCompanyId,
-            'CustomerPhoneNo': phone,
-          });
-      final list = _asList(res.data);
-      final txs = list.map((m) => _txFromMap(m as Map<String, dynamic>, userId)).toList();
-      txs.sort((a, b) => b.date.compareTo(a.date)); // newest first
-      return txs;
-    } on DioException catch (e) {
-      throw Exception(dioErrorMessage(e));
+
+    // Fetch companies and ledgers in parallel
+    final results = await Future.wait([
+      _fetchCompanies(),
+      _fetchLedgers(phone),
+    ]);
+
+    final companies = results[0] as List<CompanyModel>;
+    final rawList   = results[1] as List<dynamic>;
+
+    // Build  PointsOwnCompanyId → CompanyName  map.
+    // Backend returns companies in order; transactionCompanyId (=3) is index 0.
+    // So:  index 0 → id=3,  index 1 → id=4,  index 2 → id=5, …
+    final companyMap = <int, String>{};
+    for (int i = 0; i < companies.length; i++) {
+      companyMap[AppConstants.transactionCompanyId + i] = companies[i].name;
     }
+
+    final txs = rawList
+        .map((m) => _txFromMap(m as Map<String, dynamic>, userId, companyMap, companies))
+        .toList();
+
+    txs.sort((a, b) => b.date.compareTo(a.date));
+    return txs;
   }
 
   @override
@@ -66,55 +79,101 @@ class PointsApiService implements IPointsService {
     }
   }
 
-  TransactionModel _txFromMap(Map<String, dynamic> m, String userId) {
-    // Backend fields: PointsValue, PointsTransactionType ("Earn"/"Redeem"), DateExpire
-    final points = int.tryParse(
-            (m['PointsValue'] ?? m['Points'] ?? m['points'] ?? 0).toString()) ??
-        0;
-    final typeStr =
-        (m['PointsTransactionType'] ?? m['transactionType'] ?? '').toString();
-    final type = typeStr.toLowerCase() == 'redeem'
-        ? TransactionType.redeemed
-        : TransactionType.earned;
+  // ── Private helpers ────────────────────────────────────────────────────────
 
-    // DateExpire is the expiry date, not the transaction date.
-    // Earn points expire in 1 year, so transaction date = DateExpire - 1 year.
-    // Redeem entries have DateExpire = 0001-01-01, so fall back to now.
-    final dateStr =
-        (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
-    final parsed = DateTime.tryParse(dateStr);
-    final date = _txDate(parsed);
-
-    return TransactionModel(
-      id: (m['Id'] ?? m['id'] ?? '').toString(),
-      userId: userId,
-      business: (m['CompanyName'] ?? m['MerchantName'] ?? '').toString(),
-      points: points.abs(),
-      type: type,
-      date: date,
-      note: (m['Note'] ?? m['note'])?.toString(),
-      billNo: (m['DocumentNo'] ?? m['billNo'])?.toString(),
-    );
+  Future<List<CompanyModel>> _fetchCompanies() async {
+    try {
+      return await CompaniesApiService.instance.getCompanies();
+    } catch (e) {
+      return [];
+    }
   }
+
+  Future<List<dynamic>> _fetchLedgers(String phone) async {
+    try {
+      final res = await _dio.get(
+        'Mobile/GetAllCustomerLedgers',
+        data: {
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'CustomerPhoneNo': phone,
+        },
+      );
+      return _asList(res.data);
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
+    }
+  }
+
+  TransactionModel _txFromMap(
+  Map<String, dynamic> m,
+  String userId,
+  Map<int, String> companyMap,
+  List<CompanyModel> companies,
+) {
+  final points = int.tryParse(
+          (m['PointsValue'] ?? m['Points'] ?? m['points'] ?? 0).toString()) ??
+      0;
+
+  final typeStr =
+      (m['PointsTransactionType'] ?? m['transactionType'] ?? '').toString();
+  final type = typeStr.toLowerCase() == 'redeem'
+      ? TransactionType.redeemed
+      : TransactionType.earned;
+
+  final ownId    = int.tryParse((m['PointsOwnCompanyId']    ?? 0).toString()) ?? 0;
+  final redeemId = int.tryParse((m['PointsRedeemCompanyId'] ?? 0).toString()) ?? 0;
+
+  final lookupId = (type == TransactionType.redeemed && redeemId > 0)
+      ? redeemId
+      : ownId;
+
+  String businessName = companyMap[lookupId] ?? '';
+  if (businessName.isEmpty && companies.isNotEmpty) {
+    businessName = companies.first.name;
+  }
+  if (businessName.isEmpty && lookupId > 0) {
+    businessName = 'Company $lookupId';
+  }
+
+  // ── Always use DateCreated — it is the actual transaction timestamp ────────
+  // DateExpire is irrelevant for display; it's 1 year ahead for Earn entries.
+  final dateStr = (m['DateCreated'] ?? m['DateLastModified'] ?? '').toString();
+  final parsed  = DateTime.tryParse(dateStr);
+  final date    = (parsed != null && parsed.year >= 2000) ? parsed : DateTime.now();
+
+  return TransactionModel(
+    id:       (m['Id'] ?? m['id'] ?? '').toString(),
+    userId:   userId,
+    business: businessName,
+    points:   points.abs(),
+    type:     type,
+    date:     date,
+    note:     (m['Note']       ?? m['note'])?.toString(),
+    billNo:   (m['DocumentNo'] ?? m['billNo'])?.toString(),
+  );
+}
 }
 
-// DateExpire is the expiry date. If it's in the future, the transaction
-// happened 1 year earlier (loyalty points expire after 1 year).
-DateTime _txDate(DateTime? parsed) {
+DateTime _resolveDate(DateTime? parsed, TransactionType type) {
   if (parsed == null || parsed.year < 2000) return DateTime.now();
-  final now = DateTime.now();
-  if (parsed.year > now.year) {
-    return DateTime(parsed.year - 1, parsed.month, parsed.day,
-        parsed.hour, parsed.minute, parsed.second);
+  if (type == TransactionType.earned && parsed.isAfter(DateTime.now())) {
+    return DateTime(
+      parsed.year - 1,
+      parsed.month,
+      parsed.day,
+      parsed.hour,
+      parsed.minute,
+      parsed.second,
+    );
   }
   return parsed;
 }
 
-// Backend wraps lists in {"Value": [...], "StatusCode": 200}
 List _asList(dynamic data) {
   if (data is List) return data;
   if (data is Map) {
-    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    final inner =
+        data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
     if (inner is List) return inner;
   }
   return [];

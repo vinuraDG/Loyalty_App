@@ -76,27 +76,46 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month]} ${date.day}, ${date.year}';
   }
 
   Color _businessAccent(String business) {
     switch (business) {
-      case 'Fuel Station': return const Color(0xFF60A5FA);
-      case 'Laundry':      return const Color(0xFF34D399);
-      case 'Gold Shop':    return const Color(0xFFFBBF24);
-      default:             return AppColors.primary;
+      case 'Fuel Station':
+        return const Color(0xFF60A5FA);
+      case 'Laundry':
+        return const Color(0xFF34D399);
+      case 'Gold Shop':
+        return const Color(0xFFFBBF24);
+      default:
+        return AppColors.primary;
     }
   }
 
   IconData _businessIcon(String business) {
     switch (business) {
-      case 'Fuel Station': return Icons.local_gas_station_rounded;
-      case 'Laundry':      return Icons.local_laundry_service_rounded;
-      case 'Gold Shop':    return Icons.diamond_rounded;
-      default:             return Icons.store_rounded;
+      case 'Fuel Station':
+        return Icons.local_gas_station_rounded;
+      case 'Laundry':
+        return Icons.local_laundry_service_rounded;
+      case 'Gold Shop':
+        return Icons.diamond_rounded;
+      default:
+        return Icons.store_rounded;
     }
   }
 
@@ -168,14 +187,17 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
           final Map<String, _BizStats> bizStats = {};
           for (final b in businesses) {
             final bTxs = allTxs.where((t) => t.business == b);
-            final earned   = bTxs.where((t) => t.isEarned)
+            final earned = bTxs
+                .where((t) => t.isEarned)
                 .fold<int>(0, (s, t) => s + t.points);
-            final redeemed = bTxs.where((t) => t.isRedeemed)
+            final redeemed = bTxs
+                .where((t) => t.isRedeemed)
                 .fold<int>(0, (s, t) => s + t.points);
-            final expired  = bTxs.where((t) => t.isExpired)
+            final expired = bTxs
+                .where((t) => t.isExpired)
                 .fold<int>(0, (s, t) => s + t.points);
-            bizStats[b] = _BizStats(
-                earned: earned, redeemed: redeemed, expired: expired);
+            bizStats[b] =
+                _BizStats(earned: earned, redeemed: redeemed, expired: expired);
           }
 
           // ── Filtered list ─────────────────────────────────────────────────
@@ -183,10 +205,10 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
             final bizMatch =
                 _selectedBusiness == null || t.business == _selectedBusiness;
             final tabMatch = switch (_activeTab) {
-              _Tab.earned   => t.isEarned,
+              _Tab.earned => t.isEarned,
               _Tab.redeemed => t.isRedeemed,
-              _Tab.expired  => t.isExpired,
-              _Tab.all      => true,
+              _Tab.expired => t.isExpired,
+              _Tab.all => true,
             };
             return bizMatch && tabMatch;
           }).toList();
@@ -246,7 +268,8 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                 child: _TabBar(
                   activeTab: _activeTab,
                   allCount: allTxs
-                      .where((t) => _selectedBusiness == null ||
+                      .where((t) =>
+                          _selectedBusiness == null ||
                           t.business == _selectedBusiness)
                       .length,
                   earnedCount: allTxs
@@ -298,7 +321,8 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF97316).withValues(alpha: 0.12),
+                          color:
+                              const Color(0xFFF97316).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -414,7 +438,7 @@ class _Header extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Container(
                 width: double.infinity,
-                height:160,
+                height: 160,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -431,7 +455,7 @@ class _Header extends StatelessWidget {
                     Expanded(
                       flex: 5,
                       child: Column(
-                        mainAxisAlignment:MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(children: [
@@ -455,7 +479,8 @@ class _Header extends StatelessWidget {
                             children: [
                               Text(
                                 fmtFn(balance),
-                                style: AppTextStyles.display.copyWith(fontSize: 42),
+                                style: AppTextStyles.display
+                                    .copyWith(fontSize: 42),
                               ),
                               const SizedBox(width: 6),
                               Padding(
@@ -898,10 +923,19 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, message) = switch (tab) {
-      _Tab.earned   => (Icons.add_circle_outline_rounded,   'No earned transactions'),
-      _Tab.redeemed => (Icons.remove_circle_outline_rounded,'No redeemed transactions'),
-      _Tab.expired  => (Icons.timer_off_rounded,            'No expired points — great job!'),
-      _Tab.all      => (Icons.receipt_long_rounded,         'No transactions found'),
+      _Tab.earned => (
+          Icons.add_circle_outline_rounded,
+          'No earned transactions'
+        ),
+      _Tab.redeemed => (
+          Icons.remove_circle_outline_rounded,
+          'No redeemed transactions'
+        ),
+      _Tab.expired => (
+          Icons.timer_off_rounded,
+          'No expired points — great job!'
+        ),
+      _Tab.all => (Icons.receipt_long_rounded, 'No transactions found'),
     };
 
     return Center(
@@ -969,9 +1003,7 @@ class _CompanyCard extends StatelessWidget {
         width: 148,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected
-              ? accent.withValues(alpha: 0.15)
-              : AppColors.bgCard,
+          color: selected ? accent.withValues(alpha: 0.15) : AppColors.bgCard,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: selected ? accent : AppColors.border,
@@ -1150,120 +1182,393 @@ class _HistoryTile extends StatelessWidget {
     return '$h:$m $ampm';
   }
 
+  String _fmtDate(DateTime d) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  String _fmtTime(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  String _txTypeLabel() {
+    if (tx.isEarned) return 'Earned';
+    if (tx.isRedeemed) return 'Redeemed';
+    return 'Expired';
+  }
+
+  IconData _txIcon() {
+    if (tx.isEarned) return Icons.arrow_upward_rounded;
+    if (tx.isRedeemed) return Icons.arrow_downward_rounded;
+    return Icons.timer_off_rounded;
+  }
+
+  Color _txColor() {
+    if (tx.isExpired) return const Color(0xFFF97316);
+    if (tx.isEarned) return AppColors.success;
+    return AppColors.error;
+  }
+
+  void _showDetail(BuildContext context) {
+    final color = _txColor();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgCard,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+              child: Center(
+                child: tx.isExpired
+                    ? Icon(Icons.timer_off_rounded, size: 30, color: color)
+                    : BusinessIcon(business: tx.business, size: 34),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(tx.displayPoints,
+                style:
+                    AppTextStyles.display.copyWith(fontSize: 38, color: color)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withValues(alpha: 0.25)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(_txIcon(), size: 12, color: color),
+                const SizedBox(width: 5),
+                Text(_txTypeLabel(),
+                    style: AppTextStyles.caption.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    color.withValues(alpha: 0.18),
+                    color.withValues(alpha: 0.07)
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _HistSummaryCol(
+                        label: 'Points', value: tx.displayPoints, color: color),
+                    Container(
+                        width: 1,
+                        height: 36,
+                        color: color.withValues(alpha: 0.2)),
+                    _HistSummaryCol(
+                        label: 'Date',
+                        value: _fmtDate(tx.date),
+                        color: AppColors.textPrimary),
+                    Container(
+                        width: 1,
+                        height: 36,
+                        color: color.withValues(alpha: 0.2)),
+                    _HistSummaryCol(
+                        label: 'Time',
+                        value: _fmtTime(tx.date),
+                        color: AppColors.textPrimary),
+                  ]),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.bgDark,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(children: [
+                _HistDetailRow(
+                    icon: Icons.store_rounded,
+                    label: 'Business',
+                    value: tx.business),
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Transaction Type',
+                    value: _txTypeLabel(),
+                    valueColor: color),
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.toll_rounded,
+                    label: 'Points',
+                    value: tx.displayPoints,
+                    valueColor: color,
+                    bold: true),
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Date',
+                    value: _fmtDate(tx.date)),
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.access_time_rounded,
+                    label: 'Time',
+                    value: _fmtTime(tx.date)),
+                if (tx.billNo != null &&
+                    tx.billNo!.isNotEmpty &&
+                    tx.billNo != '-') ...[
+                  _HistDivider(),
+                  _HistDetailRow(
+                      icon: Icons.receipt_outlined,
+                      label: 'Bill No',
+                      value: tx.billNo!),
+                ],
+                if (tx.note != null && tx.note!.isNotEmpty) ...[
+                  _HistDivider(),
+                  _HistDetailRow(
+                      icon: Icons.notes_rounded,
+                      label: 'Note',
+                      value: tx.note!),
+                ],
+              ]),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    gradient:
+                        const LinearGradient(colors: AppColors.buttonGradient),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('Close',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: Colors.white)),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isExpired = tx.isExpired;
-    final tileAccent = isExpired
-        ? AppColors.textSecondary.withValues(alpha: 0.4)
-        : accent;
+    final tileAccent =
+        isExpired ? AppColors.textSecondary.withValues(alpha: 0.4) : accent;
     final time = _timeString(tx.date);
 
-    return Opacity(
-      opacity: isExpired ? 0.65 : 1.0,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(children: [
-          // Business icon
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: tileAccent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
-              border:
-                  Border.all(color: tileAccent.withValues(alpha: 0.2), width: 1),
+    return GestureDetector(
+      onTap: () => _showDetail(context),
+      child: Opacity(
+        opacity: isExpired ? 0.65 : 1.0,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: tileAccent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                    color: tileAccent.withValues(alpha: 0.2), width: 1),
+              ),
+              child: Center(
+                child: isExpired
+                    ? Icon(Icons.timer_off_rounded, size: 20, color: tileAccent)
+                    : BusinessIcon(business: tx.business, size: 44),
+              ),
             ),
-            child: Center(
-              child: isExpired
-                  ? Icon(Icons.timer_off_rounded,
-                      size: 20, color: tileAccent)
-                  : BusinessIcon(business: tx.business, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.business,
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: isExpired
+                          ? AppColors.textSecondary.withValues(alpha: 0.5)
+                          : null,
+                      decoration: isExpired
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor:
+                          AppColors.textSecondary.withValues(alpha: 0.4),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    _TxBadge(type: tx.type),
+                    const SizedBox(width: 6),
+                    Text(time,
+                        style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                  ]),
+                  if (tx.note != null && tx.note!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      tx.note!,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isExpired
+                            ? const Color(0xFFF97316).withValues(alpha: 0.55)
+                            : AppColors.textSecondary.withValues(alpha: 0.5),
+                        fontStyle: FontStyle.italic,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-
-          // Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  tx.business,
-                  style: AppTextStyles.labelMedium.copyWith(
+                  tx.displayPoints,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                     color: isExpired
-                        ? AppColors.textSecondary.withValues(alpha: 0.5)
-                        : null,
+                        ? AppColors.textSecondary.withValues(alpha: 0.45)
+                        : tx.isEarned
+                            ? AppColors.success
+                            : AppColors.error,
                     decoration: isExpired
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
                     decorationColor:
                         AppColors.textSecondary.withValues(alpha: 0.4),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
-                Row(children: [
-                  _TxBadge(type: tx.type),
-                  const SizedBox(width: 6),
+                Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(
-                    time,
-                    style: AppTextStyles.caption.copyWith(fontSize: 10),
-                  ),
-                ]),
-                if (tx.note != null && tx.note!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    tx.note!,
+                    isExpired ? 'expire' : 'pts',
                     style: TextStyle(
                       fontSize: 10,
                       color: isExpired
                           ? const Color(0xFFF97316).withValues(alpha: 0.55)
-                          : AppColors.textSecondary.withValues(alpha: 0.5),
-                      fontStyle: FontStyle.italic,
+                          : AppColors.textSecondary.withValues(alpha: 0.45),
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 12, color: AppColors.textSecondary),
+                ]),
               ],
             ),
-          ),
-
-          // Points
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                tx.displayPoints,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: isExpired
-                      ? AppColors.textSecondary.withValues(alpha: 0.45)
-                      : tx.isEarned
-                          ? AppColors.success
-                          : AppColors.error,
-                  decoration: isExpired
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                  decorationColor:
-                      AppColors.textSecondary.withValues(alpha: 0.4),
-                ),
-              ),
-              Text(
-                isExpired ? 'expire' : 'pts',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isExpired
-                      ? const Color(0xFFF97316).withValues(alpha: 0.55)
-                      : AppColors.textSecondary.withValues(alpha: 0.45),
-                ),
-              ),
-            ],
-          ),
-        ]),
+          ]),
+        ),
       ),
     );
   }
+}
+
+// ── Popup helpers (points history) ────────────────────────────────────────────
+class _HistSummaryCol extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  const _HistSummaryCol(
+      {required this.label, required this.value, required this.color});
+  @override
+  Widget build(BuildContext context) =>
+      Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(label,
+            style: AppTextStyles.caption
+                .copyWith(color: AppColors.textSecondary, fontSize: 10)),
+        const SizedBox(height: 4),
+        Text(value,
+            style: AppTextStyles.labelMedium.copyWith(
+                color: color, fontSize: 13, fontWeight: FontWeight.w700)),
+      ]);
+}
+
+class _HistDetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color? valueColor;
+  final bool bold;
+  const _HistDetailRow(
+      {required this.icon,
+      required this.label,
+      required this.value,
+      this.valueColor,
+      this.bold = false});
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          Icon(icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 10),
+          Text(label,
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary)),
+          const Spacer(),
+          Flexible(
+              child: Text(value,
+                  textAlign: TextAlign.end,
+                  style: AppTextStyles.labelMedium.copyWith(
+                      color: valueColor ?? AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: bold ? FontWeight.w700 : FontWeight.w500))),
+        ]),
+      );
+}
+
+class _HistDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      color: AppColors.border);
 }
 
 // ── Transaction Badge ─────────────────────────────────────────────────────────

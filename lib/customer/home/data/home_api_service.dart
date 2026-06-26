@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
@@ -6,14 +5,14 @@ import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/home/data/home_mock_service.dart';
 
-// ── Data models returned by this service ─────────────────────────────────────
+// ── Data models ───────────────────────────────────────────────────────────────
 
 class AdItem {
   final String id;
   final String tag;
   final String title;
   final String subtitle;
-  final int gradientStart; // ARGB int, e.g. 0xFF2D1B69
+  final int gradientStart;
   final int gradientEnd;
   final int tagColor;
 
@@ -31,11 +30,11 @@ class AdItem {
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 abstract class IHomeService {
-  /// Promotional banners shown in the home screen carousel.
   Future<List<AdItem>> getAds();
-
-  /// Points earned per day for the last 7 days (Mon–Sun) for a given user.
   Future<List<int>> getWeeklyPoints(String userId);
+
+  /// Total redeemable points balance derived from the ledger.
+  Future<int> getTotalPoints(String userId);
 }
 
 // ── Real API service ──────────────────────────────────────────────────────────
@@ -46,9 +45,20 @@ class HomeApiService implements IHomeService {
 
   final Dio _dio = ApiClient.instance.dio;
 
+  // Fetch the full ledger once and cache it for this request cycle.
+  Future<List<dynamic>> _fetchLedger(String phone) async {
+    final res = await _dio.get(
+      'Mobile/GetAllCustomerLedgers',
+      data: {
+        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'CustomerPhoneNo': phone,
+      },
+    );
+    return _asList(res.data);
+  }
+
   @override
   Future<List<AdItem>> getAds() async {
-    // No dedicated ads endpoint in the backend — return static promotional items
     return kMockAds
         .map((m) => AdItem(
               id: m['id'] as String,
@@ -62,74 +72,94 @@ class HomeApiService implements IHomeService {
         .toList();
   }
 
+  /// Total points = PointBalance from the most recent Earn entry.
+  /// The backend stores the running balance on each Earn ledger row,
+  /// so the last Earn row's PointBalance IS the current spendable balance.
   @override
-  Future<List<int>> getWeeklyPoints(String userId) async {
+  Future<int> getTotalPoints(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
-    if (phone.isEmpty) return List.filled(7, 0);
-
-    final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final sunday = monday.add(const Duration(days: 6));
+    if (phone.isEmpty) return 0;
 
     try {
-      final res = await _dio.get(
-        'Mobile/GetAllCustomerLedgers',
-        data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
-          'CustomerPhoneNo': phone,
-          'DateFrom': _fmt(monday),
-          'DateTo': _fmt(sunday),
-        },
-      );
+      final list = await _fetchLedger(phone);
 
-      final list = _asList(res.data);
-      final result = List<int>.filled(7, 0);
-      final weekStart = DateTime(monday.year, monday.month, monday.day);
-
-      for (final entry in list) {
-        final m = entry as Map<String, dynamic>;
-        final points = int.tryParse(
-                (m['PointsValue'] ?? m['Points'] ?? m['points'] ?? 0).toString()) ??
-            0;
-        final typeStr =
-            (m['PointsTransactionType'] ?? '').toString().toLowerCase();
-        if (points <= 0 || typeStr == 'redeem') continue; // only earned pts
-
-        final dateStr =
-            (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
-        final parsed = DateTime.tryParse(dateStr);
-        if (parsed == null) continue;
-        final date = _txDate(parsed);
-
-        final dayIdx = date.difference(weekStart).inDays;
-        if (dayIdx >= 0 && dayIdx < 7) result[dayIdx] += points;
+      // Walk backwards to find the most recent Earn entry — its PointBalance
+      // is the current running balance after all redeems have been applied.
+      for (int i = list.length - 1; i >= 0; i--) {
+        final m = list[i] as Map<String, dynamic>;
+        final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        if (type == 'earn') {
+          final balance = int.tryParse(
+                  (m['PointBalance'] ?? 0).toString()) ??
+              0;
+          return balance;
+        }
       }
-      return result;
+      return 0;
     } on DioException catch (_) {
-      return List.filled(7, 0);
+      return 0;
     }
   }
 
-  String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  @override
+Future<List<int>> getWeeklyPoints(String userId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+  if (phone.isEmpty) return List.filled(7, 0);
+
+  final now    = DateTime.now();
+  final monday = now.subtract(Duration(days: now.weekday - 1));
+
+  try {
+    final list      = await _fetchLedger(phone);
+    final result    = List<int>.filled(7, 0);
+    final weekStart = DateTime(monday.year, monday.month, monday.day);
+
+    for (final entry in list) {
+      final m    = entry as Map<String, dynamic>;
+      final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+      if (type != 'earn') continue;
+
+      final points = int.tryParse(
+              (m['PointsValue'] ?? m['Points'] ?? 0).toString()) ?? 0;
+      if (points <= 0) continue;
+
+      // DateCreated is the real transaction timestamp
+      final dateStr = (m['DateCreated'] ?? '').toString();
+      final parsed  = DateTime.tryParse(dateStr);
+      if (parsed == null || parsed.year < 2000) continue;
+
+      final dayIdx = DateTime(parsed.year, parsed.month, parsed.day)
+          .difference(weekStart)
+          .inDays;
+      if (dayIdx >= 0 && dayIdx < 7) result[dayIdx] += points;
+    }
+    return result;
+  } on DioException catch (_) {
+    return List.filled(7, 0);
+  }
+}
 }
 
-DateTime _txDate(DateTime? parsed) {
-  if (parsed == null || parsed.year < 2000) return DateTime.now();
+/// If the backend stores the expiry year instead of transaction year,
+/// shift back one year so the date lands in the past correctly.
+DateTime _normaliseDate(DateTime parsed) {
+  if (parsed.year < 2000) return DateTime.now();
   final now = DateTime.now();
   if (parsed.year > now.year) {
-    return DateTime(parsed.year - 1, parsed.month, parsed.day,
+    return DateTime(
+        parsed.year - 1, parsed.month, parsed.day,
         parsed.hour, parsed.minute, parsed.second);
   }
   return parsed;
 }
 
-// Backend wraps lists in {"Value": [...], "StatusCode": 200}
 List _asList(dynamic data) {
   if (data is List) return data;
   if (data is Map) {
-    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    final inner =
+        data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
     if (inner is List) return inner;
   }
   return [];

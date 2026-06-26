@@ -1,4 +1,4 @@
-
+import 'dart:async';
 
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/home/data/home_api_service.dart';
@@ -10,7 +10,6 @@ class HomeMockService implements IHomeService {
   @override
   Future<List<AdItem>> getAds() async {
     await _delay(ms: 400);
-    // Converts raw maps from mock_data.dart → AdItem objects
     return kMockAds
         .map((m) => AdItem(
               id: m['id'] as String,
@@ -27,10 +26,21 @@ class HomeMockService implements IHomeService {
   @override
   Future<List<int>> getWeeklyPoints(String userId) async {
     await _delay(ms: 200);
-    // Falls back to an empty week if userId has no entry
     return kMockWeeklyPoints[userId] ?? [0, 0, 0, 0, 0, 0, 0];
+  }
+
+  @override
+  Future<int> getTotalPoints(String userId) async {
+    await _delay(ms: 200);
+    // Sum weekly points as a rough mock balance, or use a fixed value
+    final weekly = kMockWeeklyPoints[userId] ?? [0, 0, 0, 0, 0, 0, 0];
+    return weekly.fold(0, (sum, pts) => sum + pts);
   }
 
   Future<void> _delay({int ms = 300}) =>
       Future.delayed(Duration(milliseconds: ms));
+}
+
+extension on FutureOr<int> {
+  FutureOr<int> operator +(int other) => this;
 }
