@@ -519,13 +519,13 @@ class _Header extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           _MiniStatLine(
-                            label: 'Earned',
+                            label: 'Earn',
                             value: '+${fmtFn(totalEarned)}',
                             color: const Color(0xFFA7F3D0),
                           ),
                           const SizedBox(height: 6),
                           _MiniStatLine(
-                            label: 'Redeemed',
+                            label: 'Redeem',
                             value: '-${fmtFn(totalRedeemed)}',
                             color: const Color(0xFFFCA5A5),
                           ),
@@ -765,14 +765,14 @@ class _TabBar extends StatelessWidget {
             onTap: () => onTabChanged(_Tab.all),
           ),
           _TabItem(
-            label: 'Earned',
+            label: 'Earn',
             count: earnedCount,
             isActive: activeTab == _Tab.earned,
             activeColor: const Color(0xFF34D399),
             onTap: () => onTabChanged(_Tab.earned),
           ),
           _TabItem(
-            label: 'Redeemed',
+            label: 'Redeem',
             count: redeemedCount,
             isActive: activeTab == _Tab.redeemed,
             activeColor: const Color(0xFFFCA5A5),
@@ -925,11 +925,11 @@ class _EmptyState extends StatelessWidget {
     final (icon, message) = switch (tab) {
       _Tab.earned => (
           Icons.add_circle_outline_rounded,
-          'No earned transactions'
+          'No earn transactions'
         ),
       _Tab.redeemed => (
           Icons.remove_circle_outline_rounded,
-          'No redeemed transactions'
+          'No redeem transactions'
         ),
       _Tab.expired => (
           Icons.timer_off_rounded,
@@ -1039,13 +1039,13 @@ class _CompanyCard extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             _StatRow(
-              label: 'Earned',
+              label: 'Earn',
               value: '+${fmtFn(earned)}',
               color: const Color(0xFF34D399),
             ),
             const SizedBox(height: 3),
             _StatRow(
-              label: 'Redeemed',
+              label: 'Redeem',
               value: '-${fmtFn(redeemed)}',
               color: const Color(0xFFFCA5A5),
             ),
@@ -1083,12 +1083,15 @@ class _StatRow extends StatelessWidget {
             color: AppColors.textSecondary.withValues(alpha: 0.55),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: color,
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -1121,12 +1124,15 @@ class _MiniStatLine extends StatelessWidget {
             fontWeight: FontWeight.w400,
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: color,
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -1204,8 +1210,8 @@ class _HistoryTile extends StatelessWidget {
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   String _txTypeLabel() {
-    if (tx.isEarned) return 'Earned';
-    if (tx.isRedeemed) return 'Redeemed';
+    if (tx.isEarned) return 'Earn';
+    if (tx.isRedeemed) return 'Redeem';
     return 'Expired';
   }
 
@@ -1282,45 +1288,6 @@ class _HistoryTile extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    color.withValues(alpha: 0.18),
-                    color.withValues(alpha: 0.07)
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _HistSummaryCol(
-                        label: 'Points', value: tx.displayPoints, color: color),
-                    Container(
-                        width: 1,
-                        height: 36,
-                        color: color.withValues(alpha: 0.2)),
-                    _HistSummaryCol(
-                        label: 'Date',
-                        value: _fmtDate(tx.date),
-                        color: AppColors.textPrimary),
-                    Container(
-                        width: 1,
-                        height: 36,
-                        color: color.withValues(alpha: 0.2)),
-                    _HistSummaryCol(
-                        label: 'Time',
-                        value: _fmtTime(tx.date),
-                        color: AppColors.textPrimary),
-                  ]),
-            ),
-            const SizedBox(height: 16),
-            Container(
               decoration: BoxDecoration(
                 color: AppColors.bgDark,
                 borderRadius: BorderRadius.circular(16),
@@ -1331,6 +1298,20 @@ class _HistoryTile extends StatelessWidget {
                     icon: Icons.store_rounded,
                     label: 'Business',
                     value: tx.business),
+                if (tx.isRedeemed) ...[
+                  _HistDivider(),
+                  // FIX: fall back to the business name instead of showing
+                  // a bare "-" when redeemCompanyName is null/empty, and
+                  // let the value wrap instead of truncating.
+                  _HistDetailRow(
+                    icon: Icons.storefront_rounded,
+                    label: 'Redeem Company',
+                    value: (tx.redeemCompanyName != null &&
+                            tx.redeemCompanyName!.isNotEmpty)
+                        ? tx.redeemCompanyName!
+                        : tx.business,
+                  ),
+                ],
                 _HistDivider(),
                 _HistDetailRow(
                     icon: Icons.swap_horiz_rounded,
@@ -1513,24 +1494,16 @@ class _HistoryTile extends StatelessWidget {
 }
 
 // ── Popup helpers (points history) ────────────────────────────────────────────
-class _HistSummaryCol extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  const _HistSummaryCol(
-      {required this.label, required this.value, required this.color});
-  @override
-  Widget build(BuildContext context) =>
-      Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(label,
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.textSecondary, fontSize: 10)),
-        const SizedBox(height: 4),
-        Text(value,
-            style: AppTextStyles.labelMedium.copyWith(
-                color: color, fontSize: 13, fontWeight: FontWeight.w700)),
-      ]);
-}
-
+//
+// FIX (alignment + no-crash for long/missing values):
+// - Added a fixed-width label column (`SizedBox(width: 110, ...)`) so every
+//   row's value starts at the exact same x-position — this is what gives
+//   the "title: value" list look in the screenshot.
+// - Replaced `Flexible` + single-line `ellipsis` with `Expanded` + wrapping
+//   text (`softWrap: true`, `maxLines: 3`), so long values like business
+//   names wrap onto extra lines instead of being cut off with "…".
+// - Falls back to '-' if value is somehow empty, instead of rendering a
+//   blank cell.
 class _HistDetailRow extends StatelessWidget {
   final IconData icon;
   final String label, value;
@@ -1542,24 +1515,38 @@ class _HistDetailRow extends StatelessWidget {
       required this.value,
       this.valueColor,
       this.bold = false});
+
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
-          const SizedBox(width: 10),
-          Text(label,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary)),
-          const Spacer(),
-          Flexible(
-              child: Text(value,
-                  textAlign: TextAlign.end,
-                  style: AppTextStyles.labelMedium.copyWith(
-                      color: valueColor ?? AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: bold ? FontWeight.w700 : FontWeight.w500))),
-        ]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 110,
+              child: Text(
+                label,
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                value.isNotEmpty ? value : '-',
+                textAlign: TextAlign.right,
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                    color: valueColor ?? AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: bold ? FontWeight.w700 : FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
       );
 }
 
@@ -1580,12 +1567,12 @@ class _TxBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, icon, color) = switch (type) {
       TransactionType.earned => (
-          'Earned',
+          'Earn',
           Icons.arrow_upward_rounded,
           AppColors.success,
         ),
       TransactionType.redeemed => (
-          'Redeemed',
+          'Redeem',
           Icons.arrow_downward_rounded,
           AppColors.error,
         ),

@@ -162,41 +162,27 @@ class EmpCommissionApiService implements IEmpCommissionService {
     }
   }
 
+  // FIX (2026-06-30): Previously this attempted to call
+  // `Common/CalculateCommission` with date-range params (TransactionCompanyId,
+  // EmployeePhoneNo, DateFrom, DateTo) before falling back to a sales-derived
+  // total. That endpoint is confirmed (per emp_home_real_service.dart's
+  // diagnosis) to be a single-DOCUMENT commission lookup — it requires
+  // `DocumentNo` + `CustomerPhoneNo` and has no concept of a date range, so
+  // the call always failed with a 400 ("DocumentNo field is required",
+  // "CustomerPhoneNo field is required"). It was wrapped in a silent
+  // try/catch, so the failure never surfaced, it just added a guaranteed-bad
+  // network round trip and log noise on every commission page load.
+  //
+  // Removed entirely. The monthly summary is now derived purely from
+  // `getSalesForMonth`, which is the only real data source this had anyway
+  // once the dedicated endpoint attempt failed.
   @override
   Future<MonthlySummary> getMonthlySummary(
       String employeeId, String month) async {
-    final phone = await _empPhone;
-    final range = _monthRange(month);
-    double totalCommission = 0;
-
-    // Try dedicated commission endpoint first
-    try {
-      final res = await _dio.get(
-        'Common/CalculateCommission',
-        data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
-          'EmployeePhoneNo':      phone,
-          'DateFrom':             _fmt(range[0]),
-          'DateTo':               _fmt(range[1]),
-        },
-      );
-      final data = res.data;
-      totalCommission = double.tryParse(
-            (data is Map
-                    ? (data['Value'] ?? data['commission'] ?? data['Commission'] ?? 0)
-                    : (data is num ? data : 0))
-                .toString()) ??
-          0;
-    } on DioException catch (_) {}
-
     final sales = await getSalesForMonth(employeeId, month);
     final totalSales =
         sales.fold<double>(0, (sum, s) => sum + s.saleAmount);
-
-    // Fallback: derive from sales when endpoint returns 0
-    if (totalCommission == 0 && totalSales > 0) {
-      totalCommission = totalSales * kCommissionRate;
-    }
+    final totalCommission = totalSales * kCommissionRate;
 
     return MonthlySummary(
       month:            month,

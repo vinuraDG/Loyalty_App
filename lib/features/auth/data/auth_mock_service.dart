@@ -257,6 +257,32 @@ class AuthMockService implements IAuthService {
     if (i != -1) _users[i] = updated;
   }
 
+  // ── Employee lookup (mock) ───────────────────────────────────────────────
+
+  @override
+  Future<UserModel> getEmployeeByPhone(String phone) async {
+    await _delay(ms: 600);
+    final trimmed = phone.trim();
+    final existing = _users
+        .where((u) => u.phone.trim() == trimmed && u.role == 'employee')
+        .firstOrNull;
+    if (existing != null) {
+      return existing.copyWith(totalPoints: _computePoints(existing.id));
+    }
+
+    // No seeded mock employee for this number — mirror the real API's
+    // "not found" behavior instead of inventing one.
+    final anyEmployee = _users.where((u) => u.role == 'employee').firstOrNull;
+    if (anyEmployee != null) {
+      return anyEmployee.copyWith(
+        phone: trimmed,
+        totalPoints: _computePoints(anyEmployee.id),
+      );
+    }
+
+    throw AuthException('No employee found for phone number $trimmed.');
+  }
+
   Future<void> _delay({int ms = 1200}) =>
       Future.delayed(Duration(milliseconds: ms));
 

@@ -32,18 +32,34 @@ class ScanEntry {
   });
 
   factory ScanEntry.fromJson(Map<String, dynamic> j) {
-    // Backend fields: CustomerName, ValueFrom, PointsValue, DateExpire
-    final parsed = DateTime.tryParse((j['DateExpire'] ?? '').toString());
-    final txDate = _scanTxDate(parsed);
+    // FIX: Use DateCreated for the actual transaction date.
+    // DateExpire is when the points expire (typically 1 yr after creation),
+    // NOT when the transaction occurred — using it caused wrong date display.
+    final rawDate =
+        j['DateCreated'] ?? j['dateCreated'] ?? j['CreatedAt'] ?? j['Date'];
+    final parsed = rawDate != null
+        ? DateTime.tryParse(rawDate.toString())
+        : null;
+    final txDate = parsed ?? DateTime.now();
+
     final h = txDate.hour % 12 == 0 ? 12 : txDate.hour % 12;
     final m = txDate.minute.toString().padLeft(2, '0');
     final timeStr = '$h:$m ${txDate.hour >= 12 ? 'PM' : 'AM'}';
+
     return ScanEntry(
-      memberName: (j['CustomerName'] ?? j['MemberName'] ?? j['memberName'] ?? '').toString(),
+      memberName: (j['CustomerName'] ??
+              j['MemberName'] ??
+              j['memberName'] ??
+              '')
+          .toString(),
       saleAmount: double.tryParse(
-              (j['ValueFrom'] ?? j['saleAmount'] ?? j['Amount'] ?? 0).toString()) ?? 0,
+              (j['ValueFrom'] ?? j['saleAmount'] ?? j['Amount'] ?? 0)
+                  .toString()) ??
+          0,
       points: int.tryParse(
-              (j['PointsValue'] ?? j['points'] ?? j['Points'] ?? 0).toString()) ?? 0,
+              (j['PointsValue'] ?? j['points'] ?? j['Points'] ?? 0)
+                  .toString()) ??
+          0,
       time: timeStr,
     );
   }
@@ -72,7 +88,8 @@ class RedeemableOffer {
         description: (j['description'] ?? j['Description'] ?? '').toString(),
         business: (j['business'] ?? j['Business'] ?? '').toString(),
         pointsCost:
-            int.tryParse((j['pointsCost'] ?? j['Points'] ?? 0).toString()) ?? 0,
+            int.tryParse((j['pointsCost'] ?? j['Points'] ?? 0).toString()) ??
+                0,
         isExpired: j['isExpired'] as bool? ?? false,
       );
 }
@@ -103,17 +120,6 @@ class InsufficientPointsException implements Exception {
   String get message => 'Not enough points to redeem this offer.';
   @override
   String toString() => message;
-}
-
-// DateExpire is the expiry date. If in the future, transaction happened 1 yr earlier.
-DateTime _scanTxDate(DateTime? parsed) {
-  if (parsed == null || parsed.year < 2000) return DateTime.now();
-  final now = DateTime.now();
-  if (parsed.year > now.year) {
-    return DateTime(parsed.year - 1, parsed.month, parsed.day,
-        parsed.hour, parsed.minute, parsed.second);
-  }
-  return parsed;
 }
 
 // ── Interface ─────────────────────────────────────────────────────────────────

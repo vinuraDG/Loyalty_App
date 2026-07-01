@@ -260,7 +260,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   _BizDetailRow(
                     icon: Icons.add_circle_outline_rounded,
                     iconColor: AppColors.success,
-                    label: 'Total earned',
+                    label: 'Total earn',
                     value: '+$totalEarned pts',
                     valueColor: AppColors.success,
                   ),
@@ -268,7 +268,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   _BizDetailRow(
                     icon: Icons.remove_circle_outline_rounded,
                     iconColor: AppColors.error,
-                    label: 'Total redeemed',
+                    label: 'Total redeem',
                     value: '-$totalRedeemed pts',
                     valueColor: AppColors.error,
                   ),
@@ -615,7 +615,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                   _CardStatRow(
                                     icon: Icons.arrow_upward_rounded,
                                     iconColor: AppColors.success,
-                                    label: 'Earned today',
+                                    label: 'Earn today',
                                     value: todayEarned > 0
                                         ? '+$todayEarned'
                                         : '+0',
@@ -625,7 +625,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                   _CardStatRow(
                                     icon: Icons.arrow_downward_rounded,
                                     iconColor: AppColors.error,
-                                    label: 'Redeemed today',
+                                    label: 'Redeem today',
                                     value: todayRedeemed > 0
                                         ? '-$todayRedeemed'
                                         : '-0',
@@ -988,15 +988,15 @@ class _BizCard extends StatelessWidget {
 
   String get _shortName {
     if (business == kBusinessFuel) return 'Fuel';
-    if (business.length <= 8)     return business;
-    return business.substring(0, 8);
+    if (business.length <= 10)     return business;
+    return business.substring(0, 9);
   }
 
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.bgCard,
             borderRadius: BorderRadius.circular(14),
@@ -1072,12 +1072,16 @@ class _BizDetailRow extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Text(
-            value,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: valueColor,
-              fontSize: 13,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.labelMedium.copyWith(
+                color: valueColor,
+                fontSize: 13,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
         ]),
@@ -1102,8 +1106,8 @@ class _TxCard extends StatelessWidget {
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   String _txTypeLabel(TransactionModel t) {
-    if (t.isEarned)   return 'Earned';
-    if (t.isRedeemed) return 'Redeemed';
+    if (t.isEarned)   return 'Earn';
+    if (t.isRedeemed) return 'Redeem';
     return 'Expired';
   }
 
@@ -1325,7 +1329,7 @@ class _TxCard extends StatelessWidget {
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(_txIcon(tx), size: 12, color: color),
-                const SizedBox(width: 5),
+                const SizedBox(width: 3),
                 Text(
                   _txTypeLabel(tx),
                   style: AppTextStyles.caption.copyWith(
@@ -1335,53 +1339,6 @@ class _TxCard extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: 20),
-
-            // ── Points summary card ──────────────────────────────────────
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    color.withValues(alpha: 0.18),
-                    color.withValues(alpha: 0.07),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _SummaryCol(
-                    label: 'Points',
-                    value: tx.displayPoints,
-                    color: color,
-                  ),
-                  Container(
-                    width: 1, height: 36,
-                    color: color.withValues(alpha: 0.2),
-                  ),
-                  _SummaryCol(
-                    label: 'Date',
-                    value: _fmtDate(tx.date),
-                    color: AppColors.textPrimary,
-                  ),
-                  Container(
-                    width: 1, height: 36,
-                    color: color.withValues(alpha: 0.2),
-                  ),
-                  _SummaryCol(
-                    label: 'Time',
-                    value: _fmtTime(tx.date),
-                    color: AppColors.textPrimary,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
 
             // ── Detail rows ──────────────────────────────────────────────
             Container(
@@ -1393,9 +1350,17 @@ class _TxCard extends StatelessWidget {
               child: Column(children: [
                 _DetailRow(
                   icon: Icons.store_rounded,
-                  label: 'Business',
+                  label: 'Earn Company',
                   value: tx.business,
                 ),
+                if (tx.isRedeemed) ...[
+                  _TxDivider(),
+                  _DetailRow(
+                    icon: Icons.storefront_rounded,
+                    label: 'Redeem Company',
+                    value: tx.redeemCompanyName ?? '-',
+                  ),
+                ],
                 _TxDivider(),
                 _DetailRow(
                   icon: Icons.swap_horiz_rounded,
@@ -1473,43 +1438,6 @@ class _TxCard extends StatelessWidget {
   }
 }
 
-// ── Summary column (inside points summary card in popup) ─────────────────────
-
-class _SummaryCol extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color  color;
-
-  const _SummaryCol({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 10,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      );
-}
-
 // ── Detail row ────────────────────────────────────────────────────────────────
 
 class _DetailRow extends StatelessWidget {
@@ -1530,25 +1458,30 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
-          const SizedBox(width: 10),
-          Text(label,
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            Text(
+              label,
               style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary)),
-          const Spacer(),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: AppTextStyles.labelMedium.copyWith(
-                color: valueColor ?? AppColors.textPrimary,
-                fontSize: 13,
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+            const Spacer(),
+            Flexible(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: valueColor ?? AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       );
 }
 

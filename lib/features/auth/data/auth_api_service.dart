@@ -58,6 +58,10 @@ abstract class IAuthService {
     required String newPassword,
   });
   Future<UserModel?> findById(String id);
+
+  /// Looks up an employee record by phone number. Throws [AuthException]
+  /// if no employee exists for that number or the response is malformed.
+  Future<UserModel> getEmployeeByPhone(String phone);
 }
 
 class AuthApiService implements IAuthService {
@@ -146,6 +150,18 @@ class AuthApiService implements IAuthService {
     return notifType == 'Error';
   }
 
+  /// True when [data] is "technically a response" but carries nothing usable
+  /// — null, an empty string, or an empty map. Several of this backend's GET
+  /// endpoints return HTTP 200 with an empty body instead of 404 when a
+  /// record isn't found, so this has to be checked explicitly everywhere
+  /// before attempting to read fields off the response.
+  bool _isEmptyBody(dynamic data) {
+    if (data == null) return true;
+    if (data is String && data.trim().isEmpty) return true;
+    if (data is Map && data.isEmpty) return true;
+    return false;
+  }
+
   // ── Response parsing ──────────────────────────────────────────────────────
 
   String _extractToken(Map<String, dynamic> data) =>
@@ -154,11 +170,13 @@ class AuthApiService implements IAuthService {
           .toString();
 
   UserModel _userFromResponse(Map<String, dynamic> data) {
-    final raw = data['customer'] ?? data['user'] ?? data['data'] ?? data;
+    final raw = data['customer'] ?? data['user'] ?? data['employee'] ??
+        data['data'] ?? data;
     final u = (raw is Map<String, dynamic>) ? raw : <String, dynamic>{};
 
     return UserModel(
-      id: (u['Id'] ?? u['id'] ?? u['CustomerId'] ?? u['customerID'] ?? '')
+      id: (u['Id'] ?? u['id'] ?? u['CustomerId'] ?? u['customerID'] ??
+              u['EmployeeId'] ?? u['employeeId'] ?? '')
           .toString(),
       firstName:
           (u['FirstName'] ?? u['firstName'] ?? u['first_name'] ?? '').toString(),
@@ -197,6 +215,9 @@ class AuthApiService implements IAuthService {
 
       final data = res.data;
 
+      if (_isEmptyBody(data)) {
+        throw const AuthException('Invalid email or password.');
+      }
       if (_isErrorEnvelope(data)) {
         throw AuthException(
           _extractServerMessage(data) ?? 'Login failed.',
@@ -209,10 +230,10 @@ class AuthApiService implements IAuthService {
       final user = _userFromResponse(data);
       await _persistSession(_extractToken(data), user);
       return user;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
     } on AuthException {
       rethrow;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
     } catch (e) {
       throw AuthException(e.toString());
     }
@@ -294,7 +315,7 @@ class AuthApiService implements IAuthService {
         'Common/GetCustomerByPhoneNo',
         queryParameters: {'CustomerPhoneNo': phone.trim()},
       );
-      if (res.data == null || res.data is! Map) return null;
+      if (_isEmptyBody(res.data) || res.data is! Map) return null;
       if (_isErrorEnvelope(res.data)) return null;
       return _userFromResponse(res.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -340,7 +361,7 @@ class AuthApiService implements IAuthService {
         'Common/GetCustomerByPhoneNo',
         queryParameters: {'CustomerPhoneNo': phone.trim()},
       );
-      if (res.data == null || res.data is! Map) {
+      if (_isEmptyBody(res.data) || res.data is! Map) {
         throw const AuthException('Account created but could not retrieve user.');
       }
       if (_isErrorEnvelope(res.data)) {
@@ -386,6 +407,9 @@ class AuthApiService implements IAuthService {
         throw AuthException(
           _extractServerMessage(res.data) ?? 'Profile update failed.',
         );
+      }
+      if (_isEmptyBody(res.data) || res.data is! Map) {
+        throw const AuthException('Profile update failed: empty response from server.');
       }
       return _userFromResponse(res.data as Map<String, dynamic>);
     } on AuthException {
@@ -494,17 +518,104 @@ class AuthApiService implements IAuthService {
   Future<UserModel?> findById(String id) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone);
+    final role = prefs.getString(AppConstants.prefUserRole);
     if (phone == null || phone.isEmpty) return null;
+
+    // Employees aren't in the Customer table — route session restore to the
+    // matching lookup based on the role that was persisted at login time.
+    if (role == 'employee') {
+      try {
+        return await getEmployeeByPhone(phone);
+      } catch (_) {
+        return null;
+      }
+    }
+
     try {
       final res = await _dio.get(
         'Common/GetCustomerByPhoneNo',
         queryParameters: {'CustomerPhoneNo': phone},
       );
-      if (res.data == null || res.data is! Map) return null;
+      if (_isEmptyBody(res.data) || res.data is! Map) return null;
       if (_isErrorEnvelope(res.data)) return null;
       return _userFromResponse(res.data as Map<String, dynamic>);
     } on DioException catch (_) {
       return null;
+    }
+  }
+
+  // ── Employee lookup ──────────────────────────────────────────────────────
+  // Confirmed via live response: this endpoint returns
+  // {Title, FirstName, LastName, Email, PhoneNo, FullName, TransactionCompanyId}
+  // — NOTE: no Id field at all. Phone number is used as the stable id since
+  // the backend doesn't expose one for employees.
+
+  @override
+  Future<UserModel> getEmployeeByPhone(String phone) async {
+    final trimmed = phone.trim();
+    if (trimmed.isEmpty) {
+      throw const AuthException('Employee phone number is required.');
+    }
+
+    try {
+      final res = await _dio.get(
+        'Common/GetEmployeeByPhoneNo',
+        queryParameters: {'EmployeePhoneNo': trimmed},
+      );
+
+      final data = res.data;
+
+      // Defensive check: this backend can return HTTP 200 with an empty
+      // body instead of a 404/error envelope when nothing is found.
+      if (_isEmptyBody(data)) {
+        throw AuthException('No employee found for phone number $trimmed.');
+      }
+
+      if (data is! Map<String, dynamic>) {
+        throw const AuthException(
+          'Unexpected response from server while fetching employee.',
+        );
+      }
+
+      if (_isErrorEnvelope(data)) {
+        throw AuthException(
+          _extractServerMessage(data) ?? 'Employee not found.',
+        );
+      }
+
+      final firstName = (data['FirstName'] ?? data['firstName'] ?? '').toString();
+      final lastName = (data['LastName'] ?? data['lastName'] ?? '').toString();
+      final email = (data['Email'] ?? data['email'] ?? '').toString();
+      final respPhone = (data['PhoneNo'] ?? data['phoneNo'] ?? '').toString();
+
+      // Backend doesn't return an Id for employees — use phone as the id.
+      final resolvedId = respPhone.isNotEmpty ? respPhone : trimmed;
+
+      // Genuinely empty (no name, no phone confirmed) means not found.
+      if (firstName.isEmpty && lastName.isEmpty && respPhone.isEmpty) {
+        throw AuthException('No employee found for phone number $trimmed.');
+      }
+
+      return UserModel(
+        id: resolvedId,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        phone: respPhone.isNotEmpty ? respPhone : trimmed,
+        role: 'employee',
+        totalPoints: 0,
+        address: '',
+        createdAt: DateTime.now(),
+      );
+    } on AuthException {
+      rethrow;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw AuthException('No employee found for phone number $trimmed.');
+      }
+      throw _handleDioError(e);
+    } catch (e) {
+      throw AuthException(e.toString());
     }
   }
 }

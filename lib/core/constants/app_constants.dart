@@ -28,7 +28,7 @@ class AppConstants {
 
   // Test data used when devBypass = true
   static const String devCustomerPhone = '0772274383';
-  static const String devEmployeePhone = '0772274383';
+  static const String devEmployeePhone = '0770064383';
 }
 
 class AppRoutes {

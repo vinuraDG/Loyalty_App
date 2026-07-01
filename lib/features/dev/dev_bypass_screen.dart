@@ -24,11 +24,22 @@ class _DevBypassScreenState extends ConsumerState<DevBypassScreen> {
   bool _loadingEmployee = false;
   String? _error;
 
+  // ── Customer fetch (unchanged — Common/GetCustomerByPhoneNo) ─────────────
+
   Future<UserModel> _fetchCustomer(String phone) async {
     final dio = ApiClient.instance.dio;
     final res = await dio.get('Common/GetCustomerByPhoneNo',
         queryParameters: {'CustomerPhoneNo': phone});
-    final data = res.data as Map<String, dynamic>;
+
+    final data = res.data;
+    if (data == null || (data is String && data.trim().isEmpty) ||
+        (data is Map && data.isEmpty)) {
+      throw AuthException('No customer found for phone number $phone.');
+    }
+    if (data is! Map<String, dynamic>) {
+      throw const AuthException('Unexpected response from server.');
+    }
+
     return UserModel(
       id: (data['Id'] ?? data['id'] ?? phone).toString(),
       firstName: (data['FirstName'] ?? '').toString(),
@@ -56,6 +67,8 @@ class _DevBypassScreenState extends ConsumerState<DevBypassScreen> {
         MaterialPageRoute(builder: (_) => const MainScreen()),
         (_) => false,
       );
+    } on AuthException catch (e) {
+      if (mounted) setState(() { _error = e.message; _loadingCustomer = false; });
     } on DioException catch (e) {
       final msg = (e.response?.data is Map)
           ? (e.response!.data['message'] ?? e.response!.data['Message'] ??
@@ -67,21 +80,14 @@ class _DevBypassScreenState extends ConsumerState<DevBypassScreen> {
     }
   }
 
+  // ── Employee fetch — now uses the dedicated employee endpoint ────────────
+
   Future<void> _openAsEmployee() async {
     setState(() { _loadingEmployee = true; _error = null; });
     try {
-      final user = await _fetchCustomer(AppConstants.devEmployeePhone);
-      final employee = UserModel(
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        role: 'employee',
-        totalPoints: user.totalPoints,
-        address: user.address,
-        createdAt: user.createdAt,
-      );
+      final employee = await AuthApiService.instance
+          .getEmployeeByPhone(AppConstants.devEmployeePhone);
+
       if (!mounted) return;
       await ref.read(authProvider.notifier).devLogin(employee);
       if (!mounted) return;
@@ -91,6 +97,8 @@ class _DevBypassScreenState extends ConsumerState<DevBypassScreen> {
             builder: (_) => EmployeeDashboardScreen(employee: employee)),
         (_) => false,
       );
+    } on AuthException catch (e) {
+      if (mounted) setState(() { _error = e.message; _loadingEmployee = false; });
     } on DioException catch (e) {
       final msg = (e.response?.data is Map)
           ? (e.response!.data['message'] ?? e.response!.data['Message'] ??
@@ -156,7 +164,7 @@ class _DevBypassScreenState extends ConsumerState<DevBypassScreen> {
                 iconColor: const Color(0xFFFFB347),
                 iconBg: const Color(0xFFFFB347).withValues(alpha: 0.12),
                 title: 'Open as Employee',
-                subtitle: 'Same data · role set to employee',
+                subtitle: AppConstants.devEmployeePhone,
                 buttonLabel: 'Employee Dashboard',
                 isLoading: _loadingEmployee,
                 onTap: _loadingCustomer ? null : _openAsEmployee,
