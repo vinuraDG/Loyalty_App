@@ -86,6 +86,17 @@ class AuthApiService implements IAuthService {
       await prefs.setString(AppConstants.prefUserId, user.id);
       await prefs.setString(AppConstants.prefUserRole, user.role);
       await prefs.setString(AppConstants.prefUserPhone, user.phone);
+      if (user.email.isNotEmpty) {
+        await prefs.setString(AppConstants.prefUserEmail, user.email);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistPassword(String password) async {
+    if (password.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConstants.prefUserPassword, password);
     } catch (_) {}
   }
 
@@ -283,6 +294,7 @@ class AuthApiService implements IAuthService {
       if (token.isNotEmpty) {
         await _persistToken(token);
       }
+      await _persistPassword(password);
 
       final role = (data['Role'] ?? data['role'] ?? '').toString().toLowerCase();
 
@@ -339,6 +351,7 @@ class AuthApiService implements IAuthService {
         token = _extractToken(data);
         if (token.isNotEmpty) await _persistToken(token);
       }
+      await _persistPassword(password);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
@@ -482,6 +495,8 @@ class AuthApiService implements IAuthService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    final storedEmail = prefs.getString(AppConstants.prefUserEmail) ?? '';
+    final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
     try {
       final res = await _dio.post(
         'Common/UpdateCustomer',
@@ -492,6 +507,8 @@ class AuthApiService implements IAuthService {
           'Address': address.trim(),
           'Email': email.trim().toLowerCase(),
           'PhoneNo': phone,
+          'Username': storedEmail.isNotEmpty ? storedEmail : email.trim().toLowerCase(),
+          'Password': storedPassword,
         },
       );
       if (_isErrorEnvelope(res.data)) {
@@ -499,8 +516,24 @@ class AuthApiService implements IAuthService {
           _extractServerMessage(res.data) ?? 'Profile update failed.',
         );
       }
+      // Keep stored email in sync after a successful update
+      if (email.trim().isNotEmpty) {
+        await prefs.setString(AppConstants.prefUserEmail, email.trim().toLowerCase());
+      }
       if (_isEmptyBody(res.data) || res.data is! Map) {
-        throw const AuthException('Profile update failed: empty response from server.');
+        // Backend may return 200 with empty body on success — treat as ok
+        // and reconstruct a minimal UserModel from the submitted values.
+        return UserModel(
+          id: '',
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone,
+          role: 'customer',
+          totalPoints: 0,
+          address: address.trim(),
+          createdAt: DateTime.now(),
+        );
       }
       return _userFromResponse(res.data as Map<String, dynamic>);
     } on AuthException {
@@ -535,6 +568,7 @@ class AuthApiService implements IAuthService {
           _extractServerMessage(res.data) ?? 'Password change failed.',
         );
       }
+      await _persistPassword(newPassword);
     } on AuthException {
       rethrow;
     } on DioException catch (e) {

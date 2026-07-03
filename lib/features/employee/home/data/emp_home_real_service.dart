@@ -81,7 +81,7 @@ class EmpHomeRealService implements IEmpHomeService {
       try {
         final ledgerRes = await _dio.get(
           'Mobile/GetAllCustomerLedgers',
-          queryParameters: {
+          data: {
             'TransactionCompanyId': AppConstants.transactionCompanyId,
             'CustomerPhoneNo': phone,
           },

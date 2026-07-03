@@ -5,8 +5,10 @@ class AppConstants {
   static const prefUserId     = 'userId';
   static const prefUserRole   = 'userRole';
   static const prefIsLoggedIn = 'isLoggedIn';
-  static const prefAuthToken  = 'authToken';
-  static const prefUserPhone  = 'userPhone';
+  static const prefAuthToken    = 'authToken';
+  static const prefUserPhone    = 'userPhone';
+  static const prefUserEmail    = 'userEmail';
+  static const prefUserPassword = 'userPassword';
 
   static const businessFuel    = 'Fuel Station';
   static const businessLaundry = 'Laundry';

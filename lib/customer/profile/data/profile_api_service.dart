@@ -45,12 +45,7 @@ class ProfileApiService implements IProfileService {
     try {
       final ledgerRes = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
-        // FIX: use queryParameters for GET requests, not `data`.
-        // Dio sends `data` as a body, which many servers ignore on GET.
-        // Your backend IS accepting it (confirmed in logs), but using
-        // queryParameters is the correct approach and avoids server-side
-        // ambiguity.
-        queryParameters: {
+        data: {
           'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CustomerPhoneNo': phone,
         },
