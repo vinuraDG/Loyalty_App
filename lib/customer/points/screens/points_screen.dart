@@ -715,43 +715,31 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           border: Border.all(color: AppColors.border),
                         ),
                         padding: const EdgeInsets.all(4),
-                        child: filterLabels.length <= 5
-                            // ≤5 labels: single-row layout (original style)
-                            ? Row(
-                                children: filterLabels.map((f) {
-                                  final isSelected = _filter == f;
-                                  final displayLabel = _shortLabel(f);
-                                  return Expanded(
-                                    child: _FilterChip(
-                                      label: displayLabel,
-                                      isSelected: isSelected,
-                                      onTap: () =>
-                                          setState(() => _filter = f),
-                                    ),
-                                  );
-                                }).toList(),
-                              )
-                            // >5 labels: horizontally scrollable
-                            : SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: filterLabels.map((f) {
-                                    final isSelected = _filter == f;
-                                    final displayLabel = _shortLabel(f);
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(right: 4),
-                                      child: _FilterChip(
-                                        label: displayLabel,
-                                        isSelected: isSelected,
-                                        onTap: () =>
-                                            setState(() => _filter = f),
-                                        minWidth: 64,
-                                      ),
-                                    );
-                                  }).toList(),
+                        // Always horizontally scrollable so each chip can
+                        // size to its own label's content width — this is
+                        // what stops long company names (e.g. "Sunshine
+                        // Laundry") being squeezed into an equal-width slot
+                        // and ellipsized. Short label sets just won't need
+                        // to scroll since they already fit.
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: filterLabels.map((f) {
+                              final isSelected = _filter == f;
+                              final displayLabel = _shortLabel(f);
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: _FilterChip(
+                                  label: displayLabel,
+                                  isSelected: isSelected,
+                                  onTap: () =>
+                                      setState(() => _filter = f),
+                                  minWidth: 64,
                                 ),
-                              ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 14),
 
@@ -790,12 +778,12 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     );
   }
 
-  /// Short label for filter tab (≤8 chars).
+  /// Full label for filter tab — no hard truncation; the chip's Text
+  /// widget handles overflow with ellipsis if the name doesn't fit.
   static String _shortLabel(String name) {
     if (name == 'All') return 'All';
     if (name == kBusinessFuel) return 'Fuel';
-    if (name.length <= 8) return name;
-    return name.substring(0, 8);
+    return name;
   }
 }
 
@@ -822,28 +810,34 @@ class _BizCardsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // 1–3 companies: single row (original layout)
     if (bizNames.length <= 3) {
-      return Row(
-        children: List.generate(bizNames.length, (i) {
-          final biz = bizNames[i];
-          return [
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(
-              child: _BizCard(
-                business: biz,
-                pts: byBizNet[biz] ?? 0,
-                expiredPts: byBizExpired[biz] ?? 0,
-                color: _colorForCompany(biz, i),
-                onTap: () => onTap(biz, i),
+      // IntrinsicHeight + stretch makes every card match the tallest one,
+      // so a 2-line wrapped name (e.g. "Sunshine Laundry") doesn't leave
+      // that card taller than its 1-line neighbors.
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: List.generate(bizNames.length, (i) {
+            final biz = bizNames[i];
+            return [
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _BizCard(
+                  business: biz,
+                  pts: byBizNet[biz] ?? 0,
+                  expiredPts: byBizExpired[biz] ?? 0,
+                  color: _colorForCompany(biz, i),
+                  onTap: () => onTap(biz, i),
+                ),
               ),
-            ),
-          ];
-        }).expand((w) => w).toList(),
+            ];
+          }).expand((w) => w).toList(),
+        ),
       );
     }
 
     // 4+ companies: horizontally scrollable row
     return SizedBox(
-      height: 110,
+      height: 122,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: bizNames.length,
@@ -889,7 +883,7 @@ class _FilterChip extends StatelessWidget {
           constraints: minWidth != null
               ? BoxConstraints(minWidth: minWidth!)
               : const BoxConstraints(),
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 14),
           decoration: BoxDecoration(
             gradient: isSelected
                 ? const LinearGradient(colors: AppColors.buttonGradient)
@@ -899,6 +893,9 @@ class _FilterChip extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
             style: AppTextStyles.caption.copyWith(
               color: isSelected ? Colors.white : AppColors.textSecondary,
               fontWeight:
@@ -986,10 +983,11 @@ class _BizCard extends StatelessWidget {
     required this.onTap,
   });
 
+  /// Full business name — no hard truncation; the Text widget below
+  /// handles overflow with ellipsis if it doesn't fit the card width.
   String get _shortName {
     if (business == kBusinessFuel) return 'Fuel';
-    if (business.length <= 10)     return business;
-    return business.substring(0, 9);
+    return business;
   }
 
   @override
@@ -1009,7 +1007,9 @@ class _BizCard extends StatelessWidget {
                 color: color,
                 fontWeight: FontWeight.w600,
               ),
-              maxLines: 1,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              softWrap: true,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 6),

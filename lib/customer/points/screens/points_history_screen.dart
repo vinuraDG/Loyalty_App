@@ -684,7 +684,9 @@ class _BusinessSelector extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 120,
+          // Tall enough for the label to wrap onto 2 lines (e.g. "Sunshine
+          // Laundry") without clipping or squeezing the stat rows below it.
+          height: 132,
           child: ListView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -1000,7 +1002,10 @@ class _CompanyCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        width: 148,
+        // Widened from 148 → 168 and paired with a 2-line label below so
+        // full company names (e.g. "Sunshine Laundry") aren't squeezed
+        // into a single-line ellipsis like "Sunshine La...".
+        width: 168,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: selected ? accent.withValues(alpha: 0.15) : AppColors.bgCard,
@@ -1014,29 +1019,35 @@ class _CompanyCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(9),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(icon, size: 15, color: accent),
                 ),
-                child: Icon(icon, size: 15, color: accent),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: selected ? accent : AppColors.textSecondary,
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    softWrap: true,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                      color: selected ? accent : AppColors.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 8),
             _StatRow(
               label: 'Earn',

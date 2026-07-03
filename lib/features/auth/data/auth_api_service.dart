@@ -70,10 +70,18 @@ class AuthApiService implements IAuthService {
 
   final Dio _dio = ApiClient.instance.dio;
 
+  Future<void> _persistToken(String token) async {
+    if (token.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.prefAuthToken, token);
+  }
+
   Future<void> _persistSession(String token, UserModel user) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.prefAuthToken, token);
+      if (token.isNotEmpty) {
+        await prefs.setString(AppConstants.prefAuthToken, token);
+      }
       await prefs.setBool(AppConstants.prefIsLoggedIn, true);
       await prefs.setString(AppConstants.prefUserId, user.id);
       await prefs.setString(AppConstants.prefUserRole, user.role);
@@ -107,12 +115,33 @@ class AuthApiService implements IAuthService {
         break;
     }
 
+    // ASP.NET Identity validation errors come back as a raw JSON array:
+    // [{ "Code": "PasswordTooShort", "Description": "..." }, ...]
+    final identityMsg = _extractIdentityErrors(e.response?.data);
+    if (identityMsg != null) return AuthException(identityMsg);
+
     final status = e.response?.statusCode;
     final serverMsg = _extractServerMessage(e.response?.data);
     if (serverMsg != null && serverMsg.isNotEmpty) {
       return AuthException(serverMsg);
     }
     return AuthException('Request failed (HTTP $status). Please try again.');
+  }
+
+  /// Handles Account/Register's validation error shape:
+  /// a bare JSON array of { Code, Description } objects.
+  String? _extractIdentityErrors(dynamic data) {
+    if (data is List && data.isNotEmpty) {
+      final messages = data
+          .whereType<Map>()
+          .map((e) =>
+              (e['Description'] ?? e['description'] ?? e['Code'] ?? '')
+                  .toString())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (messages.isNotEmpty) return messages.join(' ');
+    }
+    return null;
   }
 
   String? _extractServerMessage(dynamic data) {
@@ -125,10 +154,15 @@ class AuthApiService implements IAuthService {
         final msg = data['Message'] ?? data['message'];
         if (msg is String && msg.isNotEmpty) return msg;
       }
+      // ASP.NET ProblemDetails shape: { title, status, ... }
+      final title = data['title'] ?? data['Title'];
+      if (title is String && title.isNotEmpty) {
+        return title;
+      }
       // Generic message keys
       for (final key in [
         'message', 'Message', 'error', 'Error',
-        'errorMessage', 'ErrorMessage', 'title', 'Title',
+        'errorMessage', 'ErrorMessage',
       ]) {
         final v = data[key];
         if (v is String && v.isNotEmpty) return v;
@@ -197,42 +231,74 @@ class AuthApiService implements IAuthService {
     );
   }
 
+  /// Fetches the customer profile (points, name, etc.) now that a bearer
+  /// token is attached, and persists the full session.
+  Future<UserModel> _fetchAndPersistCustomer(String phone, String token) async {
+    try {
+      final res = await _dio.get(
+        'Common/GetCustomerByPhoneNo',
+        queryParameters: {'CustomerPhoneNo': phone},
+      );
+      final data = res.data;
+      if (_isEmptyBody(data) || data is! Map<String, dynamic>) {
+        throw const AuthException(
+            'Signed in, but the profile could not be loaded. Please try again.');
+      }
+      if (_isErrorEnvelope(data)) {
+        throw AuthException(_extractServerMessage(data) ?? 'Could not load profile.');
+      }
+      final user = _userFromResponse(data);
+      await _persistSession(token, user);
+      return user;
+    } on AuthException {
+      rethrow;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   // ── Auth endpoints ────────────────────────────────────────────────────────
 
   @override
   Future<UserModel> signInWithEmail({
-    required String email,
+    required String email, // actually the phone number, per the login form
     required String password,
   }) async {
+    final username = email.trim();
     try {
       final res = await _dio.post(
-        'Common/Login',
+        'Account/Login',
         data: {
-          'UserName': email.trim(),
+          'UserName': username,
           'Password': password,
         },
       );
 
       final data = res.data;
-
-      if (_isEmptyBody(data)) {
-        throw const AuthException('Invalid email or password.');
-      }
-      if (_isErrorEnvelope(data)) {
-        throw AuthException(
-          _extractServerMessage(data) ?? 'Login failed.',
-        );
-      }
-      if (data is! Map<String, dynamic>) {
-        throw const AuthException('Unexpected response from server.');
+      if (_isEmptyBody(data) || data is! Map<String, dynamic>) {
+        throw const AuthException('Invalid phone number or password.');
       }
 
-      final user = _userFromResponse(data);
-      await _persistSession(_extractToken(data), user);
-      return user;
+      final token = _extractToken(data);
+      if (token.isNotEmpty) {
+        await _persistToken(token);
+      }
+
+      final role = (data['Role'] ?? data['role'] ?? '').toString().toLowerCase();
+
+      if (role == 'employee') {
+        final employee = await getEmployeeByPhone(username);
+        await _persistSession(token, employee);
+        return employee;
+      }
+
+      return _fetchAndPersistCustomer(username, token);
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
+      if (e.response?.statusCode == 400 || e.response?.statusCode == 401) {
+        throw const AuthException('Invalid phone number or password.');
+      }
       throw _handleDioError(e);
     } catch (e) {
       throw AuthException(e.toString());
@@ -247,8 +313,39 @@ class AuthApiService implements IAuthService {
     required String phone,
     required String password,
   }) async {
+    final trimmedPhone = phone.trim();
+    String token = '';
+
+    // Step 1 — create the login credential.
     try {
       final res = await _dio.post(
+        'Account/Register',
+        data: {
+          'FirstName': firstName.trim(),
+          'LastName': lastName.trim(),
+          'PhoneNo': trimmedPhone,
+          'UserName': trimmedPhone,
+          'Email': email.trim().toLowerCase(),
+          'Password': password,
+          // NOTE: verify this matches the exact string in Swagger's Role
+          // dropdown for a normal customer — confirmed value was
+          // "Administrator" for admin accounts.
+          'Role': 'Customer',
+        },
+      );
+
+      final data = res.data;
+      if (data is Map<String, dynamic>) {
+        token = _extractToken(data);
+        if (token.isNotEmpty) await _persistToken(token);
+      }
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+
+    // Step 2 — create the customer profile row (points/rewards tracking).
+    try {
+      await _dio.post(
         'Common/RegisterCustomer',
         data: {
           'TransactionCompanyId': AppConstants.transactionCompanyId,
@@ -256,30 +353,24 @@ class AuthApiService implements IAuthService {
           'LastName': lastName.trim(),
           'Address': '',
           'Email': email.trim().toLowerCase(),
-          'PhoneNo': phone.trim(),
+          'PhoneNo': trimmedPhone,
           'Password': password,
-          'ConfirmPassword': password,
+          'Username': email.trim().toLowerCase()
         },
       );
-
-      final data = res.data;
-
-      if (_isErrorEnvelope(data)) {
-        throw AuthException(
-          _extractServerMessage(data) ?? 'Registration failed.',
-        );
-      }
-
-      throw const RegistrationSuccessException();
-    } on RegistrationSuccessException {
-      rethrow;
-    } on AuthException {
-      rethrow;
     } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw AuthException(e.toString());
+      // Non-fatal — the account credential already exists from Step 1.
+      // Continue to try fetching the profile; if it genuinely doesn't
+      // exist, that fetch below will surface a clear error instead.
+      assert(() {
+        debugPrint('[Auth] Common/RegisterCustomer during signup -> '
+            'status=${e.response?.statusCode} body=${e.response?.data}');
+        return true;
+      }());
     }
+
+    // Step 3 — fetch the created profile and log the user in immediately.
+    return _fetchAndPersistCustomer(trimmedPhone, token);
   }
 
   // ── OTP / Phone ───────────────────────────────────────────────────────────

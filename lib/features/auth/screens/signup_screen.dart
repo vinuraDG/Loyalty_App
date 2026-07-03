@@ -1,6 +1,7 @@
 // signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/customer/home/screens/main_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
@@ -76,30 +77,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
 
-    if (auth.registrationSuccess) {
-      Navigator.pop(context);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_outline_rounded,
-                    color: Colors.white, size: 18),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Account created! Sign in with your phone number and password.',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.primary,
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      });
+    if (auth.isAuthenticated) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (_) => false,
+      );
     }
   }
 

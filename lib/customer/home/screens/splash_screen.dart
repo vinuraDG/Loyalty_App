@@ -59,7 +59,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     Widget destination;
     if (AppConstants.devBypass && !auth.isAuthenticated) {
-      destination = const DevBypassScreen();
+      destination = const LoginScreen();
     } else if (!auth.isAuthenticated) {
       destination = const OnboardingScreen();
     } else if (auth.isEmployee) {

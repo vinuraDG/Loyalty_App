@@ -125,20 +125,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
-      await _auth.signUpWithEmail(
+      final user = await _auth.signUpWithEmail(
         firstName: firstName,
         lastName:  lastName,
         email:     email,
         phone:     phone,
         password:  password,
       );
+      await _saveSession(user);
       state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        registrationSuccess: true,
-      );
-    } on RegistrationSuccessException {
-      state = state.copyWith(
-        status: AuthStatus.unauthenticated,
+        status: AuthStatus.authenticated,
+        user: user,
         registrationSuccess: true,
       );
     } on AuthException catch (e) {
