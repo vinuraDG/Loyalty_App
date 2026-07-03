@@ -506,28 +506,31 @@ class AuthApiService implements IAuthService {
     final storedEmail = prefs.getString(AppConstants.prefUserEmail) ?? '';
     final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
     final newEmail = email.trim().toLowerCase();
-    final emailChanged = newEmail.isNotEmpty && newEmail != storedEmail;
+    final effectiveEmail = newEmail.isNotEmpty ? newEmail : storedEmail;
     try {
-      final body = <String, dynamic>{
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
-        'FirstName': firstName.trim(),
-        'LastName': lastName.trim(),
-        'Address': address.trim(),
-        'PhoneNo': phone,
-        'Username': storedEmail.isNotEmpty ? storedEmail : newEmail,
-        'Password': storedPassword,
-      };
-      // Only include Email when it has actually changed — the backend runs a
-      // global uniqueness check that incorrectly flags the user's own existing
-      // email as a duplicate when the same value is re-submitted.
-      if (emailChanged) body['Email'] = newEmail;
-      final res = await _dio.post('Common/UpdateCustomer', data: body);
+      // Username must be the phone number (= ASP.NET Identity username used
+      // at registration). Sending the email as Username caused a false-positive
+      // "Email already exists" because the backend's uniqueness check was
+      // comparing Username against the Email column of all customers.
+      final res = await _dio.post(
+        'Common/UpdateCustomer',
+        data: {
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'FirstName': firstName.trim(),
+          'LastName': lastName.trim(),
+          'Address': address.trim(),
+          'Email': effectiveEmail,
+          'PhoneNo': phone,
+          'Username': phone,
+          'Password': storedPassword,
+        },
+      );
       if (_isErrorEnvelope(res.data)) {
         throw AuthException(
           _extractServerMessage(res.data) ?? 'Profile update failed.',
         );
       }
-      if (emailChanged) {
+      if (newEmail.isNotEmpty && newEmail != storedEmail) {
         await prefs.setString(AppConstants.prefUserEmail, newEmail);
       }
       if (_isEmptyBody(res.data) || res.data is! Map) {
@@ -568,7 +571,7 @@ class AuthApiService implements IAuthService {
         'Common/ResetPassword',
         data: {
           'UserName': phone,
-          'OldPassword': currentPassword,
+          'Password': currentPassword,
           'NewPassword': newPassword,
           'ConfirmPassword': newPassword,
         },
