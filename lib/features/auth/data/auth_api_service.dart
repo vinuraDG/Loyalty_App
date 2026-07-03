@@ -296,15 +296,23 @@ class AuthApiService implements IAuthService {
       }
       await _persistPassword(password);
 
+      // Backend echoes back the actual account phone number as UserName
+      // regardless of whether the user logged in with phone or email.
+      // Always use this resolved phone for subsequent profile lookups.
+      final resolvedPhone = (data['UserName'] ?? data['PhoneNo'] ?? '')
+          .toString()
+          .trim();
+      final phoneForLookup = resolvedPhone.isNotEmpty ? resolvedPhone : username;
+
       final role = (data['Role'] ?? data['role'] ?? '').toString().toLowerCase();
 
       if (role == 'employee') {
-        final employee = await getEmployeeByPhone(username);
+        final employee = await getEmployeeByPhone(phoneForLookup);
         await _persistSession(token, employee);
         return employee;
       }
 
-      return _fetchAndPersistCustomer(username, token);
+      return _fetchAndPersistCustomer(phoneForLookup, token);
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
