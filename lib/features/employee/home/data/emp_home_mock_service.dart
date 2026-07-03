@@ -91,16 +91,21 @@ class EmpHomeMockService implements IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int pointsToRedeem = 0,
   }) async {
     await _delay(ms: 600);
     final expected = _activeOtps['$customerId:$offerId'];
     if (expected == null || otp != expected) throw const InvalidOtpException();
 
-    final offerData = kMockOffers.firstWhere(
-      (o) => o['id'] == offerId,
-      orElse: () => throw Exception('Offer not found'),
-    );
-    final cost = offerData['pointsCost'] as int;
+    final cost = pointsToRedeem > 0
+        ? pointsToRedeem
+        : () {
+            final offerData = kMockOffers.firstWhere(
+              (o) => o['id'] == offerId,
+              orElse: () => <String, dynamic>{'pointsCost': 0},
+            );
+            return offerData['pointsCost'] as int;
+          }();
     final current = _pointBalances[customerId] ??
         (kMockScannedMember['currentPoints'] as int);
     if (current < cost) throw const InsufficientPointsException();

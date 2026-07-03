@@ -144,5 +144,6 @@ abstract interface class IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int pointsToRedeem = 0,
   });
 }

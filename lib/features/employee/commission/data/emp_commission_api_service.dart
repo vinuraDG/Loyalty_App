@@ -141,7 +141,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
                 (m['ValueFrom'] ?? m['Amount'] ?? m['saleAmount'] ?? 0).toString()) ??
             0;
         final dateStr =
-            (m['DateExpire'] ?? m['Date'] ?? m['date'] ?? '').toString();
+            (m['DateCreated'] ?? m['Date'] ?? m['date'] ?? '').toString();
         final parsed = DateTime.tryParse(dateStr);
         final safeDate = (parsed == null || parsed.year < 2000) ? null : _txDate(parsed);
         return SaleEntry(

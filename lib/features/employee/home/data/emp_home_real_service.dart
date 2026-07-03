@@ -236,35 +236,22 @@ class EmpHomeRealService implements IEmpHomeService {
     return result;
   }
 
-  // ── getRedeemableOffers — GET /Mobile/GetAllCustomerLedgers ──────────────
+  // ── getRedeemableOffers ───────────────────────────────────────────────────
+  // The backend has no dedicated offers endpoint. Return a single synthetic
+  // Gold Shop offer so the redemption UI can proceed; the actual points
+  // amount is entered manually by the employee.
 
   @override
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
-    try {
-      final res = await _dio.get(
-        'Mobile/GetAllCustomerLedgers',
-        queryParameters: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
-          'CustomerPhoneNo': customerId,
-        },
-      );
-      final list = _asList(res.data);
-      return list.map((m) {
-        final map = m as Map<String, dynamic>;
-        return RedeemableOffer(
-          id: (map['Id'] ?? map['id'] ?? '').toString(),
-          title: (map['CompanyName'] ?? map['Title'] ?? 'Offer').toString(),
-          description: (map['Description'] ?? map['Note'] ?? '').toString(),
-          business: (map['CompanyName'] ?? map['Business'] ?? '').toString(),
-          pointsCost:
-              int.tryParse((map['Points'] ?? map['points'] ?? 0).toString()) ??
-                  0,
-          isExpired: map['IsExpired'] as bool? ?? false,
-        );
-      }).toList();
-    } on DioException catch (e) {
-      throw Exception(dioErrorMessage(e));
-    }
+    return const [
+      RedeemableOffer(
+        id: 'gold-shop-redeem',
+        title: 'Gold Shop',
+        description: 'Redeem at Gold Shop',
+        business: 'Gold Shop',
+        pointsCost: 0,
+      ),
+    ];
   }
 
   // ── sendRedemptionOtp — POST /Common/ForgotPassword (OTP channel) ─────────
@@ -293,6 +280,7 @@ class EmpHomeRealService implements IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int pointsToRedeem = 0,
   }) async {
     final phone = await _empPhone;
     try {
@@ -302,10 +290,10 @@ class EmpHomeRealService implements IEmpHomeService {
           'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
-          'PointsRedeemCompany': '',
-          'DocumentNo': offerId,
-          'Amount': 0,
-          'Points': 0,
+          'PointsRedeemCompany': 'Gold Shop',
+          'DocumentNo': offerId == 'gold-shop-redeem' ? '' : offerId,
+          'Amount': pointsToRedeem.toDouble(),
+          'Points': pointsToRedeem,
           'OTP': otp,
         },
       );

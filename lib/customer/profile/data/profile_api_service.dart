@@ -75,19 +75,18 @@ class ProfileApiService implements IProfileService {
         // being misclassified.
       }
 
-      // Use PointBalance from the most recent Earn entry if available,
-      // since the server already tracks the running balance.
-      // Falls back to the computed earned - redeemed.
+      // Walk backwards to find the most recent Earn entry — its PointBalance
+      // is the running balance after all subsequent redeems were applied.
+      // (entries come in ascending date order from the API)
       int points = earned - redeemed;
-      for (final e in entries) {
+      for (int i = entries.length - 1; i >= 0; i--) {
+        final e = entries[i];
         if (e is Map) {
           final type =
               (e['PointsTransactionType'] ?? '').toString().toLowerCase();
           if (type == 'earn') {
             final balance =
                 int.tryParse((e['PointBalance'] ?? 0).toString()) ?? 0;
-            // PointBalance reflects the balance AFTER that transaction,
-            // so the last Earn entry gives the current balance.
             points = balance;
             break;
           }

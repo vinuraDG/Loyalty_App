@@ -16,6 +16,7 @@ class OtpConfirmationScreen extends StatefulWidget {
   final IEmpHomeService svc;
   final String devOtp;
   final UserModel employee;
+  final int pointsToRedeem;
 
   const OtpConfirmationScreen({
     super.key,
@@ -25,6 +26,7 @@ class OtpConfirmationScreen extends StatefulWidget {
     required this.svc,
     required this.employee,
     this.devOtp = '',
+    this.pointsToRedeem = 0,
   });
 
   @override
@@ -79,6 +81,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
         offerId: widget.offer.id,
         otp: _otp,
         employeeId: widget.employeeId,
+        pointsToRedeem: widget.pointsToRedeem,
       );
       if (mounted) setState(() => _result = result);
     } on InvalidOtpException catch (e) {
@@ -211,7 +214,10 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
 
                   // ── Redemption summary ─────────────────────────────
                   _RedemptionSummary(
-                      member: widget.member, offer: widget.offer),
+                    member: widget.member,
+                    offer: widget.offer,
+                    pointsToRedeem: widget.pointsToRedeem,
+                  ),
                   const SizedBox(height: 32),
 
                   // ── OTP input boxes ────────────────────────────────
@@ -345,11 +351,17 @@ class _OtpBox extends StatelessWidget {
 class _RedemptionSummary extends StatelessWidget {
   final ScannedMember member;
   final RedeemableOffer offer;
+  final int pointsToRedeem;
 
-  const _RedemptionSummary({required this.member, required this.offer});
+  const _RedemptionSummary({
+    required this.member,
+    required this.offer,
+    required this.pointsToRedeem,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final remaining = member.currentPoints - pointsToRedeem;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -368,9 +380,11 @@ class _RedemptionSummary extends StatelessWidget {
         const SizedBox(height: 8),
         _Row(label: 'Business', value: offer.business),
         const SizedBox(height: 8),
+        _Row(label: 'Points to redeem', value: '$pointsToRedeem pts'),
+        const SizedBox(height: 8),
         _Row(
           label: 'Remaining after',
-          value: '${member.currentPoints - offer.pointsCost} pts',
+          value: '${remaining > 0 ? remaining : 0} pts',
           valueColor: Colors.greenAccent,
         ),
       ]),

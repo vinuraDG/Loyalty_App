@@ -24,7 +24,7 @@ class AppConstants {
 
   // ── Set true while backend auth is not yet implemented ──────────────────
   // Set false once auth (Login) endpoint is working on the backend.
-  static const bool devBypass = true;
+  static const bool devBypass = false;
 
   // Test data used when devBypass = true
   static const String devCustomerPhone = '0772274383';
