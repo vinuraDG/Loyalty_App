@@ -707,7 +707,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // ── Business filter tabs (dynamic) ────────────────────
+                      // ── Business filter tabs (equal-width) ───────────────
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.bgCard,
@@ -715,30 +715,18 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           border: Border.all(color: AppColors.border),
                         ),
                         padding: const EdgeInsets.all(4),
-                        // Always horizontally scrollable so each chip can
-                        // size to its own label's content width — this is
-                        // what stops long company names (e.g. "Sunshine
-                        // Laundry") being squeezed into an equal-width slot
-                        // and ellipsized. Short label sets just won't need
-                        // to scroll since they already fit.
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: filterLabels.map((f) {
-                              final isSelected = _filter == f;
-                              final displayLabel = _shortLabel(f);
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: _FilterChip(
-                                  label: displayLabel,
-                                  isSelected: isSelected,
-                                  onTap: () =>
-                                      setState(() => _filter = f),
-                                  minWidth: 64,
-                                ),
-                              );
-                            }).toList(),
-                          ),
+                        child: Row(
+                          children: filterLabels.map((f) {
+                            final isSelected = _filter == f;
+                            final displayLabel = _shortLabel(f);
+                            return Expanded(
+                              child: _FilterChip(
+                                label: displayLabel,
+                                isSelected: isSelected,
+                                onTap: () => setState(() => _filter = f),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -863,16 +851,14 @@ class _BizCardsRow extends StatelessWidget {
 // ── Filter chip ───────────────────────────────────────────────────────────────
 
 class _FilterChip extends StatelessWidget {
-  final String   label;
-  final bool     isSelected;
+  final String       label;
+  final bool         isSelected;
   final VoidCallback onTap;
-  final double?  minWidth;
 
   const _FilterChip({
     required this.label,
     required this.isSelected,
     required this.onTap,
-    this.minWidth,
   });
 
   @override
@@ -880,10 +866,7 @@ class _FilterChip extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          constraints: minWidth != null
-              ? BoxConstraints(minWidth: minWidth!)
-              : const BoxConstraints(),
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 14),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 6),
           decoration: BoxDecoration(
             gradient: isSelected
                 ? const LinearGradient(colors: AppColors.buttonGradient)
@@ -898,8 +881,7 @@ class _FilterChip extends StatelessWidget {
             softWrap: false,
             style: AppTextStyles.caption.copyWith(
               color: isSelected ? Colors.white : AppColors.textSecondary,
-              fontWeight:
-                  isSelected ? FontWeight.w600 : FontWeight.w400,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               fontSize: 11,
             ),
           ),
