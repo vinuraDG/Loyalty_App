@@ -52,6 +52,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
+  // ASP.NET Identity default password rules
+  String? _validatePassword(String? v) {
+    if (v == null || v.isEmpty) return 'Password is required';
+    if (v.length < 6) return 'Password must be at least 6 characters';
+    if (!v.contains(RegExp(r'[A-Z]'))) return 'Must contain at least one uppercase letter (A-Z)';
+    if (!v.contains(RegExp(r'[a-z]'))) return 'Must contain at least one lowercase letter (a-z)';
+    if (!v.contains(RegExp(r'[0-9]'))) return 'Must contain at least one number (0-9)';
+    if (!v.contains(RegExp(r'[^A-Za-z0-9]'))) {
+      return 'Must contain at least one special character (!@#\$%^&* etc.)';
+    }
+    return null;
+  }
+
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreed) {
@@ -163,8 +176,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   keyboardType: TextInputType.emailAddress,
                   prefixIconData: Icons.email_outlined,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
+                    if (v == null || v.trim().isEmpty) return 'Email is required';
+                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
+                      return 'Enter a valid email address';
+                    }
                     return null;
                   },
                 ),
@@ -178,8 +193,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   maxLength: 10,
                   prefixIconData: Icons.phone_outlined,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Phone is required';
-                    if (v.length < 9) return 'Enter a valid phone number';
+                    if (v == null || v.trim().isEmpty) return 'Phone number is required';
+                    if (!RegExp(r'^0[0-9]{9}$').hasMatch(v.trim())) {
+                      return 'Enter a valid 10-digit phone number (e.g. 07XXXXXXXX)';
+                    }
                     return null;
                   },
                 ),
@@ -187,16 +204,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                 AppTextField(
                   label: 'Password',
-                  hint: 'At least 6 characters',
+                  hint: 'Min 6 chars, A-Z, a-z, 0-9, symbol',
                   controller: _passCtrl,
                   isPassword: true,
                   prefixIconData: Icons.lock_outline,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 6) return 'Min 6 characters';
-                    return null;
-                  },
+                  validator: _validatePassword,
                 ),
+                const SizedBox(height: 8),
+                _PasswordStrengthHint(controller: _passCtrl),
                 const SizedBox(height: 16),
 
                 AppTextField(
@@ -304,4 +319,79 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ),
     );
   }
+}
+
+// ── Password strength hint ─────────────────────────────────────────────────────
+
+class _PasswordStrengthHint extends StatefulWidget {
+  final TextEditingController controller;
+  const _PasswordStrengthHint({required this.controller});
+
+  @override
+  State<_PasswordStrengthHint> createState() => _PasswordStrengthHintState();
+}
+
+class _PasswordStrengthHintState extends State<_PasswordStrengthHint> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_rebuild);
+  }
+
+  void _rebuild() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.controller.text;
+    final rules = [
+      (_RuleCheck('At least 6 characters',        p.length >= 6)),
+      (_RuleCheck('Uppercase letter (A-Z)',        p.contains(RegExp(r'[A-Z]')))),
+      (_RuleCheck('Lowercase letter (a-z)',        p.contains(RegExp(r'[a-z]')))),
+      (_RuleCheck('Number (0-9)',                  p.contains(RegExp(r'[0-9]')))),
+      (_RuleCheck('Special character (!@#\$%...)', p.contains(RegExp(r'[^A-Za-z0-9]')))),
+    ];
+
+    if (p.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: rules.map((r) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            Icon(
+              r.met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              size: 14,
+              color: r.met ? Colors.greenAccent : AppColors.textMuted,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              r.label,
+              style: TextStyle(
+                fontSize: 11,
+                color: r.met ? Colors.greenAccent : AppColors.textMuted,
+              ),
+            ),
+          ]),
+        )).toList(),
+      ),
+    );
+  }
+}
+
+class _RuleCheck {
+  final String label;
+  final bool   met;
+  const _RuleCheck(this.label, this.met);
 }

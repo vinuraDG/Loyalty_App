@@ -187,22 +187,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   controller: _tab,
                   children: [
 
-                    // ── Phone + Password ──────────────────────────────
+                    // ── Phone / Email + Password ──────────────────────
                     Form(
                       key: _emailFormKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           AppTextField(
-                            label: 'Phone number',
-                            hint: '07X XXX XXXX',
+                            label: 'Phone number or Email',
+                            hint: '07X XXX XXXX or you@example.com',
                             controller: _emailCtrl,
-                            keyboardType: TextInputType.phone,
-                            maxLength: 10,
-                            prefixIconData: Icons.phone_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            prefixIconData: Icons.person_outline,
                             validator: (v) {
-                              if (v == null || v.isEmpty) return 'Phone number is required';
-                              if (v.length < 9) return 'Enter a valid phone number';
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Phone number or email is required';
+                              }
+                              final val = v.trim();
+                              final isEmail = val.contains('@');
+                              if (isEmail) {
+                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(val)) {
+                                  return 'Enter a valid email address';
+                                }
+                              } else {
+                                if (!RegExp(r'^0[0-9]{9}$').hasMatch(val)) {
+                                  return 'Enter a valid 10-digit phone number (e.g. 07XXXXXXXX)';
+                                }
+                              }
                               return null;
                             },
                           ),
@@ -216,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             prefixIconData: Icons.lock_outline,
                             validator: (v) {
                               if (v == null || v.isEmpty) return 'Password is required';
-                              if (v.length < 6) return 'Min 6 characters';
+                              if (v.length < 6) return 'Password must be at least 6 characters';
                               return null;
                             },
                           ),
@@ -322,8 +333,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              const DemoHintBox(),
               const SizedBox(height: 24),
             ],
           ),
