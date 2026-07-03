@@ -326,7 +326,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${_fmt(totalExpired)} pts lost',
+                          '${_fmt(totalExpired)} pts expiring',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -532,7 +532,7 @@ class _Header extends StatelessWidget {
                           if (totalExpired > 0) ...[
                             const SizedBox(height: 6),
                             _MiniStatLine(
-                              label: 'Expire',
+                              label: 'Expiring',
                               value: fmtFn(totalExpired),
                               color: const Color(0xFFFBBF24),
                             ),
@@ -599,7 +599,7 @@ class _ExpiredBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${fmtFn(totalExpired)} points have expire',
+                    '${fmtFn(totalExpired)} points expiring soon',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -608,7 +608,7 @@ class _ExpiredBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Expire points cannot be redeemed.',
+                    'Expiring points cannot be redeemed.',
                     style: TextStyle(
                       fontSize: 11,
                       color: const Color(0xFFF97316).withValues(alpha: 0.7),
@@ -781,7 +781,7 @@ class _TabBar extends StatelessWidget {
             onTap: () => onTabChanged(_Tab.redeemed),
           ),
           _TabItem(
-            label: 'Expire',
+            label: 'Expiring',
             count: expiredCount,
             isActive: activeTab == _Tab.expired,
             activeColor: const Color(0xFFF97316),
@@ -935,7 +935,7 @@ class _EmptyState extends StatelessWidget {
         ),
       _Tab.expired => (
           Icons.timer_off_rounded,
-          'No expired points — great job!'
+          'No expiring points — great job!'
         ),
       _Tab.all => (Icons.receipt_long_rounded, 'No transactions found'),
     };
@@ -1063,7 +1063,7 @@ class _CompanyCard extends StatelessWidget {
             if (expired > 0) ...[
               const SizedBox(height: 3),
               _StatRow(
-                label: 'Expire',
+                label: 'Expiring',
                 value: fmtFn(expired),
                 color: const Color(0xFFF97316),
               ),
@@ -1223,7 +1223,7 @@ class _HistoryTile extends StatelessWidget {
   String _txTypeLabel() {
     if (tx.isEarned) return 'Earn';
     if (tx.isRedeemed) return 'Redeem';
-    return 'Expired';
+    return 'Expiring';
   }
 
   IconData _txIcon() {
@@ -1483,7 +1483,7 @@ class _HistoryTile extends StatelessWidget {
                 ),
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(
-                    isExpired ? 'expire' : 'pts',
+                    isExpired ? 'expiring' : 'pts',
                     style: TextStyle(
                       fontSize: 10,
                       color: isExpired
@@ -1588,7 +1588,7 @@ class _TxBadge extends StatelessWidget {
           AppColors.error,
         ),
       TransactionType.expired => (
-          'Expire',
+          'Expiring',
           Icons.timer_off_rounded,
           const Color(0xFFF97316),
         ),

@@ -44,7 +44,7 @@ class PointsApiService implements IPointsService {
     // So:  index 0 → id=3,  index 1 → id=4,  index 2 → id=5, …
     final companyMap = <int, String>{};
     for (int i = 0; i < companies.length; i++) {
-      companyMap[AppConstants.transactionCompanyId + i] = companies[i].name;
+      companyMap[AppConstants.transactionCompanyId + i] = companies[i].displayName;
     }
 
     final txs = rawList
@@ -129,7 +129,7 @@ class PointsApiService implements IPointsService {
 
   String businessName = companyMap[lookupId] ?? '';
   if (businessName.isEmpty && companies.isNotEmpty) {
-    businessName = companies.first.name;
+    businessName = companies.first.displayName;
   }
   if (businessName.isEmpty && lookupId > 0) {
     businessName = 'Company $lookupId';

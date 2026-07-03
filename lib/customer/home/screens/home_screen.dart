@@ -693,7 +693,7 @@ class _TxTile extends StatelessWidget {
   String _txTypeLabel() {
     if (tx.isEarned) return 'Earned';
     if (tx.isRedeemed) return 'Redeemed';
-    return 'Expired';
+    return 'Expiring';
   }
 
   String _fmtDate(DateTime d) {

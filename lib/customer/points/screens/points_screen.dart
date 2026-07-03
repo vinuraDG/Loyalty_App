@@ -277,7 +277,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     _BizDetailRow(
                       icon: Icons.timer_off_rounded,
                       iconColor: const Color(0xFFFBBF24),
-                      label: 'Expired points',
+                      label: 'Expiring points',
                       value: '-$totalExpired pts',
                       valueColor: const Color(0xFFFBBF24),
                     ),
@@ -427,7 +427,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 // distinct business names found in transactions.
                 final List<String> bizNames;
                 if (_companies.isNotEmpty) {
-                  bizNames = _companies.map((c) => c.name).toList();
+                  bizNames = _companies.map((c) => c.displayName).toList();
                 } else {
                   final seen = <String>{};
                   bizNames = allTxs
@@ -636,7 +636,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                     _CardStatRow(
                                       icon: Icons.timer_off_rounded,
                                       iconColor: const Color(0xFFFBBF24),
-                                      label: 'Expired',
+                                      label: 'Expiring',
                                       value: '$monthExpired',
                                       valueColor: const Color(0xFFFBBF24),
                                     ),
@@ -1108,7 +1108,7 @@ class _TxCard extends StatelessWidget {
   String _txTypeLabel(TransactionModel t) {
     if (t.isEarned)   return 'Earn';
     if (t.isRedeemed) return 'Redeem';
-    return 'Expired';
+    return 'Expiring';
   }
 
   Color _txColor(TransactionModel t) {
