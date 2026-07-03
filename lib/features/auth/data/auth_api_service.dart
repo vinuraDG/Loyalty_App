@@ -497,28 +497,30 @@ class AuthApiService implements IAuthService {
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     final storedEmail = prefs.getString(AppConstants.prefUserEmail) ?? '';
     final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
+    final newEmail = email.trim().toLowerCase();
+    final emailChanged = newEmail.isNotEmpty && newEmail != storedEmail;
     try {
-      final res = await _dio.post(
-        'Common/UpdateCustomer',
-        data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
-          'FirstName': firstName.trim(),
-          'LastName': lastName.trim(),
-          'Address': address.trim(),
-          'Email': email.trim().toLowerCase(),
-          'PhoneNo': phone,
-          'Username': storedEmail.isNotEmpty ? storedEmail : email.trim().toLowerCase(),
-          'Password': storedPassword,
-        },
-      );
+      final body = <String, dynamic>{
+        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'FirstName': firstName.trim(),
+        'LastName': lastName.trim(),
+        'Address': address.trim(),
+        'PhoneNo': phone,
+        'Username': storedEmail.isNotEmpty ? storedEmail : newEmail,
+        'Password': storedPassword,
+      };
+      // Only include Email when it has actually changed — the backend runs a
+      // global uniqueness check that incorrectly flags the user's own existing
+      // email as a duplicate when the same value is re-submitted.
+      if (emailChanged) body['Email'] = newEmail;
+      final res = await _dio.post('Common/UpdateCustomer', data: body);
       if (_isErrorEnvelope(res.data)) {
         throw AuthException(
           _extractServerMessage(res.data) ?? 'Profile update failed.',
         );
       }
-      // Keep stored email in sync after a successful update
-      if (email.trim().isNotEmpty) {
-        await prefs.setString(AppConstants.prefUserEmail, email.trim().toLowerCase());
+      if (emailChanged) {
+        await prefs.setString(AppConstants.prefUserEmail, newEmail);
       }
       if (_isEmptyBody(res.data) || res.data is! Map) {
         // Backend may return 200 with empty body on success — treat as ok
