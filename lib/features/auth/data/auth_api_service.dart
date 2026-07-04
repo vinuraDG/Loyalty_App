@@ -529,39 +529,43 @@ class AuthApiService implements IAuthService {
     final storedEmail = prefs.getString(AppConstants.prefUserEmail) ?? '';
     final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
     final newEmail = email.trim().toLowerCase();
-    // Only include Email when it is actually changing. Sending the user's
-    // own current email triggers the backend's uniqueness check against its
-    // own record and returns "Email already exists" (backend bug).
     final emailChanging = newEmail.isNotEmpty && newEmail != storedEmail;
-    try {
-      final body = <String, dynamic>{
+    // Email is [Required] by the backend — always send it.
+    // Use the new value when changing, otherwise the stored current value.
+    final emailForBody = emailChanging ? newEmail : storedEmail;
+
+    // Builds the request body with a given Username value.  The backend's
+    // uniqueness check appears to exclude the current customer by Username,
+    // so the value has to match whatever is stored in their customer-profile
+    // row.  Accounts registered with the old code have Username = email in
+    // the DB; accounts registered with the fixed code have Username = phone.
+    Map<String, dynamic> buildBody(String username) {
+      final b = <String, dynamic>{
         'TransactionCompanyId': AppConstants.transactionCompanyId,
         'FirstName': firstName.trim(),
         'LastName': lastName.trim(),
         'Address': address.trim(),
         'PhoneNo': phone,
-        'Username': phone,
+        'Username': username,
         'Password': storedPassword,
       };
-      if (emailChanging) body['Email'] = newEmail;
+      if (emailForBody.isNotEmpty) b['Email'] = emailForBody;
+      return b;
+    }
 
-      final res = await _dio.post('Common/UpdateCustomer', data: body);
-      if (_isErrorEnvelope(res.data)) {
-        throw AuthException(
-          _extractServerMessage(res.data) ?? 'Profile update failed.',
-        );
+    Future<UserModel> parseSuccess(dynamic data) async {
+      if (_isErrorEnvelope(data)) {
+        throw AuthException(_extractServerMessage(data) ?? 'Profile update failed.');
       }
       if (emailChanging) {
         await prefs.setString(AppConstants.prefUserEmail, newEmail);
       }
-      if (_isEmptyBody(res.data) || res.data is! Map) {
-        // Backend may return 200 with empty body on success — treat as ok
-        // and reconstruct a minimal UserModel from the submitted values.
+      if (_isEmptyBody(data) || data is! Map) {
         return UserModel(
           id: '',
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          email: email.trim().toLowerCase(),
+          email: emailChanging ? newEmail : storedEmail,
           phone: phone,
           role: 'customer',
           totalPoints: 0,
@@ -569,10 +573,39 @@ class AuthApiService implements IAuthService {
           createdAt: DateTime.now(),
         );
       }
-      return _userFromResponse(res.data as Map<String, dynamic>);
+      return _userFromResponse(data as Map<String, dynamic>);
+    }
+
+    try {
+      // First attempt: Username = phone (correct for accounts registered with
+      // the fixed signup code that stores Username = phone in the DB).
+      final res = await _dio.post('Common/UpdateCustomer', data: buildBody(phone));
+      return await parseSuccess(res.data);
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
+      // The backend flags "Email already exists" when the customer-profile row
+      // has Username = email (old registration bug) and we send Username = phone
+      // — the exclusion doesn't match, so the backend finds its own row as a
+      // duplicate.  Retry with Username = storedEmail to match the DB value.
+      if (e.response?.statusCode == 400 && !emailChanging && storedEmail.isNotEmpty) {
+        final msg = (_extractServerMessage(e.response?.data) ?? '').toLowerCase();
+        if (msg.contains('email') && (msg.contains('exist') || msg.contains('already'))) {
+          try {
+            final retry = await _dio.post(
+              'Common/UpdateCustomer',
+              data: buildBody(storedEmail),
+            );
+            return await parseSuccess(retry.data);
+          } on AuthException {
+            rethrow;
+          } on DioException catch (retryE) {
+            throw _handleDioError(retryE);
+          } catch (retryE) {
+            throw AuthException(retryE.toString());
+          }
+        }
+      }
       throw _handleDioError(e);
     } catch (e) {
       throw AuthException(e.toString());
