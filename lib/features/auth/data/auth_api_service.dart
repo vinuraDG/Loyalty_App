@@ -529,31 +529,29 @@ class AuthApiService implements IAuthService {
     final storedEmail = prefs.getString(AppConstants.prefUserEmail) ?? '';
     final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
     final newEmail = email.trim().toLowerCase();
-    final effectiveEmail = newEmail.isNotEmpty ? newEmail : storedEmail;
+    // Only include Email when it is actually changing. Sending the user's
+    // own current email triggers the backend's uniqueness check against its
+    // own record and returns "Email already exists" (backend bug).
+    final emailChanging = newEmail.isNotEmpty && newEmail != storedEmail;
     try {
-      // Username must be the phone number (= ASP.NET Identity username used
-      // at registration). Sending the email as Username caused a false-positive
-      // "Email already exists" because the backend's uniqueness check was
-      // comparing Username against the Email column of all customers.
-      final res = await _dio.post(
-        'Common/UpdateCustomer',
-        data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
-          'FirstName': firstName.trim(),
-          'LastName': lastName.trim(),
-          'Address': address.trim(),
-          'Email': effectiveEmail,
-          'PhoneNo': phone,
-          'Username': phone,
-          'Password': storedPassword,
-        },
-      );
+      final body = <String, dynamic>{
+        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'FirstName': firstName.trim(),
+        'LastName': lastName.trim(),
+        'Address': address.trim(),
+        'PhoneNo': phone,
+        'Username': phone,
+        'Password': storedPassword,
+      };
+      if (emailChanging) body['Email'] = newEmail;
+
+      final res = await _dio.post('Common/UpdateCustomer', data: body);
       if (_isErrorEnvelope(res.data)) {
         throw AuthException(
           _extractServerMessage(res.data) ?? 'Profile update failed.',
         );
       }
-      if (newEmail.isNotEmpty && newEmail != storedEmail) {
+      if (emailChanging) {
         await prefs.setString(AppConstants.prefUserEmail, newEmail);
       }
       if (_isEmptyBody(res.data) || res.data is! Map) {
