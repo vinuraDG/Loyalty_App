@@ -87,13 +87,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove(AppConstants.prefUserRole);
     await prefs.remove(AppConstants.prefAuthToken);
     await prefs.remove(AppConstants.prefUserPhone);
+    await prefs.remove(AppConstants.prefUserEmail);
+    await prefs.remove(AppConstants.prefUserPassword);
     await prefs.remove('userJson');
   }
 
   // ── Error helper — raw message, zero transformation ───────────────────────
 
   void _setError(String message, {bool preserveAuthenticated = false}) {
-    final targetStatus = preserveAuthenticated && state.isAuthenticated
+    // When preserveAuthenticated is true (profile/password updates), always
+    // stay authenticated — state.isAuthenticated is false during loading so
+    // checking it here would incorrectly log the user out on any error.
+    final targetStatus = preserveAuthenticated
         ? AuthStatus.authenticated
         : AuthStatus.unauthenticated;
     state = state.copyWith(status: targetStatus, errorMessage: message);

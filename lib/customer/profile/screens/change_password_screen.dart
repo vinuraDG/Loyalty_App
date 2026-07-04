@@ -71,24 +71,31 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     setState(() => _isLoading = true);
     FocusScope.of(context).unfocus();
 
-    try {
-      await ref.read(authProvider.notifier).changePassword(
-        currentPassword: _currentPassCtrl.text,
-        newPassword:     _newPassCtrl.text,
-      );
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+    await ref.read(authProvider.notifier).changePassword(
+      currentPassword: _currentPassCtrl.text,
+      newPassword:     _newPassCtrl.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    final auth = ref.read(authProvider);
+    if (auth.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password changed successfully!')),
+        SnackBar(
+          content: Text(auth.errorMessage!),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ref.read(authProvider.notifier).clearError();
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Password changed successfully!')),
+    );
+    Navigator.pop(context);
   }
 
   @override

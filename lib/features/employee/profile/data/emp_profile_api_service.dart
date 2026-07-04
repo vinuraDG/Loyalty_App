@@ -56,12 +56,16 @@ class EmpProfileApiService implements IEmpProfileService {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     try {
-      await _dio.post('Common/ResetPassword', data: {
-        'UserName':        phone,
-        'OldPassword':     currentPassword,
-        'NewPassword':     newPassword,
-        'ConfirmPassword': newPassword,
-      });
+      await _dio.post(
+        'Common/ResetPassword',
+        options: Options(responseType: ResponseType.plain),
+        data: {
+          'UserName':        phone,
+          'Password':        currentPassword,
+          'NewPassword':     newPassword,
+          'ConfirmPassword': newPassword,
+        },
+      );
     } on DioException catch (e) {
       final data = e.response?.data;
       String? msg;

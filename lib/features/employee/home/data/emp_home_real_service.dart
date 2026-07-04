@@ -1,11 +1,11 @@
 // lib/features/employee/home/data/emp_home_real_service.dart
 
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
-import 'package:loyalty_app/core/errors/app_exception.dart';
 import 'emp_home_api_service.dart';
 import 'emp_home_mock_service.dart';
 
@@ -77,31 +77,41 @@ class EmpHomeRealService implements IEmpHomeService {
       final data = res.data as Map<String, dynamic>;
       final phone = (data['PhoneNo'] ?? data['phoneNo'] ?? userId).toString();
 
-      int points = 0;
-      try {
-        final ledgerRes = await _dio.get(
-          'Mobile/GetAllCustomerLedgers',
-          data: {
-            'TransactionCompanyId': AppConstants.transactionCompanyId,
-            'CustomerPhoneNo': phone,
-          },
-        );
-        final entries = _asList(ledgerRes.data);
-        int earned = 0, redeemed = 0;
-        for (final e in entries) {
-          if (e is! Map<String, dynamic>) continue;
-          final pts = int.tryParse((e['PointsValue'] ?? 0).toString()) ?? 0;
-          final type =
-              (e['PointsTransactionType'] ?? '').toString().toLowerCase();
-          if (type == 'earn') {
-            earned += pts;
-          } else {
-            redeemed += pts;
+      // Prefer TotalPoints from the profile response — same value the customer
+      // sees in their own app. Fall back to ledger calculation only if absent.
+      final rawProfilePts = data['TotalPoints'] ?? data['totalPoints'] ??
+          data['PointBalance'] ?? data['pointBalance'];
+      int points = rawProfilePts != null
+          ? (int.tryParse(rawProfilePts.toString()) ?? -1)
+          : -1;
+
+      if (points < 0) {
+        points = 0;
+        try {
+          final ledgerRes = await _dio.get(
+            'Mobile/GetAllCustomerLedgers',
+            data: {
+              'TransactionCompanyId': AppConstants.transactionCompanyId,
+              'CustomerPhoneNo': phone,
+            },
+          );
+          final entries = _asList(ledgerRes.data);
+          int earned = 0, redeemed = 0;
+          for (final e in entries) {
+            if (e is! Map<String, dynamic>) continue;
+            final pts = int.tryParse((e['PointsValue'] ?? 0).toString()) ?? 0;
+            final type =
+                (e['PointsTransactionType'] ?? '').toString().toLowerCase();
+            if (type == 'earn') {
+              earned += pts;
+            } else {
+              redeemed += pts;
+            }
           }
+          points = earned - redeemed;
+        } catch (_) {
+          // Points fetch is best-effort; proceed without it
         }
-        points = earned - redeemed;
-      } catch (_) {
-        // Points fetch is best-effort; proceed without it
       }
 
       return ScannedMember(
@@ -284,8 +294,12 @@ class EmpHomeRealService implements IEmpHomeService {
   }) async {
     final phone = await _empPhone;
     try {
+      // ResponseType.plain avoids a FormatException when the backend returns
+      // HTTP 200 with an empty body on success (same pattern as ResetPassword).
+      // DioException is still thrown automatically for 4xx/5xx status codes.
       final res = await _dio.post(
         'Common/RedeemPoints',
+        options: Options(responseType: ResponseType.plain),
         data: {
           'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CustomerPhoneNo': customerId,
@@ -297,12 +311,20 @@ class EmpHomeRealService implements IEmpHomeService {
           'OTP': otp,
         },
       );
-      final data = res.data is Map
-          ? res.data as Map<String, dynamic>
-          : <String, dynamic>{};
+
+      // Parse plain-text response as JSON if non-empty, otherwise use defaults.
+      Map<String, dynamic> data = {};
+      final body = (res.data as String? ?? '').trim();
+      if (body.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(body);
+          if (parsed is Map<String, dynamic>) data = parsed;
+        } catch (_) {}
+      }
+
       final deducted = int.tryParse(
-              (data['PointsDeducted'] ?? data['points'] ?? 0).toString()) ??
-          0;
+              (data['PointsDeducted'] ?? data['points'] ?? pointsToRedeem).toString()) ??
+          pointsToRedeem;
       final remaining = int.tryParse(
               (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ??
           0;

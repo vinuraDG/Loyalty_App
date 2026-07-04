@@ -376,7 +376,7 @@ class AuthApiService implements IAuthService {
           'Email': email.trim().toLowerCase(),
           'PhoneNo': trimmedPhone,
           'Password': password,
-          'Username': email.trim().toLowerCase()
+          'Username': trimmedPhone,
         },
       );
     } on DioException catch (e) {
@@ -567,8 +567,12 @@ class AuthApiService implements IAuthService {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     try {
-      final res = await _dio.post(
+      // Use ResponseType.plain so Dio doesn't try to JSON-decode the empty
+      // body this endpoint returns on success (200 + ""). DioException is
+      // still thrown automatically for 4xx/5xx status codes.
+      await _dio.post(
         'Common/ResetPassword',
+        options: Options(responseType: ResponseType.plain),
         data: {
           'UserName': phone,
           'Password': currentPassword,
@@ -576,11 +580,6 @@ class AuthApiService implements IAuthService {
           'ConfirmPassword': newPassword,
         },
       );
-      if (_isErrorEnvelope(res.data)) {
-        throw AuthException(
-          _extractServerMessage(res.data) ?? 'Password change failed.',
-        );
-      }
       await _persistPassword(newPassword);
     } on AuthException {
       rethrow;
@@ -627,8 +626,9 @@ class AuthApiService implements IAuthService {
     required String newPassword,
   }) async {
     try {
-      final res = await _dio.post(
+      await _dio.post(
         'Common/ResetPassword',
+        options: Options(responseType: ResponseType.plain),
         data: {
           'UserName': phone.trim(),
           'OTP': otp.trim(),
@@ -636,11 +636,6 @@ class AuthApiService implements IAuthService {
           'ConfirmPassword': newPassword,
         },
       );
-      if (_isErrorEnvelope(res.data)) {
-        throw AuthException(
-          _extractServerMessage(res.data) ?? 'Password reset failed.',
-        );
-      }
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
