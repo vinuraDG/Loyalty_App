@@ -209,10 +209,33 @@ class AuthApiService implements IAuthService {
 
   // ── Response parsing ──────────────────────────────────────────────────────
 
-  String _extractToken(Map<String, dynamic> data) =>
-      (data['token'] ?? data['Token'] ?? data['accessToken'] ??
-          data['AccessToken'] ?? data['jwt'] ?? '')
-          .toString();
+  String _extractToken(Map<String, dynamic> data) {
+    for (final key in [
+      'token', 'Token',
+      'accessToken', 'AccessToken',
+      'access_token',
+      'jwt', 'JWT',
+      'jwtToken', 'JwtToken',
+      'authToken', 'AuthToken',
+      'bearerToken', 'BearerToken',
+    ]) {
+      final v = data[key];
+      if (v is String && v.isNotEmpty) return v;
+    }
+    for (final key in ['data', 'Data', 'result', 'Result', 'payload']) {
+      final nested = data[key];
+      if (nested is Map<String, dynamic>) {
+        final t = _extractToken(nested);
+        if (t.isNotEmpty) return t;
+      }
+    }
+    for (final v in data.values) {
+      if (v is String && v.startsWith('eyJ') && v.split('.').length == 3) {
+        return v;
+      }
+    }
+    return '';
+  }
 
   UserModel _userFromResponse(Map<String, dynamic> data) {
     final raw = data['customer'] ?? data['user'] ?? data['employee'] ??
