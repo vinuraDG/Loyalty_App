@@ -1332,7 +1332,7 @@ class _TxCard extends StatelessWidget {
               child: Column(children: [
                 _DetailRow(
                   icon: Icons.store_rounded,
-                  label: 'Earn Company',
+                  label: 'Business',
                   value: tx.business,
                 ),
                 if (tx.isRedeemed) ...[
@@ -1441,19 +1441,24 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, size: 16, color: AppColors.textSecondary),
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary),
+            SizedBox(
+              width: 110,
+              child: Text(
+                label,
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
+              ),
             ),
-            const Spacer(),
-            Flexible(
+            Expanded(
               child: Text(
                 value,
                 textAlign: TextAlign.right,
+                softWrap: true,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.labelMedium.copyWith(
                   color: valueColor ?? AppColors.textPrimary,

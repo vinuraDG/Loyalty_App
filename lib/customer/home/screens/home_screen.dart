@@ -755,26 +755,6 @@ class _TxTile extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color.withValues(alpha: 0.18), color.withValues(alpha: 0.07)],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withValues(alpha: 0.25)),
-              ),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                _HomeTxSummaryCol(label: 'Points', value: tx.displayPoints, color: color),
-                Container(width: 1, height: 36, color: color.withValues(alpha: 0.2)),
-                _HomeTxSummaryCol(label: 'Date', value: _fmtDate(tx.date), color: AppColors.textPrimary),
-                Container(width: 1, height: 36, color: color.withValues(alpha: 0.2)),
-                _HomeTxSummaryCol(label: 'Time', value: _fmtTime(tx.date), color: AppColors.textPrimary),
-              ]),
-            ),
-            const SizedBox(height: 16),
-            Container(
               decoration: BoxDecoration(
                 color: AppColors.bgDark,
                 borderRadius: BorderRadius.circular(16),
@@ -782,6 +762,16 @@ class _TxTile extends StatelessWidget {
               ),
               child: Column(children: [
                 _HomeTxDetailRow(icon: Icons.store_rounded, label: 'Business', value: tx.business),
+                if (tx.isRedeemed) ...[
+                  _HomeTxDivider(),
+                  _HomeTxDetailRow(
+                    icon: Icons.storefront_rounded,
+                    label: 'Redeem Company',
+                    value: (tx.redeemCompanyName != null && tx.redeemCompanyName!.isNotEmpty)
+                        ? tx.redeemCompanyName!
+                        : tx.business,
+                  ),
+                ],
                 _HomeTxDivider(),
                 _HomeTxDetailRow(
                     icon: Icons.swap_horiz_rounded, label: 'Transaction Type',
@@ -863,18 +853,6 @@ class _TxTile extends StatelessWidget {
 }
 
 // ── Popup helpers (home) ──────────────────────────────────────────────────────
-class _HomeTxSummaryCol extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  const _HomeTxSummaryCol({required this.label, required this.value, required this.color});
-  @override
-  Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, children: [
-    Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, fontSize: 10)),
-    const SizedBox(height: 4),
-    Text(value, style: AppTextStyles.labelMedium.copyWith(color: color, fontSize: 13, fontWeight: FontWeight.w700)),
-  ]);
-}
-
 class _HomeTxDetailRow extends StatelessWidget {
   final IconData icon;
   final String label, value;
@@ -884,16 +862,29 @@ class _HomeTxDetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-    child: Row(children: [
-      Icon(icon, size: 16, color: AppColors.textSecondary),
-      const SizedBox(width: 10),
-      Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-      const Spacer(),
-      Flexible(child: Text(value, textAlign: TextAlign.end,
-          style: AppTextStyles.labelMedium.copyWith(
-              color: valueColor ?? AppColors.textPrimary, fontSize: 13,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500))),
-    ]),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 110,
+          child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            softWrap: true,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.labelMedium.copyWith(
+                color: valueColor ?? AppColors.textPrimary, fontSize: 13,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w500),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
