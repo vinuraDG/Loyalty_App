@@ -274,6 +274,7 @@ class EmpHomeRealService implements IEmpHomeService {
     try {
       await _dio.post(
         'Common/ForgotPassword',
+        options: Options(responseType: ResponseType.plain),
         data: {'UserName': customerId},
       );
       return '';
