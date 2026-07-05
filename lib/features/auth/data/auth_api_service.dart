@@ -531,36 +531,30 @@ class AuthApiService implements IAuthService {
     final newEmail = email.trim().toLowerCase();
     final emailChanging = newEmail.isNotEmpty && newEmail != storedEmail;
     // Email is [Required] by the backend — always send it.
-    // Use the new value when changing, otherwise the stored current value.
     final emailForBody = emailChanging ? newEmail : storedEmail;
 
-    // Builds the request body with a given Username value.  The backend's
-    // uniqueness check appears to exclude the current customer by Username,
-    // so the value has to match whatever is stored in their customer-profile
-    // row.  Accounts registered with the old code have Username = email in
-    // the DB; accounts registered with the fixed code have Username = phone.
-    Map<String, dynamic> buildBody(String username) {
-      final b = <String, dynamic>{
+    try {
+      final body = <String, dynamic>{
         'TransactionCompanyId': AppConstants.transactionCompanyId,
         'FirstName': firstName.trim(),
         'LastName': lastName.trim(),
         'Address': address.trim(),
         'PhoneNo': phone,
-        'Username': username,
+        'Username': phone,
         'Password': storedPassword,
       };
-      if (emailForBody.isNotEmpty) b['Email'] = emailForBody;
-      return b;
-    }
+      if (emailForBody.isNotEmpty) body['Email'] = emailForBody;
 
-    Future<UserModel> parseSuccess(dynamic data) async {
-      if (_isErrorEnvelope(data)) {
-        throw AuthException(_extractServerMessage(data) ?? 'Profile update failed.');
+      final res = await _dio.post('Common/UpdateCustomer', data: body);
+      if (_isErrorEnvelope(res.data)) {
+        throw AuthException(
+          _extractServerMessage(res.data) ?? 'Profile update failed.',
+        );
       }
       if (emailChanging) {
         await prefs.setString(AppConstants.prefUserEmail, newEmail);
       }
-      if (_isEmptyBody(data) || data is! Map) {
+      if (_isEmptyBody(res.data) || res.data is! Map) {
         return UserModel(
           id: '',
           firstName: firstName.trim(),
@@ -573,37 +567,19 @@ class AuthApiService implements IAuthService {
           createdAt: DateTime.now(),
         );
       }
-      return _userFromResponse(data as Map<String, dynamic>);
-    }
-
-    try {
-      // First attempt: Username = phone (correct for accounts registered with
-      // the fixed signup code that stores Username = phone in the DB).
-      final res = await _dio.post('Common/UpdateCustomer', data: buildBody(phone));
-      return await parseSuccess(res.data);
+      return _userFromResponse(res.data as Map<String, dynamic>);
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
-      // The backend flags "Email already exists" when the customer-profile row
-      // has Username = email (old registration bug) and we send Username = phone
-      // — the exclusion doesn't match, so the backend finds its own row as a
-      // duplicate.  Retry with Username = storedEmail to match the DB value.
-      if (e.response?.statusCode == 400 && !emailChanging && storedEmail.isNotEmpty) {
-        final msg = (_extractServerMessage(e.response?.data) ?? '').toLowerCase();
-        if (msg.contains('email') && (msg.contains('exist') || msg.contains('already'))) {
-          try {
-            final retry = await _dio.post(
-              'Common/UpdateCustomer',
-              data: buildBody(storedEmail),
-            );
-            return await parseSuccess(retry.data);
-          } on AuthException {
-            rethrow;
-          } on DioException catch (retryE) {
-            throw _handleDioError(retryE);
-          } catch (retryE) {
-            throw AuthException(retryE.toString());
-          }
+      // "Email already exists" here means the backend's uniqueness check has
+      // no exclusion for the current user's own record — a backend bug.
+      // Translate it to a user-friendly message.
+      if (e.response?.statusCode == 400) {
+        final raw = (_extractServerMessage(e.response?.data) ?? '').toLowerCase();
+        if (raw.contains('email') && (raw.contains('exist') || raw.contains('already'))) {
+          throw const AuthException(
+            'Profile could not be saved. Please ask the administrator to update your profile, or try changing your email to a new value.',
+          );
         }
       }
       throw _handleDioError(e);

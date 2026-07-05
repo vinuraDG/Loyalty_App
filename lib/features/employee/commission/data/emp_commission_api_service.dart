@@ -1,6 +1,7 @@
 // lib/features/employee/commission/data/emp_commission_api_service.dart
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
@@ -158,7 +159,14 @@ class EmpCommissionApiService implements IEmpCommissionService {
         );
       }).toList();
     } on DioException catch (e) {
-      throw Exception(dioErrorMessage(e));
+      assert(() {
+        debugPrint(
+          '[EmpCommission] GetAllEmployeeLedgers failed (treated as empty): '
+          'status=${e.response?.statusCode} msg=${dioErrorMessage(e)}',
+        );
+        return true;
+      }());
+      return [];
     }
   }
 

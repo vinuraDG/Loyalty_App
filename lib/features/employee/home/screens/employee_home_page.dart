@@ -55,8 +55,11 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     try {
       final scans = await _svc.getTodayScans(widget.employee.id);
       final commission = await _svc.getWeeklyCommission(widget.employee.id);
-      final fuelSales = await _commissionSvc.getSalesForMonth(
-          widget.employee.id, _currentMonthKey);
+      List<SaleEntry> fuelSales = [];
+      try {
+        fuelSales = await _commissionSvc.getSalesForMonth(
+            widget.employee.id, _currentMonthKey);
+      } catch (_) {}
       final monthlyCommission =
           fuelSales.fold<double>(0.0, (a, s) => a + s.commission);
       if (!mounted) return;
