@@ -99,6 +99,15 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     return _svc.getTransactions(userId);
   }
 
+  Future<void> _refresh() async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) return;
+    CompaniesApiService.instance.clearCache();
+    final newFuture = _loadAll(userId);
+    setState(() => _txFuture = newFuture);
+    await newFuture;
+  }
+
   void _pickMonth(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -514,8 +523,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     .where((t) => _filter == 'All' || t.business == _filter)
                     .toList();
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                return RefreshIndicator(
+                  color: AppColors.primary,
+                  backgroundColor: AppColors.bgCard,
+                  onRefresh: _refresh,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -756,6 +770,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
                       const SizedBox(height: 20),
                     ],
+                  ),
                   ),
                 );
               },

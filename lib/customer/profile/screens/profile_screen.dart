@@ -36,6 +36,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _refresh() async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) return;
+    final newFuture = _svc.getProfileSummary(userId);
+    setState(() => _summaryFuture = newFuture);
+    await newFuture;
+  }
+
   // ── Sign-out: see top-level _signOut() below ─────────────────────────────
 
 
@@ -49,8 +57,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(children: [
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgCard,
+          onRefresh: _refresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(children: [
             // ── Header ──────────────────────────────────────────────
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -169,6 +182,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ]),
             ),
           ]),
+        ),
         ),
       ),
     );

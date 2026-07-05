@@ -53,8 +53,13 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(children: [
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgCard,
+          onRefresh: _load,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(children: [
             // ── Header ──────────────────────────────────────────────
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -158,6 +163,7 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
               ]),
             ),
           ]),
+        ),
         ),
       ),
     );

@@ -50,6 +50,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
     _txFuture = _svc.getTransactions(widget.userId);
   }
 
+  Future<void> _refresh() async {
+    final newFuture = _svc.getTransactions(widget.userId);
+    setState(() => _txFuture = newFuture);
+    await newFuture;
+  }
+
   @override
   void dispose() {
     _heroAnim.dispose();
@@ -220,8 +226,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
           }
           final groupKeys = grouped.keys.toList();
 
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+          return RefreshIndicator(
+            color: AppColors.primary,
+            backgroundColor: AppColors.bgCard,
+            onRefresh: _refresh,
+            child: CustomScrollView(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
               // ── Header ────────────────────────────────────────────────────
               SliverToBoxAdapter(
@@ -360,6 +370,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
 
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
+          ),
           );
         },
       ),

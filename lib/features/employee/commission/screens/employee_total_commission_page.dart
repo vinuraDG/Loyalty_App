@@ -80,7 +80,12 @@ class _EmployeeTotalCommissionPageState
     final totalCommission =
         _fuelSales.fold<double>(0.0, (a, t) => a + t.commission);
 
-    return SingleChildScrollView(
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.bgCard,
+      onRefresh: _loadCurrentMonth,
+      child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
@@ -188,6 +193,7 @@ class _EmployeeTotalCommissionPageState
 
         const SizedBox(height: 20),
       ]),
+      ),
     );
   }
 }

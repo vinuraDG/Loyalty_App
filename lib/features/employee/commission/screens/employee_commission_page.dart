@@ -266,14 +266,21 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
                             style: AppTextStyles.bodySmall,
                           ),
                         )
-                      : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                          itemCount: _sales.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (_, i) =>
-                              _SaleTile(sale: _sales[i]),
+                      : RefreshIndicator(
+                          color: AppColors.primary,
+                          backgroundColor: AppColors.bgCard,
+                          onRefresh: () => _selectedMonth != null
+                              ? _loadMonth(_selectedMonth!)
+                              : _loadMonths(),
+                          child: ListView.separated(
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                            itemCount: _sales.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (_, i) =>
+                                _SaleTile(sale: _sales[i]),
+                          ),
                         ),
             ),
           ],

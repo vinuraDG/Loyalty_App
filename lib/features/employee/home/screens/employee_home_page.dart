@@ -185,8 +185,13 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgCard,
+          onRefresh: _load,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -260,6 +265,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               const SizedBox(height: 8),
             ],
           ),
+        ),
         ),
       ),
     );
