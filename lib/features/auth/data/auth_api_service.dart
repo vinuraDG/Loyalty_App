@@ -1,4 +1,5 @@
 // auth_api_service.dart
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:loyalty_app/features/auth/data/auth_mock_service.dart';
@@ -209,6 +210,23 @@ class AuthApiService implements IAuthService {
 
   // ── Response parsing ──────────────────────────────────────────────────────
 
+  /// Decodes a JWT and returns the `sub` claim, which this backend sets to
+  /// the account's phone number. Returns empty string on any failure.
+  String _phoneFromToken(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return '';
+      String payload = parts[1];
+      // Base64url padding
+      while (payload.length % 4 != 0) payload += '=';
+      final decoded = utf8.decode(base64Url.decode(payload));
+      final map = jsonDecode(decoded) as Map<String, dynamic>;
+      return (map['sub'] ?? '').toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
   String _extractToken(Map<String, dynamic> data) {
     for (final key in [
       'token', 'Token',
@@ -320,13 +338,16 @@ class AuthApiService implements IAuthService {
       }
       await _persistPassword(password);
 
-      // Backend echoes back the actual account phone number as UserName
-      // regardless of whether the user logged in with phone or email.
-      // Always use this resolved phone for subsequent profile lookups.
-      final resolvedPhone = (data['UserName'] ?? data['PhoneNo'] ?? '')
-          .toString()
-          .trim();
-      final phoneForLookup = resolvedPhone.isNotEmpty ? resolvedPhone : username;
+      // Prefer the JWT sub claim — the backend sets sub to the account's
+      // phone number regardless of whether login was by email or phone.
+      // data['UserName'] echoes whatever the user typed (may be an email),
+      // so it must not be used as the phone for GetCustomerByPhoneNo.
+      String phoneForLookup = token.isNotEmpty ? _phoneFromToken(token) : '';
+      if (phoneForLookup.isEmpty) {
+        phoneForLookup =
+            (data['PhoneNo'] ?? data['phoneNo'] ?? '').toString().trim();
+      }
+      if (phoneForLookup.isEmpty) phoneForLookup = username;
 
       final role = (data['Role'] ?? data['role'] ?? '').toString().toLowerCase();
 
