@@ -282,7 +282,7 @@ class EmpHomeRealService implements IEmpHomeService {
       await _dio.post(
         'Common/ForgotPassword',
         options: Options(responseType: ResponseType.plain),
-        data: {'UserName': customerId},
+        data: {'UserName': customerId, 'Password': ''},
       );
       return '';
     } on DioException catch (e) {
@@ -312,11 +312,8 @@ class EmpHomeRealService implements IEmpHomeService {
           'TransactionCompanyId': AppConstants.activeCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
-          'PointsRedeemCompany': 'Gold House',
-          'DocumentNo': offerId == 'gold-shop-redeem' ? '' : offerId,
-          'Amount': pointsToRedeem.toDouble(),
           'Points': pointsToRedeem,
-          'OTP': otp,
+          'PointsRedeemCompanyPhoneNo': '0112948777',
         },
       );
 

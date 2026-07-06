@@ -422,15 +422,11 @@ class AuthApiService implements IAuthService {
   @override
   Future<void> sendOtp(String phone) async {
     try {
-      final res = await _dio.post(
+      await _dio.post(
         'Common/ForgotPassword',
-        data: {'UserName': phone.trim()},
+        options: Options(responseType: ResponseType.plain),
+        data: {'UserName': phone.trim(), 'Password': ''},
       );
-      if (_isErrorEnvelope(res.data)) {
-        throw AuthException(
-          _extractServerMessage(res.data) ?? 'Failed to send OTP.',
-        );
-      }
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
@@ -625,15 +621,11 @@ class AuthApiService implements IAuthService {
   @override
   Future<void> sendOtpForReset(String phone) async {
     try {
-      final res = await _dio.post(
+      await _dio.post(
         'Common/ForgotPassword',
-        data: {'UserName': phone.trim()},
+        options: Options(responseType: ResponseType.plain),
+        data: {'UserName': phone.trim(), 'Password': ''},
       );
-      if (_isErrorEnvelope(res.data)) {
-        throw AuthException(
-          _extractServerMessage(res.data) ?? 'Failed to send OTP.',
-        );
-      }
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
