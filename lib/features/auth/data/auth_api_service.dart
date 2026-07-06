@@ -316,6 +316,7 @@ class AuthApiService implements IAuthService {
       final token = _extractToken(data);
       if (token.isNotEmpty) {
         await _persistToken(token);
+        ApiClient.instance.setToken(token); // cache in-memory immediately
       }
       await _persistPassword(password);
 
@@ -380,7 +381,10 @@ class AuthApiService implements IAuthService {
       final data = res.data;
       if (data is Map<String, dynamic>) {
         token = _extractToken(data);
-        if (token.isNotEmpty) await _persistToken(token);
+        if (token.isNotEmpty) {
+          await _persistToken(token);
+          ApiClient.instance.setToken(token); // cache in-memory immediately
+        }
       }
       await _persistPassword(password);
     } on DioException catch (e) {

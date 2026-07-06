@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/features/auth/data/auth_api_service.dart';
 import 'package:loyalty_app/models/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -81,6 +82,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _clearSession() async {
+    ApiClient.instance.clearToken();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.prefIsLoggedIn);
     await prefs.remove(AppConstants.prefUserId);
