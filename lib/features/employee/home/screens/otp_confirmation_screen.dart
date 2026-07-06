@@ -378,7 +378,7 @@ class _RedemptionSummary extends StatelessWidget {
         const SizedBox(height: 12),
         _Row(label: 'Customer', value: member.name),
         const SizedBox(height: 8),
-        _Row(label: 'Business', value: offer.business),
+        _Row(label: 'Earn Company', value: offer.business),
         const SizedBox(height: 8),
         _Row(label: 'Points to redeem', value: '$pointsToRedeem pts'),
         const SizedBox(height: 8),

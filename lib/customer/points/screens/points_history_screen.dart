@@ -1327,7 +1327,7 @@ class _HistoryTile extends StatelessWidget {
               child: Column(children: [
                 _HistDetailRow(
                     icon: Icons.store_rounded,
-                    label: 'Business',
+                    label: 'Earn Company',
                     value: tx.businessFullName?.isNotEmpty == true
                         ? tx.businessFullName!
                         : tx.business),

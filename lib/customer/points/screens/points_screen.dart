@@ -1358,7 +1358,7 @@ class _TxCard extends StatelessWidget {
               child: Column(children: [
                 _DetailRow(
                   icon: Icons.store_rounded,
-                  label: 'Business',
+                  label: 'Earn Company',
                   value: tx.businessFullName?.isNotEmpty == true
                       ? tx.businessFullName!
                       : tx.business,
