@@ -392,7 +392,7 @@ class AuthApiService implements IAuthService {
       await _dio.post(
         'Common/RegisterCustomer',
         data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
           'FirstName': firstName.trim(),
           'LastName': lastName.trim(),
           'Address': '',
@@ -472,7 +472,7 @@ class AuthApiService implements IAuthService {
       final res = await _dio.post(
         'Common/RegisterCustomer',
         data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
           'FirstName': firstName.trim(),
           'LastName': lastName.trim(),
           'Address': '',
@@ -535,7 +535,7 @@ class AuthApiService implements IAuthService {
 
     try {
       final body = <String, dynamic>{
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'TransactionCompanyId': AppConstants.activeCompanyId,
         'FirstName': firstName.trim(),
         'LastName': lastName.trim(),
         'Address': address.trim(),
@@ -750,6 +750,13 @@ class AuthApiService implements IAuthService {
       final lastName = (data['LastName'] ?? data['lastName'] ?? '').toString();
       final email = (data['Email'] ?? data['email'] ?? '').toString();
       final respPhone = (data['PhoneNo'] ?? data['phoneNo'] ?? '').toString();
+
+      // Set the active company ID for all subsequent service calls.
+      // Backend currently returns TransactionCompanyId=0; setActiveCompanyId
+      // is a no-op for 0 so it falls back to the constant (=3).
+      final companyId =
+          int.tryParse((data['TransactionCompanyId'] ?? 0).toString()) ?? 0;
+      AppConstants.setActiveCompanyId(companyId);
 
       // Backend doesn't return an Id for employees — use phone as the id.
       final resolvedId = respPhone.isNotEmpty ? respPhone : trimmed;

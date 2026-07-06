@@ -50,7 +50,7 @@ class HomeApiService implements IHomeService {
     final res = await _dio.get(
       'Mobile/GetAllCustomerLedgers',
       data: {
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'TransactionCompanyId': AppConstants.activeCompanyId,
         'CustomerPhoneNo': phone,
       },
     );

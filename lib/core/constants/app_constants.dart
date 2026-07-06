@@ -19,7 +19,20 @@ class AppConstants {
   static const goldPoints    = 200;
 
   static const baseUrl              = 'http://124.43.27.57:8080/';
-  static const transactionCompanyId = 0;
+  static const transactionCompanyId = 3; // Fuel (City Oil) — anchor for company-ID mapping
+
+  // Runtime-resolved company ID. Set at employee login from the backend's
+  // TransactionCompanyId field; falls back to transactionCompanyId (=3) when
+  // the backend returns 0 (current state). Replace all hardcoded "3" usages
+  // in service calls with AppConstants.activeCompanyId so a future backend
+  // fix automatically propagates without touching 11 files.
+  static int _activeCompanyId = transactionCompanyId;
+  static int get activeCompanyId => _activeCompanyId;
+  static void setActiveCompanyId(int id) {
+    if (id > 0) _activeCompanyId = id;
+  }
+
+  static const prefCompanyId = 'companyId';
 
   // ── Flip this ONE line to switch the entire app ───────────────────────────
   static const bool useMockServices = false; // false = real backend

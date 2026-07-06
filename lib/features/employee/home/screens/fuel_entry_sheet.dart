@@ -55,13 +55,13 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
     if (_amount <= 0 || _confirming) return;
     setState(() => _confirming = true);
     try {
-      await widget.svc.recordFuelSale(
+      final earnedPoints = await widget.svc.recordFuelSale(
         employeeId: widget.employeeId,
         customerId: widget.member.userId,
         saleAmount: _amount,
         pointsAwarded: _points,
       );
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, earnedPoints > 0 ? earnedPoints : true);
     } catch (e) {
       if (mounted) {
         setState(() => _confirming = false);

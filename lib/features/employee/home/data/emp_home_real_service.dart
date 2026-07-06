@@ -91,7 +91,7 @@ class EmpHomeRealService implements IEmpHomeService {
           final ledgerRes = await _dio.get(
             'Mobile/GetAllCustomerLedgers',
             data: {
-              'TransactionCompanyId': AppConstants.transactionCompanyId,
+              'TransactionCompanyId': AppConstants.activeCompanyId,
               'CustomerPhoneNo': phone,
             },
           );
@@ -130,7 +130,7 @@ class EmpHomeRealService implements IEmpHomeService {
   // ── recordFuelSale — POST /Common/EarnPoints ──────────────────────────────
 
   @override
-  Future<void> recordFuelSale({
+  Future<int> recordFuelSale({
     required String employeeId,
     required String customerId,
     required double saleAmount,
@@ -138,16 +138,23 @@ class EmpHomeRealService implements IEmpHomeService {
   }) async {
     final phone = await _empPhone;
     try {
-      await _dio.post(
+      final res = await _dio.post(
         'Common/EarnPoints',
         data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
           'DocumentNo': '',
           'Amount': saleAmount,
         },
       );
+      // Use server's calculated points; fall back to client estimate if absent.
+      final data = res.data;
+      if (data is Map) {
+        final pts = int.tryParse((data['Points'] ?? data['points'] ?? pointsAwarded).toString());
+        if (pts != null && pts > 0) return pts;
+      }
+      return pointsAwarded;
     } on DioException catch (e) {
       throw Exception(_msg(e) ?? 'Failed to record sale.');
     }
@@ -166,8 +173,8 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeWallets',
         data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
-          'CompanyId': AppConstants.transactionCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CompanyId': AppConstants.activeCompanyId,
           'EmployeePhoneNo': phone,
           'Year': now.year,
           'Month': now.month,
@@ -214,8 +221,8 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeWallets',
         data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
-          'CompanyId': AppConstants.transactionCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CompanyId': AppConstants.activeCompanyId,
           'EmployeePhoneNo': phone,
           'Year': now.year,
           'Month': now.month,
@@ -302,10 +309,10 @@ class EmpHomeRealService implements IEmpHomeService {
         'Common/RedeemPoints',
         options: Options(responseType: ResponseType.plain),
         data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
-          'PointsRedeemCompany': 'Gold Shop',
+          'PointsRedeemCompany': 'Gold House',
           'DocumentNo': offerId == 'gold-shop-redeem' ? '' : offerId,
           'Amount': pointsToRedeem.toDouble(),
           'Points': pointsToRedeem,

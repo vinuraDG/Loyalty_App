@@ -40,11 +40,17 @@ class PointsApiService implements IPointsService {
     final rawList   = results[1] as List<dynamic>;
 
     // Build  PointsOwnCompanyId → CompanyName  map.
-    // Backend returns companies in order; transactionCompanyId (=3) is index 0.
-    // So:  index 0 → id=3,  index 1 → id=4,  index 2 → id=5, …
+    // GetAllCompanies order: [Laundry(0), Gold(1), Fuel(2)].
+    // Confirmed: Fuel (index 2, last) has backend transaction ID 3
+    // (= AppConstants.transactionCompanyId). IDs are sequential from 1.
+    // So: baseId = 3 - (3-1) = 1  →  Laundry=1, Gold=2, Fuel=3.
     final companyMap = <int, String>{};
-    for (int i = 0; i < companies.length; i++) {
-      companyMap[AppConstants.transactionCompanyId + i] = companies[i].displayName;
+    if (companies.isNotEmpty) {
+      final baseId =
+          AppConstants.transactionCompanyId - (companies.length - 1);
+      for (int i = 0; i < companies.length; i++) {
+        companyMap[baseId + i] = companies[i].displayName;
+      }
     }
 
     final txs = rawList
@@ -68,7 +74,7 @@ class PointsApiService implements IPointsService {
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     try {
       await _dio.post('Common/EarnPoints', data: {
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'TransactionCompanyId': AppConstants.activeCompanyId,
         'CustomerPhoneNo': phone,
         'EmployeePhoneNo': '',
         'DocumentNo': '',
@@ -94,7 +100,7 @@ class PointsApiService implements IPointsService {
       final res = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
           'CustomerPhoneNo': phone,
         },
       );

@@ -27,7 +27,7 @@ class EmpHomeMockService implements IEmpHomeService {
   }
 
   @override
-  Future<void> recordFuelSale({
+  Future<int> recordFuelSale({
     required String employeeId,
     required String customerId,
     required double saleAmount,
@@ -49,6 +49,7 @@ class EmpHomeMockService implements IEmpHomeService {
         time: _timeNow(),
       ),
     );
+    return pointsAwarded;
   }
 
   @override

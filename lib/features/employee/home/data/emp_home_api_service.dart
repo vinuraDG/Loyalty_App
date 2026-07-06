@@ -126,7 +126,7 @@ class InsufficientPointsException implements Exception {
 
 abstract interface class IEmpHomeService {
   Future<ScannedMember> getMemberByQr(String userId);
-  Future<void> recordFuelSale({
+  Future<int> recordFuelSale({
     required String employeeId,
     required String customerId,
     required double saleAmount,
