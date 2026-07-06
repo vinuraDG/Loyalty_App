@@ -992,7 +992,7 @@ class _BizCard extends StatelessWidget {
     required this.onTap,
   });
 
-  String get _label => fullName?.isNotEmpty == true ? fullName! : business;
+  String get _label => business;
 
   @override
   Widget build(BuildContext context) => GestureDetector(
