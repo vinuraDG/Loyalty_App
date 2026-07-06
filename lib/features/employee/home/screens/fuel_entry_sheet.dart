@@ -61,7 +61,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         saleAmount: _amount,
         pointsAwarded: _points,
       );
-      if (mounted) Navigator.pop(context, earnedPoints > 0 ? earnedPoints : true);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         setState(() => _confirming = false);

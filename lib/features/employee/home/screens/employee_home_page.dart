@@ -78,20 +78,23 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     }
   }
 
-  Future<void> _refreshScans() async {
+  Future<void> _silentRefresh() async {
     try {
-      final scans = await _svc.getTodayScans(widget.employee.id);
+      final results = await Future.wait([
+        _svc.getTodayScans(widget.employee.id),
+        _svc.getWeeklyCommission(widget.employee.id),
+        _commissionSvc.getSalesForMonth(widget.employee.id, _currentMonthKey),
+      ]);
       if (!mounted) return;
-      setState(() => _todayScans = scans.toList());
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+      final scans  = results[0] as List<ScanEntry>;
+      final weekly = results[1] as List<int>;
+      final sales  = results[2] as List<SaleEntry>;
+      setState(() {
+        _todayScans        = scans;
+        _weeklyCommission  = weekly;
+        _monthlyCommission = sales.fold(0.0, (a, s) => a + s.commission);
+      });
+    } catch (_) {}
   }
 
   double get _weeklyTotal =>
@@ -122,7 +125,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       ),
     );
 
-    await _refreshScans();
+    await _silentRefresh();
   }
 
   // FIX: Always switch the bottom nav tab via the dashboard ancestor state.
