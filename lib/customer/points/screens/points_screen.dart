@@ -23,10 +23,9 @@ const _kCompanyColors = [
 ];
 
 Color _colorForCompany(String name, int index) {
-  // Keep legacy colours stable for known names
-  if (name == kBusinessFuel)    return AppColors.fuelColor;
-  if (name == kBusinessLaundry) return AppColors.laundryColor;
-  if (name == kBusinessGold)    return AppColors.accentGold;
+  if (name == 'Fuel' || name == kBusinessFuel)         return AppColors.fuelColor;
+  if (name == 'Laundry' || name == kBusinessLaundry)   return AppColors.laundryColor;
+  if (name == 'Gold House' || name == kBusinessGold)   return AppColors.accentGold;
   return _kCompanyColors[index % _kCompanyColors.length];
 }
 
@@ -434,7 +433,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 // ── Derive dynamic company list from transactions ───────────
                 // Use companies from API if loaded; otherwise fall back to
                 // distinct business names found in transactions.
+                // bizNames uses DisplayName as the key — matches tx.business
+                // which is also DisplayName, keeping filter logic consistent.
                 final List<String> bizNames;
+                final Map<String, String> fullNameOf = {
+                  for (final c in _companies)
+                    if (c.name.isNotEmpty) c.displayName: c.name,
+                };
                 if (_companies.isNotEmpty) {
                   bizNames = _companies.map((c) => c.displayName).toList();
                 } else {
@@ -667,13 +672,14 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       if (bizNames.isNotEmpty)
                         _BizCardsRow(
                           bizNames: bizNames,
+                          fullNameOf: fullNameOf,
                           byBizNet: byBizNet,
                           byBizEarned: byBizEarned,
                           byBizRedeemed: byBizRedeemed,
                           byBizExpired: byBizExpired,
                           onTap: (biz, idx) => _showBizDetail(
                             context,
-                            business: biz,
+                            business: fullNameOf[biz] ?? biz,
                             totalEarned:   byBizEarned[biz]   ?? 0,
                             totalRedeemed: byBizRedeemed[biz] ?? 0,
                             totalExpired:  byBizExpired[biz]  ?? 0,
@@ -794,6 +800,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
 class _BizCardsRow extends StatelessWidget {
   final List<String>       bizNames;
+  final Map<String, String> fullNameOf;
   final Map<String, int>   byBizNet;
   final Map<String, int>   byBizEarned;
   final Map<String, int>   byBizRedeemed;
@@ -802,6 +809,7 @@ class _BizCardsRow extends StatelessWidget {
 
   const _BizCardsRow({
     required this.bizNames,
+    required this.fullNameOf,
     required this.byBizNet,
     required this.byBizEarned,
     required this.byBizRedeemed,
@@ -826,6 +834,7 @@ class _BizCardsRow extends StatelessWidget {
               Expanded(
                 child: _BizCard(
                   business: biz,
+                  fullName: fullNameOf[biz],
                   pts: byBizNet[biz] ?? 0,
                   expiredPts: byBizExpired[biz] ?? 0,
                   color: _colorForCompany(biz, i),
@@ -851,6 +860,7 @@ class _BizCardsRow extends StatelessWidget {
             width: 100,
             child: _BizCard(
               business: biz,
+              fullName: fullNameOf[biz],
               pts: byBizNet[biz] ?? 0,
               expiredPts: byBizExpired[biz] ?? 0,
               color: _colorForCompany(biz, i),
@@ -967,6 +977,7 @@ class _CardStatRow extends StatelessWidget {
 
 class _BizCard extends StatelessWidget {
   final String       business;
+  final String?      fullName;
   final int          pts;
   final int          expiredPts;
   final Color        color;
@@ -974,18 +985,14 @@ class _BizCard extends StatelessWidget {
 
   const _BizCard({
     required this.business,
+    this.fullName,
     required this.pts,
     required this.expiredPts,
     required this.color,
     required this.onTap,
   });
 
-  /// Full business name — no hard truncation; the Text widget below
-  /// handles overflow with ellipsis if it doesn't fit the card width.
-  String get _shortName {
-    if (business == kBusinessFuel) return 'Fuel';
-    return business;
-  }
+  String get _label => fullName?.isNotEmpty == true ? fullName! : business;
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -999,7 +1006,7 @@ class _BizCard extends StatelessWidget {
           ),
           child: Column(children: [
             Text(
-              _shortName,
+              _label,
               style: AppTextStyles.caption.copyWith(
                 color: color,
                 fontWeight: FontWeight.w600,
@@ -1143,9 +1150,11 @@ class _TxCard extends StatelessWidget {
   }
 
   String _fmtTime(DateTime d) {
-    final h = d.hour.toString().padLeft(2, '0');
-    final m = d.minute.toString().padLeft(2, '0');
-    return '$h:$m';
+    final hour   = d.hour;
+    final minute = d.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h      = hour % 12 == 0 ? 12 : hour % 12;
+    return '$h:$minute $period';
   }
 
   // ── Card ─────────────────────────────────────────────────────────────────
@@ -1183,7 +1192,9 @@ class _TxCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  tx.business,
+                  tx.businessFullName?.isNotEmpty == true
+                      ? tx.businessFullName!
+                      : tx.business,
                   style: AppTextStyles.labelMedium,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1348,14 +1359,20 @@ class _TxCard extends StatelessWidget {
                 _DetailRow(
                   icon: Icons.store_rounded,
                   label: 'Business',
-                  value: tx.business,
+                  value: tx.businessFullName?.isNotEmpty == true
+                      ? tx.businessFullName!
+                      : tx.business,
                 ),
                 if (tx.isRedeemed) ...[
                   _TxDivider(),
                   _DetailRow(
                     icon: Icons.storefront_rounded,
                     label: 'Redeem Company',
-                    value: tx.redeemCompanyName ?? '-',
+                    value: tx.redeemCompanyFullName?.isNotEmpty == true
+                        ? tx.redeemCompanyFullName!
+                        : (tx.redeemCompanyName?.isNotEmpty == true
+                            ? tx.redeemCompanyName!
+                            : tx.business),
                   ),
                 ],
                 _TxDivider(),

@@ -1232,8 +1232,13 @@ class _HistoryTile extends StatelessWidget {
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
-  String _fmtTime(DateTime d) =>
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  String _fmtTime(DateTime d) {
+    final hour   = d.hour;
+    final minute = d.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h      = hour % 12 == 0 ? 12 : hour % 12;
+    return '$h:$minute $period';
+  }
 
   String _txTypeLabel() {
     if (tx.isEarned) return 'Earn';
