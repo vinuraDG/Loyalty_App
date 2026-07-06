@@ -39,17 +39,20 @@ class PointsApiService implements IPointsService {
     final companies = results[0] as List<CompanyModel>;
     final rawList   = results[1] as List<dynamic>;
 
-    // Build  PointsOwnCompanyId → CompanyName  map.
-    // GetAllCompanies order: [Laundry(0), Gold(1), Fuel(2)].
-    // Confirmed: Fuel (index 2, last) has backend transaction ID 3
-    // (= AppConstants.transactionCompanyId). IDs are sequential from 1.
-    // So: baseId = 3 - (3-1) = 1  →  Laundry=1, Gold=2, Fuel=3.
+    // Build  PointsOwnCompanyId / PointsRedeemCompanyId → CompanyName  map.
+    // GetAllCompanies order: [Laundry(idx0), Gold House(idx1), Fuel(idx2)].
+    // Backend IDs confirmed from live ledger data (NOT the list order):
+    //   Gold House = 1  (PointsRedeemCompanyId in redeem entries)
+    //   Fuel       = 3  (PointsOwnCompanyId in earn entries = transactionCompanyId)
+    //   Laundry    = 2  (assumed — only remaining company between IDs 1 and 3)
     final companyMap = <int, String>{};
-    if (companies.isNotEmpty) {
-      final baseId =
-          AppConstants.transactionCompanyId - (companies.length - 1);
+    if (companies.length == 3) {
+      companyMap[AppConstants.companyIdGoldHouse]   = companies[1].displayName;
+      companyMap[AppConstants.companyIdLaundry]     = companies[0].displayName;
+      companyMap[AppConstants.transactionCompanyId] = companies[2].displayName;
+    } else {
       for (int i = 0; i < companies.length; i++) {
-        companyMap[baseId + i] = companies[i].displayName;
+        companyMap[i + 1] = companies[i].displayName;
       }
     }
 
@@ -129,17 +132,19 @@ class PointsApiService implements IPointsService {
   final ownId    = int.tryParse((m['PointsOwnCompanyId']    ?? 0).toString()) ?? 0;
   final redeemId = int.tryParse((m['PointsRedeemCompanyId'] ?? 0).toString()) ?? 0;
 
-  final lookupId = (type == TransactionType.redeemed && redeemId > 0)
-      ? redeemId
-      : ownId;
-
-  String businessName = companyMap[lookupId] ?? '';
+  // Business always shows the EARN company (where points were originally earned).
+  String businessName = companyMap[ownId] ?? '';
   if (businessName.isEmpty && companies.isNotEmpty) {
-    businessName = companies.first.displayName;
+    businessName = companies.last.displayName; // fallback to earn company (last = Fuel)
   }
-  if (businessName.isEmpty && lookupId > 0) {
-    businessName = 'Company $lookupId';
+  if (businessName.isEmpty && ownId > 0) {
+    businessName = 'Company $ownId';
   }
+
+  // Redeem company: only present on Redeem transactions; shown as extra row in UI.
+  final redeemCompanyName = (type == TransactionType.redeemed && redeemId > 0)
+      ? (companyMap[redeemId] ?? 'Company $redeemId')
+      : null;
 
   // ── Always use DateCreated — it is the actual transaction timestamp ────────
   // DateExpire is irrelevant for display; it's 1 year ahead for Earn entries.
@@ -148,14 +153,15 @@ class PointsApiService implements IPointsService {
   final date    = (parsed != null && parsed.year >= 2000) ? parsed : DateTime.now();
 
   return TransactionModel(
-    id:       (m['Id'] ?? m['id'] ?? '').toString(),
-    userId:   userId,
-    business: businessName,
-    points:   points.abs(),
-    type:     type,
-    date:     date,
-    note:     (m['Note']       ?? m['note'])?.toString(),
-    billNo:   (m['DocumentNo'] ?? m['billNo'])?.toString(),
+    id:                (m['Id'] ?? m['id'] ?? '').toString(),
+    userId:            userId,
+    business:          businessName,
+    points:            points.abs(),
+    type:              type,
+    date:              date,
+    note:              (m['Note']       ?? m['note'])?.toString(),
+    billNo:            (m['DocumentNo'] ?? m['billNo'])?.toString(),
+    redeemCompanyName: redeemCompanyName,
   );
 }
 }
