@@ -129,6 +129,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String phone,
     required String password,
+    required String address,
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
@@ -138,6 +139,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email:     email,
         phone:     phone,
         password:  password,
+        address:   address,
       );
       await _saveSession(user);
       state = state.copyWith(

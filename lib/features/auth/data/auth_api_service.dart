@@ -30,6 +30,7 @@ abstract class IAuthService {
     required String email,
     required String phone,
     required String password,
+    required String address,
   });
   Future<void> sendOtp(String phone);
   Future<UserModel?> verifyOtp({required String phone, required String otp});
@@ -377,6 +378,7 @@ class AuthApiService implements IAuthService {
     required String email,
     required String phone,
     required String password,
+    required String address,
   }) async {
     final trimmedPhone = phone.trim();
     String token = '';
@@ -420,7 +422,7 @@ class AuthApiService implements IAuthService {
           'TransactionCompanyId': AppConstants.activeCompanyId,
           'FirstName': firstName.trim(),
           'LastName': lastName.trim(),
-          'Address': '',
+          'Address': address.trim(),
           'Email': email.trim().toLowerCase(),
           'PhoneNo': trimmedPhone,
           'Password': password,

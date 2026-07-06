@@ -54,6 +54,7 @@ class AuthMockService implements IAuthService {
     required String email,
     required String phone,
     required String password,
+    required String address,
   }) async {
     await _delay();
     if (_users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
@@ -70,6 +71,7 @@ class AuthMockService implements IAuthService {
       phone: phone.trim(),
       role: 'customer',
       totalPoints: 0,
+      address: address.trim(),
       createdAt: DateTime.now(),
     );
     _users.add(user);

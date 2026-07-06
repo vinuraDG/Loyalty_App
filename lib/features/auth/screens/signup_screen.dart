@@ -19,6 +19,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _lastNameCtrl  = TextEditingController();
   final _emailCtrl     = TextEditingController();
   final _phoneCtrl     = TextEditingController();
+  final _addressCtrl   = TextEditingController();
   final _passCtrl      = TextEditingController();
   final _confCtrl      = TextEditingController();
   bool _agreed = false;
@@ -29,6 +30,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _lastNameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
+    _addressCtrl.dispose();
     _passCtrl.dispose();
     _confCtrl.dispose();
     super.dispose();
@@ -55,7 +57,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   // ASP.NET Identity default password rules
   String? _validatePassword(String? v) {
     if (v == null || v.isEmpty) return 'Password is required';
-    if (v.length < 6) return 'Password must be at least 6 characters';
+    if (v.length < 12) return 'Password must be at least 12 characters';
     if (!v.contains(RegExp(r'[A-Z]'))) return 'Must contain at least one uppercase letter (A-Z)';
     if (!v.contains(RegExp(r'[a-z]'))) return 'Must contain at least one lowercase letter (a-z)';
     if (!v.contains(RegExp(r'[0-9]'))) return 'Must contain at least one number (0-9)';
@@ -78,6 +80,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       lastName:  _lastNameCtrl.text.trim(),
       email:     _emailCtrl.text.trim(),
       phone:     _phoneCtrl.text.trim(),
+      address:   _addressCtrl.text.trim(),
       password:  _passCtrl.text,
     );
 
@@ -199,6 +202,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+
+                AppTextField(
+                  label: 'Address',
+                  hint: 'No. 12, Main Street, Colombo',
+                  controller: _addressCtrl,
+                  keyboardType: TextInputType.streetAddress,
+                  prefixIconData: Icons.location_on_outlined,
                 ),
                 const SizedBox(height: 16),
 
