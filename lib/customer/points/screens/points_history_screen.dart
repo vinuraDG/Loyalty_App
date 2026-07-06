@@ -101,10 +101,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
 
   Color _businessAccent(String business) {
     switch (business) {
+      case 'Fuel':
       case 'Fuel Station':
         return const Color(0xFF60A5FA);
       case 'Laundry':
         return const Color(0xFF34D399);
+      case 'Gold House':
       case 'Gold Shop':
         return const Color(0xFFFBBF24);
       default:
@@ -114,10 +116,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
 
   IconData _businessIcon(String business) {
     switch (business) {
+      case 'Fuel':
       case 'Fuel Station':
         return Icons.local_gas_station_rounded;
       case 'Laundry':
         return Icons.local_laundry_service_rounded;
+      case 'Gold House':
       case 'Gold Shop':
         return Icons.diamond_rounded;
       default:
@@ -1319,19 +1323,19 @@ class _HistoryTile extends StatelessWidget {
                 _HistDetailRow(
                     icon: Icons.store_rounded,
                     label: 'Business',
-                    value: tx.business),
+                    value: tx.businessFullName?.isNotEmpty == true
+                        ? tx.businessFullName!
+                        : tx.business),
                 if (tx.isRedeemed) ...[
                   _HistDivider(),
-                  // FIX: fall back to the business name instead of showing
-                  // a bare "-" when redeemCompanyName is null/empty, and
-                  // let the value wrap instead of truncating.
                   _HistDetailRow(
                     icon: Icons.storefront_rounded,
                     label: 'Redeem Company',
-                    value: (tx.redeemCompanyName != null &&
-                            tx.redeemCompanyName!.isNotEmpty)
-                        ? tx.redeemCompanyName!
-                        : tx.business,
+                    value: tx.redeemCompanyFullName?.isNotEmpty == true
+                        ? tx.redeemCompanyFullName!
+                        : (tx.redeemCompanyName?.isNotEmpty == true
+                            ? tx.redeemCompanyName!
+                            : tx.business),
                   ),
                 ],
                 _HistDivider(),
@@ -1435,7 +1439,9 @@ class _HistoryTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    tx.business,
+                    tx.businessFullName?.isNotEmpty == true
+                        ? tx.businessFullName!
+                        : tx.business,
                     style: AppTextStyles.labelMedium.copyWith(
                       color: isExpired
                           ? AppColors.textSecondary.withValues(alpha: 0.5)

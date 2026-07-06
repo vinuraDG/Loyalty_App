@@ -14,6 +14,8 @@ class TransactionModel {
   final int? pointsOwnCompanyId;
   final int? pointsRedeemCompanyId;
   final String? redeemCompanyName;
+  final String? businessFullName;
+  final String? redeemCompanyFullName;
 
   const TransactionModel({
     required this.id,
@@ -27,6 +29,8 @@ class TransactionModel {
     this.pointsOwnCompanyId,
     this.pointsRedeemCompanyId,
     this.redeemCompanyName,
+    this.businessFullName,
+    this.redeemCompanyFullName,
   });
 
   bool get isEarned   => type == TransactionType.earned;

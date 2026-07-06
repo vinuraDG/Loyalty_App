@@ -39,20 +39,20 @@ class PointsApiService implements IPointsService {
     final companies = results[0] as List<CompanyModel>;
     final rawList   = results[1] as List<dynamic>;
 
-    // Build  PointsOwnCompanyId / PointsRedeemCompanyId → CompanyName  map.
+    // Build  PointsOwnCompanyId / PointsRedeemCompanyId → CompanyModel  map.
     // GetAllCompanies order: [Laundry(idx0), Gold House(idx1), Fuel(idx2)].
     // Backend IDs confirmed from live ledger data (NOT the list order):
     //   Gold House = 1  (PointsRedeemCompanyId in redeem entries)
     //   Fuel       = 3  (PointsOwnCompanyId in earn entries = transactionCompanyId)
     //   Laundry    = 2  (assumed — only remaining company between IDs 1 and 3)
-    final companyMap = <int, String>{};
+    final companyMap = <int, CompanyModel>{};
     if (companies.length == 3) {
-      companyMap[AppConstants.companyIdGoldHouse]   = companies[1].displayName;
-      companyMap[AppConstants.companyIdLaundry]     = companies[0].displayName;
-      companyMap[AppConstants.transactionCompanyId] = companies[2].displayName;
+      companyMap[AppConstants.companyIdGoldHouse]   = companies[1];
+      companyMap[AppConstants.companyIdLaundry]     = companies[0];
+      companyMap[AppConstants.transactionCompanyId] = companies[2];
     } else {
       for (int i = 0; i < companies.length; i++) {
-        companyMap[i + 1] = companies[i].displayName;
+        companyMap[i + 1] = companies[i];
       }
     }
 
@@ -116,7 +116,7 @@ class PointsApiService implements IPointsService {
   TransactionModel _txFromMap(
   Map<String, dynamic> m,
   String userId,
-  Map<int, String> companyMap,
+  Map<int, CompanyModel> companyMap,
   List<CompanyModel> companies,
 ) {
   final points = int.tryParse(
@@ -133,18 +133,23 @@ class PointsApiService implements IPointsService {
   final redeemId = int.tryParse((m['PointsRedeemCompanyId'] ?? 0).toString()) ?? 0;
 
   // Business always shows the EARN company (where points were originally earned).
-  String businessName = companyMap[ownId] ?? '';
+  final ownCompany = companyMap[ownId];
+  String businessName = ownCompany?.displayName ?? '';
   if (businessName.isEmpty && companies.isNotEmpty) {
     businessName = companies.last.displayName; // fallback to earn company (last = Fuel)
   }
   if (businessName.isEmpty && ownId > 0) {
     businessName = 'Company $ownId';
   }
+  final businessFullName = ownCompany?.name.isNotEmpty == true ? ownCompany!.name : null;
 
   // Redeem company: only present on Redeem transactions; shown as extra row in UI.
-  final redeemCompanyName = (type == TransactionType.redeemed && redeemId > 0)
-      ? (companyMap[redeemId] ?? 'Company $redeemId')
+  final redeemCompany = (type == TransactionType.redeemed && redeemId > 0)
+      ? companyMap[redeemId]
       : null;
+  final redeemCompanyName = redeemCompany?.displayName ??
+      (type == TransactionType.redeemed && redeemId > 0 ? 'Company $redeemId' : null);
+  final redeemCompanyFullName = redeemCompany?.name.isNotEmpty == true ? redeemCompany!.name : null;
 
   // ── Always use DateCreated — it is the actual transaction timestamp ────────
   // DateExpire is irrelevant for display; it's 1 year ahead for Earn entries.
@@ -153,15 +158,17 @@ class PointsApiService implements IPointsService {
   final date    = (parsed != null && parsed.year >= 2000) ? parsed : DateTime.now();
 
   return TransactionModel(
-    id:                (m['Id'] ?? m['id'] ?? '').toString(),
-    userId:            userId,
-    business:          businessName,
-    points:            points.abs(),
-    type:              type,
-    date:              date,
-    note:              (m['Note']       ?? m['note'])?.toString(),
-    billNo:            (m['DocumentNo'] ?? m['billNo'])?.toString(),
-    redeemCompanyName: redeemCompanyName,
+    id:                    (m['Id'] ?? m['id'] ?? '').toString(),
+    userId:                userId,
+    business:              businessName,
+    points:                points.abs(),
+    type:                  type,
+    date:                  date,
+    note:                  (m['Note']       ?? m['note'])?.toString(),
+    billNo:                (m['DocumentNo'] ?? m['billNo'])?.toString(),
+    redeemCompanyName:     redeemCompanyName,
+    businessFullName:      businessFullName,
+    redeemCompanyFullName: redeemCompanyFullName,
   );
 }
 }
