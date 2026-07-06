@@ -5,8 +5,10 @@ class AppConstants {
   static const prefUserId     = 'userId';
   static const prefUserRole   = 'userRole';
   static const prefIsLoggedIn = 'isLoggedIn';
-  static const prefAuthToken  = 'authToken';
-  static const prefUserPhone  = 'userPhone';
+  static const prefAuthToken    = 'authToken';
+  static const prefUserPhone    = 'userPhone';
+  static const prefUserEmail    = 'userEmail';
+  static const prefUserPassword = 'userPassword';
 
   static const businessFuel    = 'Fuel Station';
   static const businessLaundry = 'Laundry';
@@ -17,10 +19,33 @@ class AppConstants {
   static const goldPoints    = 200;
 
   static const baseUrl              = 'http://124.43.27.57:8080/';
-  static const transactionCompanyId = 1;
+  static const transactionCompanyId = 3; // Fuel (City Oil) — confirmed via EarnPoints + ledger
+  static const companyIdGoldHouse   = 1; // Gold House — confirmed via PointsRedeemCompanyId in ledger
+  static const companyIdLaundry     = 2; // Laundry — assumed (only remaining ID between 1 and 3)
+
+  // Runtime-resolved company ID. Set at employee login from the backend's
+  // TransactionCompanyId field; falls back to transactionCompanyId (=3) when
+  // the backend returns 0 (current state). Replace all hardcoded "3" usages
+  // in service calls with AppConstants.activeCompanyId so a future backend
+  // fix automatically propagates without touching 11 files.
+  static int _activeCompanyId = transactionCompanyId;
+  static int get activeCompanyId => _activeCompanyId;
+  static void setActiveCompanyId(int id) {
+    if (id > 0) _activeCompanyId = id;
+  }
+
+  static const prefCompanyId = 'companyId';
 
   // ── Flip this ONE line to switch the entire app ───────────────────────────
-  static const bool useMockServices = true; // false = real backend
+  static const bool useMockServices = false; // false = real backend
+
+  // ── Set true while backend auth is not yet implemented ──────────────────
+  // Set false once auth (Login) endpoint is working on the backend.
+  static const bool devBypass = false;
+
+  // Test data used when devBypass = true
+  static const String devCustomerPhone = '0772274383';
+  static const String devEmployeePhone = '0770064383';
 }
 
 class AppRoutes {

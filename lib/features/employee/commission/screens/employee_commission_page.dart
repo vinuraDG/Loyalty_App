@@ -5,7 +5,6 @@ import 'package:loyalty_app/features/employee/commission/data/emp_commission_api
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
-import '../data/emp_commission_mock_service.dart';
 
 // ── Helper: full date with year, derived from SaleEntry.month ────────────────
 extension _SaleDate on SaleEntry {
@@ -25,7 +24,7 @@ class EmployeeCommissionPage extends StatefulWidget {
 }
 
 class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
-  final _svc = EmpCommissionMockService.instance;
+  final _svc = empCommissionService;
 
   List<String> _months = [];
   String? _selectedMonth;
@@ -33,6 +32,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
   List<SaleEntry> _sales = [];
   MonthlySummary? _summary;
   bool _loading = true;
+  String? _error;
 
   static const _shortMonths = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -55,28 +55,39 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
   }
 
   Future<void> _loadMonths() async {
-    final months = await _svc.getAvailableMonths(widget.employee.id);
-    if (!mounted) return;
-    setState(() {
-      _months = months;
-      _selectedMonth = months.isNotEmpty ? months.first : null;
-      _monthIdx = 0;
-    });
-    if (_selectedMonth != null) await _loadMonth(_selectedMonth!);
+    setState(() { _loading = true; _error = null; });
+    try {
+      final months = await _svc.getAvailableMonths(widget.employee.id);
+      if (!mounted) return;
+      setState(() {
+        _months = months;
+        _selectedMonth = months.isNotEmpty ? months.first : null;
+        _monthIdx = 0;
+      });
+      if (_selectedMonth != null) await _loadMonth(_selectedMonth!);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString(); });
+    }
   }
 
   Future<void> _loadMonth(String month) async {
-    setState(() => _loading = true);
-    final results = await Future.wait([
-      _svc.getSalesForMonth(widget.employee.id, month),
-      _svc.getMonthlySummary(widget.employee.id, month),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _sales   = results[0] as List<SaleEntry>;
-      _summary = results[1] as MonthlySummary;
-      _loading = false;
-    });
+    setState(() { _loading = true; _error = null; });
+    try {
+      final results = await Future.wait([
+        _svc.getSalesForMonth(widget.employee.id, month),
+        _svc.getMonthlySummary(widget.employee.id, month),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _sales   = results[0] as List<SaleEntry>;
+        _summary = results[1] as MonthlySummary;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString(); });
+    }
   }
 
   void _pickMonth(BuildContext context) {
@@ -140,6 +151,43 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.bgDark,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off_rounded,
+                    color: AppColors.textMuted, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadMonths,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
@@ -218,14 +266,21 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
                             style: AppTextStyles.bodySmall,
                           ),
                         )
-                      : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                          itemCount: _sales.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (_, i) =>
-                              _SaleTile(sale: _sales[i]),
+                      : RefreshIndicator(
+                          color: AppColors.primary,
+                          backgroundColor: AppColors.bgCard,
+                          onRefresh: () => _selectedMonth != null
+                              ? _loadMonth(_selectedMonth!)
+                              : _loadMonths(),
+                          child: ListView.separated(
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                            itemCount: _sales.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (_, i) =>
+                                _SaleTile(sale: _sales[i]),
+                          ),
                         ),
             ),
           ],
@@ -534,19 +589,32 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
-          const SizedBox(width: 10),
-          Text(label,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary)),
-          const Spacer(),
-          Text(value,
-              style: AppTextStyles.labelMedium.copyWith(
-                color: valueColor ?? AppColors.textPrimary,
-                fontSize: 13,
-              )),
-        ]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 110,
+              child: Text(label,
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary)),
+            ),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: valueColor ?? AppColors.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
 }
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
@@ -13,8 +14,9 @@ class QrScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
 
+    // phone is the primary key used by the employee scanner to look up the member
     final qrData = jsonEncode({
-      'userId': user.id,
+      'phone': user.phone,
       'name': user.name,
       'ts': DateTime.now().millisecondsSinceEpoch,
     });
@@ -64,12 +66,20 @@ class QrScreen extends ConsumerWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  // FIX 2: Use _CornerBracket (correct borders) instead of _Corner
                   child: Stack(children: [
-                    SizedBox(
-                      width: 200,
-                      height: 200,
-                      child: CustomPaint(painter: _MockQrPainter()),
+                    QrImageView(
+                      data: qrData,
+                      version: QrVersions.auto,
+                      size: 200,
+                      backgroundColor: Colors.white,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF0F0A1E),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF0F0A1E),
+                      ),
                     ),
                     const _CornerBracket(top: 0, left: 0, tl: true),
                     const _CornerBracket(top: 0, right: 0, tr: true),
@@ -147,50 +157,3 @@ class _CornerBracket extends StatelessWidget {
   }
 }
 
-// ── Mock QR pattern painter ───────────────────────────────────────────────────
-class _MockQrPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = const Color(0xFF0F0A1E);
-    final bg = Paint()..color = Colors.white;
-    canvas.drawRect(Offset.zero & size, bg);
-    _drawFinder(canvas, p, 10, 10, 50);
-    _drawFinder(canvas, p, size.width - 60, 10, 50);
-    _drawFinder(canvas, p, 10, size.height - 60, 50);
-    final rng = <Offset>[
-      const Offset(70, 10),  const Offset(80, 10),  const Offset(90, 10),
-      const Offset(70, 20),  const Offset(82, 22),  const Offset(70, 32),
-      const Offset(10, 70),  const Offset(22, 72),  const Offset(34, 70),
-      const Offset(70, 70),  const Offset(80, 70),  const Offset(92, 72),
-      const Offset(104, 70), const Offset(116, 70), const Offset(128, 72),
-      const Offset(140, 70), const Offset(70, 82),  const Offset(82, 80),
-      const Offset(70, 94),  const Offset(80, 92),  const Offset(92, 94),
-      const Offset(70, 106), const Offset(82, 108), const Offset(70, 118),
-      const Offset(80, 116), const Offset(92, 118), const Offset(104, 106),
-      const Offset(116, 108),const Offset(128, 106),const Offset(140, 108),
-      const Offset(70, 130), const Offset(80, 128), const Offset(92, 130),
-      const Offset(104, 128),const Offset(116, 130),const Offset(128, 128),
-      const Offset(140, 130),const Offset(152, 128),const Offset(70, 142),
-      const Offset(82, 144), const Offset(94, 142), const Offset(106, 144),
-      const Offset(118, 142),const Offset(130, 144),const Offset(142, 142),
-      const Offset(70, 154), const Offset(80, 152), const Offset(92, 154),
-      const Offset(104, 152),const Offset(116, 154),const Offset(130, 152),
-    ];
-    for (final o in rng) {
-      canvas.drawRect(Rect.fromLTWH(o.dx, o.dy, 8, 8), p);
-    }
-  }
-
-  void _drawFinder(
-      Canvas canvas, Paint p, double x, double y, double s) {
-    final border = Paint()
-      ..color = const Color(0xFF0F0A1E)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-    canvas.drawRect(Rect.fromLTWH(x, y, s, s), border);
-    canvas.drawRect(Rect.fromLTWH(x + 10, y + 10, s - 20, s - 20), p);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}

@@ -1,10 +1,11 @@
 // lib/features/employee/screens/qr_scanner_screen.dart
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../data/emp_home_api_service.dart';
-import '../data/emp_home_mock_service.dart';
 
 class QrScannerScreen extends StatefulWidget {
   final String employeeId;
@@ -22,51 +23,61 @@ class QrScannerScreen extends StatefulWidget {
 
 class _QrScannerScreenState extends State<QrScannerScreen>
     with SingleTickerProviderStateMixin {
-  bool _scanning = false;
-  bool _loading = false;
+  bool _loading  = false;
+  bool _detected = false; // prevent double-triggers
   String? _error;
 
+  late final MobileScannerController _scanController;
   late final AnimationController _scanLineCtrl;
   late final Animation<double> _scanLineAnim;
 
   @override
   void initState() {
     super.initState();
+    _scanController = MobileScannerController();
     _scanLineCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     _scanLineAnim =
         CurvedAnimation(parent: _scanLineCtrl, curve: Curves.easeInOut);
-
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _scanning = true);
-    });
   }
 
   @override
   void dispose() {
     _scanLineCtrl.dispose();
+    _scanController.dispose();
     super.dispose();
   }
 
-  Future<void> _onTapScan() async {
-    if (_loading) return;
+  Future<void> _onQrDetected(String rawValue) async {
+    if (_loading || _detected) return;
     setState(() {
-      _loading = true;
-      _error = null;
+      _loading  = true;
+      _detected = true;
+      _error    = null;
     });
 
+    // Extract phone from JSON payload  {phone: ..., name: ..., ts: ...}
+    // Fall back to treating the raw value as a plain phone number
+    String phone;
     try {
-      const mockUserId = 'demo-qr';
-      final member = await widget.svc.getMemberByQr(mockUserId);
+      final map = jsonDecode(rawValue) as Map<String, dynamic>;
+      phone = (map['phone'] ?? map['userId'] ?? rawValue).toString();
+    } catch (_) {
+      phone = rawValue;
+    }
+
+    try {
+      final member = await widget.svc.getMemberByQr(phone);
       if (!mounted) return;
       Navigator.pop(context, member);
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
-        _loading = false;
+        _error    = e.toString();
+        _loading  = false;
+        _detected = false; // allow retry
       });
     }
   }
@@ -78,14 +89,22 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Dark background (replace with Camera widget) ───────────────
-          _MockCameraBackground(scanning: _scanning),
+          // ── Live camera feed ──────────────────────────────────────────
+          MobileScanner(
+            controller: _scanController,
+            onDetect: (capture) {
+              if (capture.barcodes.isNotEmpty) {
+                final raw = capture.barcodes.first.rawValue;
+                if (raw != null) _onQrDetected(raw);
+              }
+            },
+          ),
 
           // ── Dimmed overlay with cut-out ────────────────────────────────
           _ScannerOverlay(),
 
           // ── Animated scan line inside the viewfinder ───────────────────
-          if (_scanning)
+          if (!_loading)
             Center(
               child: SizedBox(
                 width: 260,
@@ -152,7 +171,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ),
           ),
 
-          // ── Bottom instructions / tap-to-scan (mock) ──────────────────
+          // ── Bottom status / instructions ───────────────────────────────
           Align(
             alignment: Alignment.bottomCenter,
             child: SafeArea(
@@ -187,106 +206,32 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                       const SizedBox(height: 16),
                     ],
                     Text(
-                      'Point the camera at the member\'s QR code',
+                      _loading
+                          ? 'Looking up member...'
+                          : 'Point the camera at the member\'s QR code',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    GestureDetector(
-                      onTap: _loading ? null : _onTapScan,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          gradient: _loading
-                              ? null
-                              : const LinearGradient(
-                                  colors: AppColors.buttonGradient,
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                          color: _loading
-                              ? Colors.white.withValues(alpha: 0.1)
-                              : null,
-                          borderRadius: BorderRadius.circular(14),
+                    if (_loading) ...[
+                      const SizedBox(height: 20),
+                      const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
-                        child: _loading
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              )
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.qr_code_scanner_rounded,
-                                      color: Colors.white, size: 20),
-                                  SizedBox(width: 10),
-                                  Text(
-                                    'Scan',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ── Mock camera background ─────────────────────────────────────────────────────
-
-class _MockCameraBackground extends StatelessWidget {
-  final bool scanning;
-  const _MockCameraBackground({required this.scanning});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 600),
-      color: scanning ? const Color(0xFF0A0A12) : Colors.black,
-      child: Center(
-        child: scanning
-            ? Opacity(
-                opacity: 0.15,
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: 120,
-                  itemBuilder: (_, i) => Container(
-                    margin: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              )
-            : const SizedBox.shrink(),
       ),
     );
   }

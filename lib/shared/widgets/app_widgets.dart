@@ -246,6 +246,7 @@ class BusinessIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     Color bg; Color fg; IconData icon;
     switch (business) {
+      case 'Fuel':
       case 'Fuel Station':
         bg = AppColors.fuelColor.withValues(alpha: 0.15);
         fg = AppColors.fuelColor;
@@ -256,10 +257,11 @@ class BusinessIcon extends StatelessWidget {
         fg = AppColors.laundryColor;
         icon = Icons.local_laundry_service;
         break;
+      case 'Gold House':
       case 'Gold Shop':
         bg = AppColors.golfColor.withValues(alpha: 0.15);
         fg = AppColors.golfColor;
-        icon = Icons.diamond_rounded;  // ← diamond icon
+        icon = Icons.diamond_rounded;
         break;
       default:
         bg = AppColors.primary.withValues(alpha: 0.15);

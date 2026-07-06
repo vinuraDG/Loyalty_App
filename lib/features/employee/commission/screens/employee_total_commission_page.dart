@@ -5,7 +5,6 @@ import 'package:loyalty_app/features/employee/commission/data/emp_commission_api
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
-import '../data/emp_commission_mock_service.dart';
 
 class EmployeeTotalCommissionPage extends StatefulWidget {
   final UserModel employee;
@@ -18,7 +17,7 @@ class EmployeeTotalCommissionPage extends StatefulWidget {
 
 class _EmployeeTotalCommissionPageState
     extends State<EmployeeTotalCommissionPage> {
-  final _svc = EmpCommissionMockService.instance;
+  final _svc = empCommissionService;
 
   List<SaleEntry> _fuelSales = [];
   bool _loading = true;
@@ -44,7 +43,7 @@ class _EmployeeTotalCommissionPageState
         await _svc.getSalesForMonth(widget.employee.id, _currentMonthKey);
     if (!mounted) return;
     setState(() {
-      _fuelSales = sales.where((s) => s.business == 'Fuel').toList();
+      _fuelSales = sales;
       _loading = false;
     });
   }
@@ -81,7 +80,12 @@ class _EmployeeTotalCommissionPageState
     final totalCommission =
         _fuelSales.fold<double>(0.0, (a, t) => a + t.commission);
 
-    return SingleChildScrollView(
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.bgCard,
+      onRefresh: _loadCurrentMonth,
+      child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
@@ -189,6 +193,7 @@ class _EmployeeTotalCommissionPageState
 
         const SizedBox(height: 20),
       ]),
+      ),
     );
   }
 }

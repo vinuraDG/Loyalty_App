@@ -1,17 +1,16 @@
 // lib/features/employee/screens/employee_home_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:loyalty_app/features/employee/commission/screens/employee_total_commission_page.dart';
 import 'package:loyalty_app/features/employee/home/data/emp_home_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
-import '../data/emp_home_mock_service.dart';
-import '../../commission/data/emp_commission_mock_service.dart';
+import '../data/emp_home_real_service.dart';
+import '../../commission/data/emp_commission_api_service.dart';
 import 'qr_scanner_screen.dart';
 import 'customer_identified_screen.dart';
-import 'employee_dashboard_screen.dart'; // needed for EmployeeDashboardScreenState
+import 'employee_dashboard_screen.dart';
 
 class EmployeeHomePage extends StatefulWidget {
   final UserModel employee;
@@ -22,27 +21,18 @@ class EmployeeHomePage extends StatefulWidget {
 }
 
 class _EmployeeHomePageState extends State<EmployeeHomePage> {
-  final IEmpHomeService _svc = EmpHomeMockService.instance;
-  final _commissionSvc = EmpCommissionMockService.instance;
+  final IEmpHomeService _svc = empHomeService;
+  final _commissionSvc = empCommissionService;
 
   List<ScanEntry> _todayScans = [];
   List<int> _weeklyCommission = List.filled(7, 0);
   double _monthlyCommission = 0.0;
   bool _loading = true;
+  String? _error;
 
   static const _shortMonths = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
   String get _currentMonthKey {
@@ -57,31 +47,58 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   }
 
   Future<void> _load() async {
-    final scans = await _svc.getTodayScans(widget.employee.id);
-    final commission = await _svc.getWeeklyCommission(widget.employee.id);
-    final fuelSales = await _commissionSvc.getSalesForMonth(
-        widget.employee.id, _currentMonthKey);
-    final monthlyCommission = fuelSales
-        .where((s) => s.business == 'Fuel')
-        .fold<double>(0.0, (a, s) => a + s.commission);
-
     if (!mounted) return;
     setState(() {
-      _todayScans = scans.toList();
-      _weeklyCommission = commission;
-      _monthlyCommission = monthlyCommission;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+    try {
+      final scans = await _svc.getTodayScans(widget.employee.id);
+      final commission = await _svc.getWeeklyCommission(widget.employee.id);
+      List<SaleEntry> fuelSales = [];
+      try {
+        fuelSales = await _commissionSvc.getSalesForMonth(
+            widget.employee.id, _currentMonthKey);
+      } catch (_) {}
+      final monthlyCommission =
+          fuelSales.fold<double>(0.0, (a, s) => a + s.commission);
+      if (!mounted) return;
+      setState(() {
+        _todayScans = scans.toList();
+        _weeklyCommission = commission;
+        _monthlyCommission = monthlyCommission;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
   }
 
-  Future<void> _refreshScans() async {
-    final scans = await _svc.getTodayScans(widget.employee.id);
-    if (!mounted) return;
-    setState(() => _todayScans = scans.toList());
+  Future<void> _silentRefresh() async {
+    try {
+      final results = await Future.wait([
+        _svc.getTodayScans(widget.employee.id),
+        _svc.getWeeklyCommission(widget.employee.id),
+        _commissionSvc.getSalesForMonth(widget.employee.id, _currentMonthKey),
+      ]);
+      if (!mounted) return;
+      final scans  = results[0] as List<ScanEntry>;
+      final weekly = results[1] as List<int>;
+      final sales  = results[2] as List<SaleEntry>;
+      setState(() {
+        _todayScans        = scans;
+        _weeklyCommission  = weekly;
+        _monthlyCommission = sales.fold(0.0, (a, s) => a + s.commission);
+      });
+    } catch (_) {}
   }
 
   double get _weeklyTotal =>
-      _weeklyCommission.fold(0.0, (s, v) => s + v) / 100.0;
+      _weeklyCommission.fold(0.0, (s, v) => s + v.toDouble());
 
   Future<void> _startScanFlow(BuildContext context) async {
     final member = await Navigator.push<ScannedMember>(
@@ -108,19 +125,18 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       ),
     );
 
-    await _refreshScans();
+    await _silentRefresh();
   }
 
-  // ── KEY FIX: switch the bottom nav tab via the dashboard ancestor state ──
-  // Using Navigator.push here would bypass the IndexedStack shell entirely,
-  // which is why the commission card previously lost the bottom nav bar.
+  // FIX: Always switch the bottom nav tab via the dashboard ancestor state.
+  // Navigator.push to EmployeeTotalCommissionPage would bypass the IndexedStack
+  // shell, losing the bottom nav bar entirely.
   void _goToCommission(BuildContext context) {
     final dashState =
         context.findAncestorStateOfType<EmployeeDashboardScreenState>();
     if (dashState != null) {
       dashState.switchToCommission();
     }
-    // No fallback push — EmployeeHomePage is always inside EmployeeDashboardScreen.
   }
 
   @override
@@ -132,11 +148,53 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       );
     }
 
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.bgDark,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off_rounded,
+                    color: AppColors.textMuted, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgCard,
+          onRefresh: _load,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -153,24 +211,14 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                     ],
                   ),
                 ),
-               
               ]),
               const SizedBox(height: 24),
 
               // ── Commission card ────────────────────────────────────────
-              // ── KEY FIX: onTap calls _goToCommission (switches bottom nav
-              //    tab index) instead of Navigator.push (which would open a
-              //    new route without the bottom nav bar shell).
-              // AFTER
+              // FIX: onTap calls _goToCommission (switches bottom nav tab index)
+              // instead of Navigator.push (which loses the bottom nav shell).
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EmployeeTotalCommissionPage(
-                      employee: widget.employee,
-                    ),
-                  ),
-                ),
+                onTap: () => _goToCommission(context),
                 child: _CommissionCard(
                   monthlyCommission: _monthlyCommission,
                   weeklyTotal: _weeklyTotal,
@@ -195,8 +243,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   icon: Icons.payments_outlined,
                   label: 'My Commission',
                   color: AppColors.primary,
-                  // ── Also use _goToCommission here so both entry points
-                  //    correctly switch the bottom nav tab.
                   onTap: () => _goToCommission(context),
                 ),
               ]),
@@ -209,9 +255,11 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text('No scans yet today.',
-                        style: AppTextStyles.bodySmall
-                            .copyWith(color: AppColors.textMuted)),
+                    child: Text(
+                      'No scans yet today.',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textMuted),
+                    ),
                   ),
                 )
               else
@@ -220,6 +268,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               const SizedBox(height: 8),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -268,11 +317,13 @@ class _CommissionCard extends StatelessWidget {
                   Icon(Icons.payments_outlined,
                       size: 13, color: Colors.white.withValues(alpha: 0.55)),
                   const SizedBox(width: 5),
-                  Text('commission',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.55),
-                          fontWeight: FontWeight.w400)),
+                  Text(
+                    'commission',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w400),
+                  ),
                 ]),
                 const SizedBox(height: 6),
                 Text(
@@ -289,10 +340,12 @@ class _CommissionCard extends StatelessWidget {
                   Icon(Icons.open_in_new_rounded,
                       size: 10, color: Colors.white.withValues(alpha: 0.4)),
                   const SizedBox(width: 4),
-                  Text('Tap to view commission',
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white.withValues(alpha: 0.4))),
+                  Text(
+                    'Tap to view commission',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.4)),
+                  ),
                 ]),
               ],
             ),
@@ -305,7 +358,6 @@ class _CommissionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // label at top
                 Text(
                   'Last 7 days',
                   style: TextStyle(
@@ -314,19 +366,16 @@ class _CommissionCard extends StatelessWidget {
                       letterSpacing: 0.3),
                 ),
                 const SizedBox(height: 4),
-                // chart
                 SizedBox(
                   height: 72,
                   child: _WeeklyCommissionChart(data: weeklyCommission),
                 ),
                 const SizedBox(height: 8),
-                // divider
                 Container(
                   height: 1,
                   color: Colors.white.withValues(alpha: 0.12),
                 ),
                 const SizedBox(height: 7),
-                // "This week" centered below chart
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -477,9 +526,11 @@ class _TodayScanTile extends StatelessWidget {
             color: Colors.green.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text('+${scan.points} pts',
-              style: AppTextStyles.caption.copyWith(
-                  color: Colors.greenAccent, fontWeight: FontWeight.w600)),
+          child: Text(
+            '+${scan.points} pts',
+            style: AppTextStyles.caption.copyWith(
+                color: Colors.greenAccent, fontWeight: FontWeight.w600),
+          ),
         ),
       ]),
     );

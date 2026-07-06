@@ -55,7 +55,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
     if (_amount <= 0 || _confirming) return;
     setState(() => _confirming = true);
     try {
-      await widget.svc.recordFuelSale(
+      final earnedPoints = await widget.svc.recordFuelSale(
         employeeId: widget.employeeId,
         customerId: widget.member.userId,
         saleAmount: _amount,

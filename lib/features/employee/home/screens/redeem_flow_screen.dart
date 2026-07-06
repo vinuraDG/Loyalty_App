@@ -148,12 +148,20 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   // ── OTP flow ──────────────────────────────────────────────────────────────
 
   Future<void> _sendOtpAndProceed() async {
-    if (_selectedOffer == null || _sendingOtp || _pointsToRedeem == null) return;
+    if (_sendingOtp || _pointsToRedeem == null) return;
+    final offer = _selectedOffer ??
+        const RedeemableOffer(
+          id: 'gold-shop-redeem',
+          title: 'Gold Shop',
+          description: '',
+          business: 'Gold Shop',
+          pointsCost: 0,
+        );
     setState(() => _sendingOtp = true);
     try {
       final otp = await widget.svc.sendRedemptionOtp(
         customerId: widget.member.userId,
-        offerId: _selectedOffer!.id,
+        offerId: offer.id,
       );
       if (!mounted) return;
       final confirmed = await Navigator.push<bool>(
@@ -161,11 +169,12 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
         MaterialPageRoute(
           builder: (_) => OtpConfirmationScreen(
             member: widget.member,
-            offer: _selectedOffer!,
+            offer: offer,
             employeeId: widget.employeeId,
             svc: widget.svc,
             devOtp: otp,
             employee: widget.employee,
+            pointsToRedeem: _pointsToRedeem!,
           ),
         ),
       );
@@ -412,8 +421,7 @@ class _GoldRedeemPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canSend =
-        selectedOffer != null && !sendingOtp && pointsToRedeem != null;
+    final canSend = !sendingOtp && pointsToRedeem != null;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 4, 20, 24),

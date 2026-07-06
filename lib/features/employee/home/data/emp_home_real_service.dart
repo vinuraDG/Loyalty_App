@@ -1,4 +1,8 @@
+// lib/features/employee/home/data/emp_home_real_service.dart
+
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
@@ -27,29 +31,96 @@ class EmpHomeRealService implements IEmpHomeService {
     return null;
   }
 
+  /// Logs a backend failure without surfacing it to the user.
+  ///
+  /// NOTE (2026-06-30): GetAllEmployeeWallets is now confirmed (via
+  /// successive 405/400 responses during live debugging) to require:
+  ///   1. HTTP verb GET (POST returns 405 Method Not Allowed).
+  ///   2. A non-empty JSON request body (an empty/missing body returns 400
+  ///      with a generic "Request field is required" — "Request" there is
+  ///      just the action's parameter name, not a JSON wrapper key).
+  ///   3. The body's fields FLAT at the top level, not nested under a
+  ///      "Request" key — wrapping them caused the binder to report
+  ///      EmployeePhoneNo (and presumably the others) as missing, since it
+  ///      couldn't see past the extra nesting.
+  /// In short: `[HttpGet] ... ([FromBody] WalletsRequestDto)`, an
+  /// unconventional GET-with-flat-body action. Implemented below as
+  /// `_dio.get(..., data: {...flat fields...})`.
+  /// GetAllEmployeeLedgers has the same 500/empty-body symptom but is
+  /// already sent as GET + flat `data:`, so if it's still failing the
+  /// cause is likely something endpoint-specific (different/extra required
+  /// fields, a genuine server bug, etc.) rather than this same shape issue
+  /// — worth testing in isolation. This try/catch fallback is kept
+  /// defensively either way.
+  void _logBackendFailure(String endpoint, DioException e) {
+    assert(() {
+      debugPrint(
+        '[EmpHome] $endpoint failed (treated as empty/degraded): '
+        'status=${e.response?.statusCode} body=${e.response?.data}',
+      );
+      return true;
+    }());
+  }
+
   // ── getMemberByQr ─────────────────────────────────────────────────────────
-  // QR payload contains phone number — use GetCustomerByPhoneNo
 
   @override
   Future<ScannedMember> getMemberByQr(String userId) async {
     try {
-      // userId from QR is the customer's phone number
-      final res = await _dio.get('Common/GetCustomerByPhoneNo',
-          queryParameters: {'PhoneNo': userId});
-      final data = (res.data['customer'] ?? res.data['data'] ?? res.data)
-          as Map<String, dynamic>;
+      final res = await _dio.get(
+        'Common/GetCustomerByPhoneNo',
+        queryParameters: {'CustomerPhoneNo': userId},
+      );
+      if (res.data == null || res.data is! Map) {
+        throw Exception('Member not found.');
+      }
+      final data = res.data as Map<String, dynamic>;
+      final phone = (data['PhoneNo'] ?? data['phoneNo'] ?? userId).toString();
 
-      final points =
-          int.tryParse((data['TotalPoints'] ?? data['totalPoints'] ?? 0).toString()) ?? 0;
+      // Prefer TotalPoints from the profile response — same value the customer
+      // sees in their own app. Fall back to ledger calculation only if absent.
+      final rawProfilePts = data['TotalPoints'] ?? data['totalPoints'] ??
+          data['PointBalance'] ?? data['pointBalance'];
+      int points = rawProfilePts != null
+          ? (int.tryParse(rawProfilePts.toString()) ?? -1)
+          : -1;
+
+      if (points < 0) {
+        points = 0;
+        try {
+          final ledgerRes = await _dio.get(
+            'Mobile/GetAllCustomerLedgers',
+            data: {
+              'TransactionCompanyId': AppConstants.activeCompanyId,
+              'CustomerPhoneNo': phone,
+            },
+          );
+          final entries = _asList(ledgerRes.data);
+          int earned = 0, redeemed = 0;
+          for (final e in entries) {
+            if (e is! Map<String, dynamic>) continue;
+            final pts = int.tryParse((e['PointsValue'] ?? 0).toString()) ?? 0;
+            final type =
+                (e['PointsTransactionType'] ?? '').toString().toLowerCase();
+            if (type == 'earn') {
+              earned += pts;
+            } else {
+              redeemed += pts;
+            }
+          }
+          points = earned - redeemed;
+        } catch (_) {
+          // Points fetch is best-effort; proceed without it
+        }
+      }
 
       return ScannedMember(
-        userId: (data['PhoneNo'] ?? data['phoneNo'] ?? userId).toString(),
-        name:
-            '${data['FirstName'] ?? ''} ${data['LastName'] ?? ''}'.trim(),
-        memberId: (data['Id'] ?? data['CustomerId'] ?? '').toString(),
+        userId: phone,
+        name: '${data['FirstName'] ?? ''} ${data['LastName'] ?? ''}'.trim(),
+        memberId: phone,
         tier: _tierFromPoints(points),
         currentPoints: points,
-        phone: (data['PhoneNo'] ?? data['phoneNo'] ?? userId).toString(),
+        phone: phone,
       );
     } on DioException catch (e) {
       throw Exception(_msg(e) ?? 'Member not found.');
@@ -57,11 +128,9 @@ class EmpHomeRealService implements IEmpHomeService {
   }
 
   // ── recordFuelSale — POST /Common/EarnPoints ──────────────────────────────
-  // PointsCalculationRequestDTO: TransactionCompanyId, CustomerPhoneNo,
-  //   EmployeePhoneNo, DocumentNo, Amount
 
   @override
-  Future<void> recordFuelSale({
+  Future<int> recordFuelSale({
     required String employeeId,
     required String customerId,
     required double saleAmount,
@@ -69,115 +138,140 @@ class EmpHomeRealService implements IEmpHomeService {
   }) async {
     final phone = await _empPhone;
     try {
-      await _dio.post('Common/EarnPoints', data: {
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
-        'CustomerPhoneNo': customerId,
-        'EmployeePhoneNo': phone,
-        'DocumentNo': '',
-        'Amount': saleAmount,
-      });
+      final res = await _dio.post(
+        'Common/EarnPoints',
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': customerId,
+          'EmployeePhoneNo': phone,
+          'DocumentNo': '',
+          'Amount': saleAmount,
+        },
+      );
+      // Use server's calculated points; fall back to client estimate if absent.
+      final data = res.data;
+      if (data is Map) {
+        final pts = int.tryParse((data['Points'] ?? data['points'] ?? pointsAwarded).toString());
+        if (pts != null && pts > 0) return pts;
+      }
+      return pointsAwarded;
     } on DioException catch (e) {
       throw Exception(_msg(e) ?? 'Failed to record sale.');
     }
   }
 
-  // ── getTodayScans — GET /Mobile/GetAllEmployeeLedgers ─────────────────────
-  // EmployeeLedgerRequestDTO: TransactionCompanyId, CompanyId,
-  //   EmployeePhoneNo, DateFrom, DateTo
+  // ── getTodayScans — GET /Mobile/GetAllEmployeeWallets (body required) ──────
+  // fallback to an empty list is kept defensively so a genuine transient/
+  // server failure still degrades gracefully instead of crashing the
+  // dashboard.
 
   @override
   Future<List<ScanEntry>> getTodayScans(String employeeId) async {
     final phone = await _empPhone;
-    final today = DateTime.now();
-    final dateStr =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
     try {
-      final res = await _dio.get('Mobile/GetAllEmployeeLedgers',
-          queryParameters: {
-            'TransactionCompanyId': AppConstants.transactionCompanyId,
-            'CompanyId': AppConstants.transactionCompanyId,
-            'EmployeePhoneNo': phone,
-            'DateFrom': dateStr,
-            'DateTo': dateStr,
-          });
-      final list = res.data as List? ?? [];
-      return list
-          .map((m) => ScanEntry.fromJson(m as Map<String, dynamic>))
+      final res = await _dio.get(
+        'Mobile/GetAllEmployeeWallets',
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CompanyId': AppConstants.activeCompanyId,
+          'EmployeePhoneNo': phone,
+          'Year': now.year,
+          'Month': now.month,
+        },
+      );
+      final list = _asList(res.data);
+      final entries = list
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
           .toList();
-    } on DioException catch (_) {
-      return [];
+
+      bool isToday(Map<String, dynamic> j) {
+        final raw =
+            j['DateCreated'] ?? j['dateCreated'] ?? j['CreatedAt'] ?? j['Date'];
+        final d = raw != null ? DateTime.tryParse(raw.toString()) : null;
+        if (d == null) return false;
+        return d.year == now.year && d.month == now.month && d.day == now.day;
+      }
+
+      return entries
+          .where(isToday)
+          .map((m) => ScanEntry.fromJson(m))
+          .toList();
+    } on DioException catch (e) {
+      _logBackendFailure('GetAllEmployeeWallets (getTodayScans)', e);
+      return const [];
     }
   }
 
-  // ── getWeeklyCommission — GET /Common/CalculateCommission ─────────────────
+  // ── getWeeklyCommission — derived from GET /Mobile/GetAllEmployeeWallets ──
+  // FIX (2026-06-30): same GET + "Request"-wrapped body fix as
+  // getTodayScans. CalculateCommission is confirmed to be a single-document
+  // endpoint (requires CustomerPhoneNo + DocumentNo), not a date-range
+  // rollup, so it's intentionally not called here at all.
 
   @override
   Future<List<int>> getWeeklyCommission(String employeeId) async {
     final phone = await _empPhone;
     final now = DateTime.now();
-    // Build Mon–Sun of current week
     final monday = now.subtract(Duration(days: now.weekday - 1));
-    final List<int> result = [];
+    final result = List<int>.filled(7, 0);
 
-    for (int i = 0; i < 7; i++) {
-      final day = monday.add(Duration(days: i));
-      final dateStr =
-          '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-      try {
-        final res = await _dio.get('Common/CalculateCommission',
-            queryParameters: {
-              'TransactionCompanyId': AppConstants.transactionCompanyId,
-              'EmployeePhoneNo': phone,
-              'DateFrom': dateStr,
-              'DateTo': dateStr,
-            });
-        final data = res.data;
-        final val = data is Map
-            ? int.tryParse(
-                    (data['commission'] ?? data['Commission'] ?? 0).toString()) ??
-                0
-            : 0;
-        result.add(val);
-      } on DioException catch (_) {
-        result.add(0);
+    try {
+      final res = await _dio.get(
+        'Mobile/GetAllEmployeeWallets',
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CompanyId': AppConstants.activeCompanyId,
+          'EmployeePhoneNo': phone,
+          'Year': now.year,
+          'Month': now.month,
+        },
+      );
+      final list = _asList(res.data);
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final j = Map<String, dynamic>.from(raw);
+        final dateRaw =
+            j['DateCreated'] ?? j['dateCreated'] ?? j['CreatedAt'] ?? j['Date'];
+        final d = dateRaw != null ? DateTime.tryParse(dateRaw.toString()) : null;
+        if (d == null) continue;
+
+        final dayIndex = d.difference(monday).inDays;
+        if (dayIndex < 0 || dayIndex > 6) continue;
+
+        final commissionRaw =
+            j['Commission'] ?? j['commission'] ?? j['CommissionAmount'] ?? 0;
+        final commission =
+            (double.tryParse(commissionRaw.toString()) ?? 0.0).round();
+        result[dayIndex] += commission;
       }
+    } on DioException catch (e) {
+      _logBackendFailure('GetAllEmployeeWallets (getWeeklyCommission)', e);
+      // leave result as zeros
     }
     return result;
   }
 
-  // ── getRedeemableOffers — GET /Mobile/GetAllCustomerLedgers ──────────────
+  // ── getRedeemableOffers ───────────────────────────────────────────────────
+  // The backend has no dedicated offers endpoint. Return a single synthetic
+  // Gold Shop offer so the redemption UI can proceed; the actual points
+  // amount is entered manually by the employee.
 
   @override
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
-    try {
-      final res = await _dio.get('Mobile/GetAllCustomerLedgers',
-          queryParameters: {
-            'TransactionCompanyId': AppConstants.transactionCompanyId,
-            'CustomerPhoneNo': customerId,
-          });
-      final list = res.data as List? ?? [];
-      // Map ledger entries → RedeemableOffer shape
-      return list.map((m) {
-        final map = m as Map<String, dynamic>;
-        return RedeemableOffer(
-          id: (map['Id'] ?? map['id'] ?? '').toString(),
-          title: (map['CompanyName'] ?? map['Title'] ?? 'Offer').toString(),
-          description:
-              (map['Description'] ?? map['Note'] ?? '').toString(),
-          business: (map['CompanyName'] ?? map['Business'] ?? '').toString(),
-          pointsCost:
-              int.tryParse((map['Points'] ?? map['points'] ?? 0).toString()) ??
-                  0,
-          isExpired: map['IsExpired'] as bool? ?? false,
-        );
-      }).toList();
-    } on DioException catch (_) {
-      return [];
-    }
+    return const [
+      RedeemableOffer(
+        id: 'gold-shop-redeem',
+        title: 'Gold Shop',
+        description: 'Redeem at Gold Shop',
+        business: 'Gold Shop',
+        pointsCost: 0,
+      ),
+    ];
   }
 
   // ── sendRedemptionOtp — POST /Common/ForgotPassword (OTP channel) ─────────
-  // Sends OTP to customer's registered phone
 
   @override
   Future<String> sendRedemptionOtp({
@@ -185,18 +279,18 @@ class EmpHomeRealService implements IEmpHomeService {
     required String offerId,
   }) async {
     try {
-      await _dio.post('Common/ForgotPassword', data: {
-        'UserName': customerId, // customerId = phone number
-      });
-      return ''; // OTP delivered via SMS — not returned to client
+      await _dio.post(
+        'Common/ForgotPassword',
+        options: Options(responseType: ResponseType.plain),
+        data: {'UserName': customerId, 'Password': ''},
+      );
+      return '';
     } on DioException catch (e) {
       throw Exception(_msg(e) ?? 'Failed to send OTP.');
     }
   }
 
   // ── confirmRedemption — POST /Common/RedeemPoints ─────────────────────────
-  // PointsRedeemRequestDTO: TransactionCompanyId, CustomerPhoneNo,
-  //   EmployeePhoneNo, PointsRedeemCompany, DocumentNo, Amount, Points
 
   @override
   Future<RedemptionResult> confirmRedemption({
@@ -204,25 +298,43 @@ class EmpHomeRealService implements IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int pointsToRedeem = 0,
   }) async {
     final phone = await _empPhone;
     try {
-      final res = await _dio.post('Common/RedeemPoints', data: {
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
-        'CustomerPhoneNo': customerId,
-        'EmployeePhoneNo': phone,
-        'PointsRedeemCompany': '',
-        'DocumentNo': offerId,
-        'Amount': 0,
-        'Points': 0,
-        'OTP': otp,
-      });
-      final data = res.data is Map ? res.data as Map<String, dynamic> : {};
-      final deducted =
-          int.tryParse((data['PointsDeducted'] ?? data['points'] ?? 0).toString()) ?? 0;
-      final remaining =
-          int.tryParse((data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ?? 0;
-      final code = (data['ConfirmationCode'] ?? data['code'] ??
+      // ResponseType.plain avoids a FormatException when the backend returns
+      // HTTP 200 with an empty body on success (same pattern as ResetPassword).
+      // DioException is still thrown automatically for 4xx/5xx status codes.
+      final res = await _dio.post(
+        'Common/RedeemPoints',
+        options: Options(responseType: ResponseType.plain),
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': customerId,
+          'EmployeePhoneNo': phone,
+          'Points': pointsToRedeem,
+          'PointsRedeemCompanyPhoneNo': '0112948777',
+        },
+      );
+
+      // Parse plain-text response as JSON if non-empty, otherwise use defaults.
+      Map<String, dynamic> data = {};
+      final body = (res.data as String? ?? '').trim();
+      if (body.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(body);
+          if (parsed is Map<String, dynamic>) data = parsed;
+        } catch (_) {}
+      }
+
+      final deducted = int.tryParse(
+              (data['PointsDeducted'] ?? data['points'] ?? pointsToRedeem).toString()) ??
+          pointsToRedeem;
+      final remaining = int.tryParse(
+              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ??
+          0;
+      final code = (data['ConfirmationCode'] ??
+              data['code'] ??
               'RDM-${DateTime.now().millisecondsSinceEpoch % 100000}')
           .toString();
       return RedemptionResult(
@@ -233,8 +345,8 @@ class EmpHomeRealService implements IEmpHomeService {
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       final msg = _msg(e);
-      if (status == 400) throw InvalidOtpException();
-      if (status == 422) throw InsufficientPointsException();
+      if (status == 400) throw const InvalidOtpException();
+      if (status == 422) throw const InsufficientPointsException();
       throw Exception(msg ?? 'Redemption failed. Please try again.');
     }
   }
@@ -249,7 +361,15 @@ class EmpHomeRealService implements IEmpHomeService {
   }
 }
 
-// ── Service factory ───────────────────────────────────────────────────────────
+List _asList(dynamic data) {
+  if (data is List) return data;
+  if (data is Map) {
+    final inner =
+        data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    if (inner is List) return inner;
+  }
+  return [];
+}
 
 IEmpHomeService get empHomeService => AppConstants.useMockServices
     ? EmpHomeMockService.instance

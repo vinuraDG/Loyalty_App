@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
+import 'package:loyalty_app/features/auth/screens/login_screen.dart';
 import 'package:loyalty_app/features/employee/home/screens/employee_dashboard_screen.dart';
 import 'package:loyalty_app/features/employee/employee_screens.dart';
+import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/customer/home/screens/main_screen.dart';
+import 'package:loyalty_app/features/dev/dev_bypass_screen.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'onboarding_screen.dart';
 
@@ -43,22 +46,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
 
-    // Wait until auth state resolves from initial
+    // Wait until auth state resolves from initial (max 7 s safety net)
+    int _waited = 0;
     while (ref.read(authProvider).status == AuthStatus.initial) {
       await Future.delayed(const Duration(milliseconds: 100));
+      _waited += 100;
+      if (_waited >= 7000) break;
     }
     if (!mounted) return;
 
     final auth = ref.read(authProvider);
 
     Widget destination;
-    if (!auth.isAuthenticated) {
+    if (AppConstants.devBypass && !auth.isAuthenticated) {
+      destination = const LoginScreen();
+    } else if (!auth.isAuthenticated) {
       destination = const OnboardingScreen();
     } else if (auth.isEmployee) {
-      // Restored employee session → go to employee dashboard
       destination = EmployeeDashboardScreen(employee: auth.user!);
     } else {
-      // Restored customer session → go to main screen
       destination = const MainScreen();
     }
 

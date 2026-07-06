@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
-import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 
@@ -33,7 +32,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
 
   late Future<List<TransactionModel>> _txFuture;
 
-  IPointsService get _svc => widget.service ?? PointsMockService.instance;
+  IPointsService get _svc => widget.service ?? pointsService;
 
   @override
   void initState() {
@@ -49,6 +48,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
     ).animate(CurvedAnimation(parent: _heroAnim, curve: Curves.easeOutCubic));
 
     _txFuture = _svc.getTransactions(widget.userId);
+  }
+
+  Future<void> _refresh() async {
+    final newFuture = _svc.getTransactions(widget.userId);
+    setState(() => _txFuture = newFuture);
+    await newFuture;
   }
 
   @override
@@ -77,27 +82,50 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month]} ${date.day}, ${date.year}';
   }
 
   Color _businessAccent(String business) {
     switch (business) {
-      case 'Fuel Station': return const Color(0xFF60A5FA);
-      case 'Laundry':      return const Color(0xFF34D399);
-      case 'Gold Shop':    return const Color(0xFFFBBF24);
-      default:             return AppColors.primary;
+      case 'Fuel':
+      case 'Fuel Station':
+        return const Color(0xFF60A5FA);
+      case 'Laundry':
+        return const Color(0xFF34D399);
+      case 'Gold House':
+      case 'Gold Shop':
+        return const Color(0xFFFBBF24);
+      default:
+        return AppColors.primary;
     }
   }
 
   IconData _businessIcon(String business) {
     switch (business) {
-      case 'Fuel Station': return Icons.local_gas_station_rounded;
-      case 'Laundry':      return Icons.local_laundry_service_rounded;
-      case 'Gold Shop':    return Icons.diamond_rounded;
-      default:             return Icons.store_rounded;
+      case 'Fuel':
+      case 'Fuel Station':
+        return Icons.local_gas_station_rounded;
+      case 'Laundry':
+        return Icons.local_laundry_service_rounded;
+      case 'Gold House':
+      case 'Gold Shop':
+        return Icons.diamond_rounded;
+      default:
+        return Icons.store_rounded;
     }
   }
 
@@ -115,11 +143,36 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text(
-                'Failed to load history.\n${snapshot.error}',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textSecondary),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.wifi_off_rounded,
+                        color: AppColors.textMuted, size: 40),
+                    const SizedBox(height: 12),
+                    Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: () => setState(() {
+                        _txFuture = _svc.getTransactions(widget.userId);
+                      }),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -144,14 +197,17 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
           final Map<String, _BizStats> bizStats = {};
           for (final b in businesses) {
             final bTxs = allTxs.where((t) => t.business == b);
-            final earned   = bTxs.where((t) => t.isEarned)
+            final earned = bTxs
+                .where((t) => t.isEarned)
                 .fold<int>(0, (s, t) => s + t.points);
-            final redeemed = bTxs.where((t) => t.isRedeemed)
+            final redeemed = bTxs
+                .where((t) => t.isRedeemed)
                 .fold<int>(0, (s, t) => s + t.points);
-            final expired  = bTxs.where((t) => t.isExpired)
+            final expired = bTxs
+                .where((t) => t.isExpired)
                 .fold<int>(0, (s, t) => s + t.points);
-            bizStats[b] = _BizStats(
-                earned: earned, redeemed: redeemed, expired: expired);
+            bizStats[b] =
+                _BizStats(earned: earned, redeemed: redeemed, expired: expired);
           }
 
           // ── Filtered list ─────────────────────────────────────────────────
@@ -159,10 +215,10 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
             final bizMatch =
                 _selectedBusiness == null || t.business == _selectedBusiness;
             final tabMatch = switch (_activeTab) {
-              _Tab.earned   => t.isEarned,
+              _Tab.earned => t.isEarned,
               _Tab.redeemed => t.isRedeemed,
-              _Tab.expired  => t.isExpired,
-              _Tab.all      => true,
+              _Tab.expired => t.isExpired,
+              _Tab.all => true,
             };
             return bizMatch && tabMatch;
           }).toList();
@@ -174,8 +230,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
           }
           final groupKeys = grouped.keys.toList();
 
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+          return RefreshIndicator(
+            color: AppColors.primary,
+            backgroundColor: AppColors.bgCard,
+            onRefresh: _refresh,
+            child: CustomScrollView(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
               // ── Header ────────────────────────────────────────────────────
               SliverToBoxAdapter(
@@ -222,7 +282,8 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                 child: _TabBar(
                   activeTab: _activeTab,
                   allCount: allTxs
-                      .where((t) => _selectedBusiness == null ||
+                      .where((t) =>
+                          _selectedBusiness == null ||
                           t.business == _selectedBusiness)
                       .length,
                   earnedCount: allTxs
@@ -274,11 +335,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF97316).withValues(alpha: 0.12),
+                          color:
+                              const Color(0xFFF97316).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${_fmt(totalExpired)} pts lost',
+                          '${_fmt(totalExpired)} pts expiring',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -312,6 +374,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
 
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
+          ),
           );
         },
       ),
@@ -390,7 +453,7 @@ class _Header extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Container(
                 width: double.infinity,
-                height:160,
+                height: 160,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -407,7 +470,7 @@ class _Header extends StatelessWidget {
                     Expanded(
                       flex: 5,
                       child: Column(
-                        mainAxisAlignment:MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(children: [
@@ -431,7 +494,8 @@ class _Header extends StatelessWidget {
                             children: [
                               Text(
                                 fmtFn(balance),
-                                style: AppTextStyles.display.copyWith(fontSize: 42),
+                                style: AppTextStyles.display
+                                    .copyWith(fontSize: 42),
                               ),
                               const SizedBox(width: 6),
                               Padding(
@@ -470,20 +534,20 @@ class _Header extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           _MiniStatLine(
-                            label: 'Earned',
+                            label: 'Earn',
                             value: '+${fmtFn(totalEarned)}',
                             color: const Color(0xFFA7F3D0),
                           ),
                           const SizedBox(height: 6),
                           _MiniStatLine(
-                            label: 'Redeemed',
+                            label: 'Redeem',
                             value: '-${fmtFn(totalRedeemed)}',
                             color: const Color(0xFFFCA5A5),
                           ),
                           if (totalExpired > 0) ...[
                             const SizedBox(height: 6),
                             _MiniStatLine(
-                              label: 'Expire',
+                              label: 'Expiring',
                               value: fmtFn(totalExpired),
                               color: const Color(0xFFFBBF24),
                             ),
@@ -550,7 +614,7 @@ class _ExpiredBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${fmtFn(totalExpired)} points have expire',
+                    '${fmtFn(totalExpired)} points expiring soon',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -559,7 +623,7 @@ class _ExpiredBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Expire points cannot be redeemed.',
+                    'Expiring points cannot be redeemed.',
                     style: TextStyle(
                       fontSize: 11,
                       color: const Color(0xFFF97316).withValues(alpha: 0.7),
@@ -635,7 +699,9 @@ class _BusinessSelector extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 120,
+          // Tall enough for the label to wrap onto 2 lines (e.g. "Sunshine
+          // Laundry") without clipping or squeezing the stat rows below it.
+          height: 132,
           child: ListView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -716,21 +782,21 @@ class _TabBar extends StatelessWidget {
             onTap: () => onTabChanged(_Tab.all),
           ),
           _TabItem(
-            label: 'Earned',
+            label: 'Earn',
             count: earnedCount,
             isActive: activeTab == _Tab.earned,
             activeColor: const Color(0xFF34D399),
             onTap: () => onTabChanged(_Tab.earned),
           ),
           _TabItem(
-            label: 'Redeemed',
+            label: 'Redeem',
             count: redeemedCount,
             isActive: activeTab == _Tab.redeemed,
             activeColor: const Color(0xFFFCA5A5),
             onTap: () => onTabChanged(_Tab.redeemed),
           ),
           _TabItem(
-            label: 'Expire',
+            label: 'Expiring',
             count: expiredCount,
             isActive: activeTab == _Tab.expired,
             activeColor: const Color(0xFFF97316),
@@ -874,10 +940,19 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, message) = switch (tab) {
-      _Tab.earned   => (Icons.add_circle_outline_rounded,   'No earned transactions'),
-      _Tab.redeemed => (Icons.remove_circle_outline_rounded,'No redeemed transactions'),
-      _Tab.expired  => (Icons.timer_off_rounded,            'No expired points — great job!'),
-      _Tab.all      => (Icons.receipt_long_rounded,         'No transactions found'),
+      _Tab.earned => (
+          Icons.add_circle_outline_rounded,
+          'No earn transactions'
+        ),
+      _Tab.redeemed => (
+          Icons.remove_circle_outline_rounded,
+          'No redeem transactions'
+        ),
+      _Tab.expired => (
+          Icons.timer_off_rounded,
+          'No expiring points — great job!'
+        ),
+      _Tab.all => (Icons.receipt_long_rounded, 'No transactions found'),
     };
 
     return Center(
@@ -942,12 +1017,13 @@ class _CompanyCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        width: 148,
+        // Widened from 148 → 168 and paired with a 2-line label below so
+        // full company names (e.g. "Sunshine Laundry") aren't squeezed
+        // into a single-line ellipsis like "Sunshine La...".
+        width: 168,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected
-              ? accent.withValues(alpha: 0.15)
-              : AppColors.bgCard,
+          color: selected ? accent.withValues(alpha: 0.15) : AppColors.bgCard,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: selected ? accent : AppColors.border,
@@ -958,45 +1034,51 @@ class _CompanyCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(9),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(icon, size: 15, color: accent),
                 ),
-                child: Icon(icon, size: 15, color: accent),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: selected ? accent : AppColors.textSecondary,
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    softWrap: true,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                      color: selected ? accent : AppColors.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 8),
             _StatRow(
-              label: 'Earned',
+              label: 'Earn',
               value: '+${fmtFn(earned)}',
               color: const Color(0xFF34D399),
             ),
             const SizedBox(height: 3),
             _StatRow(
-              label: 'Redeemed',
+              label: 'Redeem',
               value: '-${fmtFn(redeemed)}',
               color: const Color(0xFFFCA5A5),
             ),
             if (expired > 0) ...[
               const SizedBox(height: 3),
               _StatRow(
-                label: 'Expire',
+                label: 'Expiring',
                 value: fmtFn(expired),
                 color: const Color(0xFFF97316),
               ),
@@ -1027,12 +1109,15 @@ class _StatRow extends StatelessWidget {
             color: AppColors.textSecondary.withValues(alpha: 0.55),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: color,
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -1065,12 +1150,15 @@ class _MiniStatLine extends StatelessWidget {
             fontWeight: FontWeight.w400,
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: color,
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -1126,120 +1214,381 @@ class _HistoryTile extends StatelessWidget {
     return '$h:$m $ampm';
   }
 
+  String _fmtDate(DateTime d) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  String _fmtTime(DateTime d) {
+    final hour   = d.hour;
+    final minute = d.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h      = hour % 12 == 0 ? 12 : hour % 12;
+    return '$h:$minute $period';
+  }
+
+  String _txTypeLabel() {
+    if (tx.isEarned) return 'Earn';
+    if (tx.isRedeemed) return 'Redeem';
+    return 'Expiring';
+  }
+
+  IconData _txIcon() {
+    if (tx.isEarned) return Icons.arrow_upward_rounded;
+    if (tx.isRedeemed) return Icons.arrow_downward_rounded;
+    return Icons.timer_off_rounded;
+  }
+
+  Color _txColor() {
+    if (tx.isExpired) return const Color(0xFFF97316);
+    if (tx.isEarned) return AppColors.success;
+    return AppColors.error;
+  }
+
+  void _showDetail(BuildContext context) {
+    final color = _txColor();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgCard,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+              child: Center(
+                child: tx.isExpired
+                    ? Icon(Icons.timer_off_rounded, size: 30, color: color)
+                    : BusinessIcon(business: tx.business, size: 34),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(tx.displayPoints,
+                style:
+                    AppTextStyles.display.copyWith(fontSize: 38, color: color)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withValues(alpha: 0.25)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(_txIcon(), size: 12, color: color),
+                const SizedBox(width: 5),
+                Text(_txTypeLabel(),
+                    style: AppTextStyles.caption.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.bgDark,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(children: [
+                _HistDetailRow(
+                    icon: Icons.store_rounded,
+                    label: 'Earn Company',
+                    value: tx.businessFullName?.isNotEmpty == true
+                        ? tx.businessFullName!
+                        : tx.business),
+                if (tx.isRedeemed) ...[
+                  _HistDivider(),
+                  _HistDetailRow(
+                    icon: Icons.storefront_rounded,
+                    label: 'Redeem Company',
+                    value: tx.redeemCompanyFullName?.isNotEmpty == true
+                        ? tx.redeemCompanyFullName!
+                        : (tx.redeemCompanyName?.isNotEmpty == true
+                            ? tx.redeemCompanyName!
+                            : tx.business),
+                  ),
+                ],
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Transaction Type',
+                    value: _txTypeLabel(),
+                    valueColor: color),
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.toll_rounded,
+                    label: 'Points',
+                    value: tx.displayPoints,
+                    valueColor: color,
+                    bold: true),
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Date',
+                    value: _fmtDate(tx.date)),
+                _HistDivider(),
+                _HistDetailRow(
+                    icon: Icons.access_time_rounded,
+                    label: 'Time',
+                    value: _fmtTime(tx.date)),
+                if (tx.billNo != null &&
+                    tx.billNo!.isNotEmpty &&
+                    tx.billNo != '-') ...[
+                  _HistDivider(),
+                  _HistDetailRow(
+                      icon: Icons.receipt_outlined,
+                      label: 'Bill No',
+                      value: tx.billNo!),
+                ],
+                if (tx.note != null && tx.note!.isNotEmpty) ...[
+                  _HistDivider(),
+                  _HistDetailRow(
+                      icon: Icons.notes_rounded,
+                      label: 'Note',
+                      value: tx.note!),
+                ],
+              ]),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    gradient:
+                        const LinearGradient(colors: AppColors.buttonGradient),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('Close',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: Colors.white)),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isExpired = tx.isExpired;
-    final tileAccent = isExpired
-        ? AppColors.textSecondary.withValues(alpha: 0.4)
-        : accent;
+    final tileAccent =
+        isExpired ? AppColors.textSecondary.withValues(alpha: 0.4) : accent;
     final time = _timeString(tx.date);
 
-    return Opacity(
-      opacity: isExpired ? 0.65 : 1.0,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(children: [
-          // Business icon
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: tileAccent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
-              border:
-                  Border.all(color: tileAccent.withValues(alpha: 0.2), width: 1),
+    return GestureDetector(
+      onTap: () => _showDetail(context),
+      child: Opacity(
+        opacity: isExpired ? 0.65 : 1.0,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: tileAccent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                    color: tileAccent.withValues(alpha: 0.2), width: 1),
+              ),
+              child: Center(
+                child: isExpired
+                    ? Icon(Icons.timer_off_rounded, size: 20, color: tileAccent)
+                    : BusinessIcon(business: tx.business, size: 44),
+              ),
             ),
-            child: Center(
-              child: isExpired
-                  ? Icon(Icons.timer_off_rounded,
-                      size: 20, color: tileAccent)
-                  : BusinessIcon(business: tx.business, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.businessFullName?.isNotEmpty == true
+                        ? tx.businessFullName!
+                        : tx.business,
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: isExpired
+                          ? AppColors.textSecondary.withValues(alpha: 0.5)
+                          : null,
+                      decoration: isExpired
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor:
+                          AppColors.textSecondary.withValues(alpha: 0.4),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    _TxBadge(type: tx.type),
+                    const SizedBox(width: 6),
+                    Text(time,
+                        style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                  ]),
+                  if (tx.note != null && tx.note!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      tx.note!,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isExpired
+                            ? const Color(0xFFF97316).withValues(alpha: 0.55)
+                            : AppColors.textSecondary.withValues(alpha: 0.5),
+                        fontStyle: FontStyle.italic,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-
-          // Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  tx.business,
-                  style: AppTextStyles.labelMedium.copyWith(
+                  tx.displayPoints,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                     color: isExpired
-                        ? AppColors.textSecondary.withValues(alpha: 0.5)
-                        : null,
+                        ? AppColors.textSecondary.withValues(alpha: 0.45)
+                        : tx.isEarned
+                            ? AppColors.success
+                            : AppColors.error,
                     decoration: isExpired
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
                     decorationColor:
                         AppColors.textSecondary.withValues(alpha: 0.4),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
-                Row(children: [
-                  _TxBadge(type: tx.type),
-                  const SizedBox(width: 6),
+                Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(
-                    time,
-                    style: AppTextStyles.caption.copyWith(fontSize: 10),
-                  ),
-                ]),
-                if (tx.note != null && tx.note!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    tx.note!,
+                    isExpired ? 'expiring' : 'pts',
                     style: TextStyle(
                       fontSize: 10,
                       color: isExpired
                           ? const Color(0xFFF97316).withValues(alpha: 0.55)
-                          : AppColors.textSecondary.withValues(alpha: 0.5),
-                      fontStyle: FontStyle.italic,
+                          : AppColors.textSecondary.withValues(alpha: 0.45),
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 12, color: AppColors.textSecondary),
+                ]),
               ],
             ),
-          ),
-
-          // Points
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                tx.displayPoints,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: isExpired
-                      ? AppColors.textSecondary.withValues(alpha: 0.45)
-                      : tx.isEarned
-                          ? AppColors.success
-                          : AppColors.error,
-                  decoration: isExpired
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                  decorationColor:
-                      AppColors.textSecondary.withValues(alpha: 0.4),
-                ),
-              ),
-              Text(
-                isExpired ? 'expire' : 'pts',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isExpired
-                      ? const Color(0xFFF97316).withValues(alpha: 0.55)
-                      : AppColors.textSecondary.withValues(alpha: 0.45),
-                ),
-              ),
-            ],
-          ),
-        ]),
+          ]),
+        ),
       ),
     );
   }
+}
+
+// ── Popup helpers (points history) ────────────────────────────────────────────
+//
+// FIX (alignment + no-crash for long/missing values):
+// - Added a fixed-width label column (`SizedBox(width: 110, ...)`) so every
+//   row's value starts at the exact same x-position — this is what gives
+//   the "title: value" list look in the screenshot.
+// - Replaced `Flexible` + single-line `ellipsis` with `Expanded` + wrapping
+//   text (`softWrap: true`, `maxLines: 3`), so long values like business
+//   names wrap onto extra lines instead of being cut off with "…".
+// - Falls back to '-' if value is somehow empty, instead of rendering a
+//   blank cell.
+class _HistDetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color? valueColor;
+  final bool bold;
+  const _HistDetailRow(
+      {required this.icon,
+      required this.label,
+      required this.value,
+      this.valueColor,
+      this.bold = false});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 110,
+              child: Text(
+                label,
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                value.isNotEmpty ? value : '-',
+                textAlign: TextAlign.right,
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                    color: valueColor ?? AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: bold ? FontWeight.w700 : FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _HistDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      color: AppColors.border);
 }
 
 // ── Transaction Badge ─────────────────────────────────────────────────────────
@@ -1251,17 +1600,17 @@ class _TxBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, icon, color) = switch (type) {
       TransactionType.earned => (
-          'Earned',
+          'Earn',
           Icons.arrow_upward_rounded,
           AppColors.success,
         ),
       TransactionType.redeemed => (
-          'Redeemed',
+          'Redeem',
           Icons.arrow_downward_rounded,
           AppColors.error,
         ),
       TransactionType.expired => (
-          'Expire',
+          'Expiring',
           Icons.timer_off_rounded,
           const Color(0xFFF97316),
         ),

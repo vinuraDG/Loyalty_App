@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -70,12 +71,26 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     setState(() => _isLoading = true);
     FocusScope.of(context).unfocus();
 
-    // TODO: wire to authProvider.changePassword(
-    //   _currentPassCtrl.text, _newPassCtrl.text)
-    await Future.delayed(const Duration(seconds: 1));
+    await ref.read(authProvider.notifier).changePassword(
+      currentPassword: _currentPassCtrl.text,
+      newPassword:     _newPassCtrl.text,
+    );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
+
+    final auth = ref.read(authProvider);
+    if (auth.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.errorMessage!),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      ref.read(authProvider.notifier).clearError();
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Password changed successfully!')),

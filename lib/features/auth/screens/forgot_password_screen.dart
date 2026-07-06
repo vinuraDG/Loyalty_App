@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
@@ -193,6 +194,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
     try {
       await ref.read(authProvider.notifier).resetPassword(
             phone: _phoneCtrl.text.trim(),
+            otp: _otpValue,
             newPassword: _newPassCtrl.text,
           );
       if (!mounted) return;
@@ -374,6 +376,29 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
                 'A 4-digit OTP was sent to ${_phoneCtrl.text.trim()}',
           ),
           const SizedBox(height: 32),
+
+          // Mock-mode hint
+          if (AppConstants.useMockServices) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.accentGold.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.4)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.info_outline_rounded,
+                    size: 14, color: AppColors.accentGold),
+                const SizedBox(width: 8),
+                Text(
+                  'Demo mode — enter code: ${AppConstants.mockOtp}',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.accentGold),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // OTP boxes
           Row(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
-import 'package:loyalty_app/customer/profile/data/profile_mock_service.dart';
 import 'package:loyalty_app/customer/profile/screens/change_password_screen.dart';
 import 'package:loyalty_app/customer/profile/screens/edit_profile_screen.dart';
 import 'package:loyalty_app/customer/qr/screens/qr_screen.dart';
@@ -9,6 +8,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/screens/login_screen.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../features/dev/dev_bypass_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final IProfileService? service; // injectable for testing
@@ -20,7 +21,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   IProfileService get _svc =>
-      widget.service ?? ProfileMockService.instance;
+      widget.service ?? profileService;
 
   Future<ProfileSummary>? _summaryFuture;
   String? _loadedUserId;
@@ -33,6 +34,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _loadedUserId = userId;
       _summaryFuture = _svc.getProfileSummary(userId);
     }
+  }
+
+  Future<void> _refresh() async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) return;
+    final newFuture = _svc.getProfileSummary(userId);
+    setState(() => _summaryFuture = newFuture);
+    await newFuture;
   }
 
   // ── Sign-out: see top-level _signOut() below ─────────────────────────────
@@ -48,8 +57,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(children: [
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgCard,
+          onRefresh: _refresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(children: [
             // ── Header ──────────────────────────────────────────────
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -169,6 +183,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ]),
         ),
+        ),
       ),
     );
   }
@@ -187,9 +202,12 @@ Future<void> _signOut(BuildContext context, WidgetRef ref) async {
   if (!confirmed) return;
   await ref.read(authProvider.notifier).signOut();
   if (!context.mounted) return;
+  final dest = AppConstants.devBypass
+      ? const DevBypassScreen()
+      : const LoginScreen();
   Navigator.pushAndRemoveUntil(
     context,
-    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    MaterialPageRoute(builder: (_) => dest),
     (_) => false,
   );
 }

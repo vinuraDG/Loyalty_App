@@ -8,7 +8,9 @@ import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/screens/login_screen.dart';
-import '../data/emp_profile_mock_service.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../dev/dev_bypass_screen.dart';
+import '../data/emp_profile_api_service.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
   final UserModel employee;
@@ -20,7 +22,7 @@ class EmployeeProfilePage extends ConsumerStatefulWidget {
 }
 
 class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
-  final _svc = EmpProfileMockService.instance;
+  final _svc = empProfileService;
 
   dynamic _info;
 
@@ -51,8 +53,13 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(children: [
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgCard,
+          onRefresh: _load,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(children: [
             // ── Header ──────────────────────────────────────────────
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -157,6 +164,7 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
             ),
           ]),
         ),
+        ),
       ),
     );
   }
@@ -169,9 +177,12 @@ Future<void> _signOut(BuildContext context, WidgetRef ref) async {
   if (!confirmed) return;
   await ref.read(authProvider.notifier).signOut();
   if (!context.mounted) return;
+  final dest = AppConstants.devBypass
+      ? const DevBypassScreen()
+      : const LoginScreen();
   Navigator.pushAndRemoveUntil(
     context,
-    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    MaterialPageRoute(builder: (_) => dest),
     (_) => false,
   );
 }

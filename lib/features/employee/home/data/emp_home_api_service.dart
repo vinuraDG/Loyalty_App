@@ -31,15 +31,38 @@ class ScanEntry {
     required this.time,
   });
 
-  factory ScanEntry.fromJson(Map<String, dynamic> j) => ScanEntry(
-        memberName: (j['memberName'] ?? j['MemberName'] ?? '').toString(),
-        saleAmount:
-            double.tryParse((j['saleAmount'] ?? j['Amount'] ?? 0).toString()) ??
-                0,
-        points:
-            int.tryParse((j['points'] ?? j['Points'] ?? 0).toString()) ?? 0,
-        time: (j['time'] ?? j['Date'] ?? '').toString(),
-      );
+  factory ScanEntry.fromJson(Map<String, dynamic> j) {
+    // FIX: Use DateCreated for the actual transaction date.
+    // DateExpire is when the points expire (typically 1 yr after creation),
+    // NOT when the transaction occurred — using it caused wrong date display.
+    final rawDate =
+        j['DateCreated'] ?? j['dateCreated'] ?? j['CreatedAt'] ?? j['Date'];
+    final parsed = rawDate != null
+        ? DateTime.tryParse(rawDate.toString())
+        : null;
+    final txDate = parsed ?? DateTime.now();
+
+    final h = txDate.hour % 12 == 0 ? 12 : txDate.hour % 12;
+    final m = txDate.minute.toString().padLeft(2, '0');
+    final timeStr = '$h:$m ${txDate.hour >= 12 ? 'PM' : 'AM'}';
+
+    return ScanEntry(
+      memberName: (j['CustomerName'] ??
+              j['MemberName'] ??
+              j['memberName'] ??
+              '')
+          .toString(),
+      saleAmount: double.tryParse(
+              (j['ValueFrom'] ?? j['saleAmount'] ?? j['Amount'] ?? 0)
+                  .toString()) ??
+          0,
+      points: int.tryParse(
+              (j['PointsValue'] ?? j['points'] ?? j['Points'] ?? 0)
+                  .toString()) ??
+          0,
+      time: timeStr,
+    );
+  }
 }
 
 class RedeemableOffer {
@@ -65,7 +88,8 @@ class RedeemableOffer {
         description: (j['description'] ?? j['Description'] ?? '').toString(),
         business: (j['business'] ?? j['Business'] ?? '').toString(),
         pointsCost:
-            int.tryParse((j['pointsCost'] ?? j['Points'] ?? 0).toString()) ?? 0,
+            int.tryParse((j['pointsCost'] ?? j['Points'] ?? 0).toString()) ??
+                0,
         isExpired: j['isExpired'] as bool? ?? false,
       );
 }
@@ -102,7 +126,7 @@ class InsufficientPointsException implements Exception {
 
 abstract interface class IEmpHomeService {
   Future<ScannedMember> getMemberByQr(String userId);
-  Future<void> recordFuelSale({
+  Future<int> recordFuelSale({
     required String employeeId,
     required String customerId,
     required double saleAmount,
@@ -120,5 +144,6 @@ abstract interface class IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int pointsToRedeem = 0,
   });
 }

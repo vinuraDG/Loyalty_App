@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/core/errors/app_exception.dart';
 import 'package:loyalty_app/customer/profile/data/profile_mock_service.dart';
 
 // ── Model ─────────────────────────────────────────────────────────────────────
@@ -34,24 +35,83 @@ class ProfileApiService implements IProfileService {
 
   @override
   Future<ProfileSummary> getProfileSummary(String userId) async {
+    // FIX: guard against empty phone before firing a request
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    if (phone.isEmpty) {
+      throw Exception('No authenticated user found. Please log in again.');
+    }
+
     try {
-      final res = await _dio.get('Common/GetCustomerByPhoneNo',
-          queryParameters: {'PhoneNo': phone});
-      final data = (res.data['customer'] ?? res.data['data'] ?? res.data)
-          as Map<String, dynamic>;
-      final points =
-          int.tryParse((data['TotalPoints'] ?? data['totalPoints'] ?? 0).toString()) ?? 0;
+      final ledgerRes = await _dio.get(
+        'Mobile/GetAllCustomerLedgers',
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': phone,
+        },
+      );
+
+      final entries = _asList(ledgerRes.data);
+
+      // FIX: handle null/malformed entries gracefully instead of crashing
+      int earned = 0, redeemed = 0;
+      for (final e in entries) {
+        if (e is! Map) continue;
+        final m = e as Map<String, dynamic>;
+        final pts = int.tryParse((m['PointsValue'] ?? 0).toString()) ?? 0;
+        final type =
+            (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        if (type == 'earn') {
+          earned += pts;
+        } else if (type == 'redeem') {
+          redeemed += pts;
+        }
+        // Unknown transaction types are silently ignored instead of
+        // being misclassified.
+      }
+
+      // Walk backwards to find the most recent Earn entry — its PointBalance
+      // is the running balance after all subsequent redeems were applied.
+      // (entries come in ascending date order from the API)
+      int points = earned - redeemed;
+      for (int i = entries.length - 1; i >= 0; i--) {
+        final e = entries[i];
+        if (e is Map) {
+          final type =
+              (e['PointsTransactionType'] ?? '').toString().toLowerCase();
+          if (type == 'earn') {
+            final balance =
+                int.tryParse((e['PointBalance'] ?? 0).toString()) ?? 0;
+            points = balance;
+            break;
+          }
+        }
+      }
+
       return ProfileSummary(
         loyaltyTier: _tierFromPoints(points),
         totalPoints: points,
         pointsToNextTier: _nextTier(points),
       );
-    } on DioException catch (_) {
-      return const ProfileSummary(
-          loyaltyTier: 'Bronze', totalPoints: 0, pointsToNextTier: 1000);
+
+    } on DioException catch (e) {
+      // FIX: throw a plain Exception with a clean message so the UI can
+      // display it without the "DioException [...]" noise.
+      throw Exception(dioErrorMessage(e));
+    } catch (e) {
+      // Re-throw anything else as a clean Exception
+      if (e is Exception) rethrow;
+      throw Exception(e.toString());
     }
+  }
+
+  List _asList(dynamic data) {
+    if (data is List) return data;
+    if (data is Map) {
+      final inner = data['Value'] ?? data['value'] ?? data['data'];
+      if (inner is List) return inner;
+    }
+    return [];
   }
 
   String _tierFromPoints(int p) {

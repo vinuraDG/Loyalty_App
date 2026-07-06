@@ -33,7 +33,7 @@ class RedeemApiService implements IRedeemService {
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     try {
       final res = await _dio.post('Common/RedeemPoints', data: {
-        'TransactionCompanyId': AppConstants.transactionCompanyId,
+        'TransactionCompanyId': AppConstants.activeCompanyId,
         'CustomerPhoneNo': phone,
         'EmployeePhoneNo': '',
         'PointsRedeemCompany': offer.business,
