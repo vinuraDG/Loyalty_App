@@ -18,6 +18,7 @@ class RedeemMockService implements IRedeemService {
               description: m['description'] as String,
               business: m['business'] as String,
               pointsCost: m['pointsCost'] as int,
+              companyPhoneNo: m['companyPhoneNo'] as String? ?? '',
             ))
         .toList();
   }

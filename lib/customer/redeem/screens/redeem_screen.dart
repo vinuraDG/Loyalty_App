@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/models/offer_models.dart';
-import 'package:loyalty_app/services/mock_points_service.dart';
+import 'package:loyalty_app/customer/redeem/data/redeem_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 
 
-class RedeemScreen extends ConsumerWidget {
+class RedeemScreen extends ConsumerStatefulWidget {
   const RedeemScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user   = ref.watch(currentUserProvider);
+  ConsumerState<RedeemScreen> createState() => _RedeemScreenState();
+}
+
+class _RedeemScreenState extends ConsumerState<RedeemScreen> {
+  late Future<List<OfferModel>> _offersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _offersFuture = redeemService.getOffers();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
-    final offers = MockPointsService.instance.getAllOffers();
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -64,15 +76,44 @@ class RedeemScreen extends ConsumerWidget {
 
           // Offers list
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: offers.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _OfferCard(
-                offer: offers[i],
-                canAfford: user.totalPoints >= offers[i].pointsCost,
-                onTap: () => _showConfirmSheet(context, ref, offers[i]),
-              ),
+            child: FutureBuilder<List<OfferModel>>(
+              future: _offersFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.primaryLight),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Failed to load offers',
+                      style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textMuted),
+                    ),
+                  );
+                }
+                final offers = snapshot.data ?? [];
+                if (offers.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No offers available',
+                      style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textMuted),
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: offers.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _OfferCard(
+                    offer: offers[i],
+                    canAfford: user.totalPoints >= offers[i].pointsCost,
+                    onTap: () => _showConfirmSheet(context, offers[i]),
+                  ),
+                );
+              },
             ),
           ),
         ]),
@@ -80,12 +121,12 @@ class RedeemScreen extends ConsumerWidget {
     );
   }
 
-  void _showConfirmSheet(BuildContext context, WidgetRef ref, OfferModel offer) {
+  void _showConfirmSheet(BuildContext context, OfferModel offer) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ConfirmSheet(offer: offer, ref: ref),
+      builder: (_) => _ConfirmSheet(offer: offer),
     );
   }
 }
@@ -103,7 +144,7 @@ class _OfferCard extends StatelessWidget {
   Color get _bizColor {
     if (offer.business == 'Fuel Station') return AppColors.fuelColor;
     if (offer.business == 'Laundry') return AppColors.laundryColor;
-    if (offer.business == 'Gold Shop') return AppColors.golfColor; // keep your existing color constant
+    if (offer.business == 'Gold House') return AppColors.golfColor;
     return AppColors.golfColor;
   }
 
@@ -152,16 +193,41 @@ class _OfferCard extends StatelessWidget {
 }
 
 // ─── Confirmation bottom sheet ────────────────────────────────────────────────
-class _ConfirmSheet extends ConsumerWidget {
+class _ConfirmSheet extends ConsumerStatefulWidget {
   final OfferModel offer;
-  final WidgetRef ref;
-
-  const _ConfirmSheet({required this.offer, required this.ref});
+  const _ConfirmSheet({required this.offer});
 
   @override
-  Widget build(BuildContext context, WidgetRef widgetRef) {
-    final user = widgetRef.watch(currentUserProvider)!;
-    final after = user.totalPoints - offer.pointsCost;
+  ConsumerState<_ConfirmSheet> createState() => _ConfirmSheetState();
+}
+
+class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
+  bool _loading = false;
+
+  Future<void> _confirm() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final user = ref.read(currentUserProvider)!;
+    try {
+      final code = await redeemService.redeemOffer(user.id, widget.offer);
+      ref.read(authProvider.notifier).refreshUser();
+      if (!mounted) return;
+      Navigator.pop(context);
+      Navigator.push(context,
+        MaterialPageRoute(builder: (_) => RedeemSuccessScreen(
+          offer: widget.offer, code: code)));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider)!;
+    final after = user.totalPoints - widget.offer.pointsCost;
 
     return Container(
       decoration: const BoxDecoration(
@@ -178,11 +244,11 @@ class _ConfirmSheet extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
 
-        BusinessIcon(business: offer.business, size: 64),
+        BusinessIcon(business: widget.offer.business, size: 64),
         const SizedBox(height: 14),
-        Text(offer.title, style: AppTextStyles.h3, textAlign: TextAlign.center),
+        Text(widget.offer.title, style: AppTextStyles.h3, textAlign: TextAlign.center),
         const SizedBox(height: 4),
-        Text('${offer.business} · ${offer.description}',
+        Text('${widget.offer.business} · ${widget.offer.description}',
           style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
         const SizedBox(height: 22),
 
@@ -196,7 +262,7 @@ class _ConfirmSheet extends ConsumerWidget {
             _SummaryRow(label: 'Your balance', value: '${user.totalPoints} pts',
               valueColor: AppColors.textPrimary),
             const SizedBox(height: 10),
-            _SummaryRow(label: 'Cost', value: '-${offer.pointsCost} pts',
+            _SummaryRow(label: 'Cost', value: '-${widget.offer.pointsCost} pts',
               valueColor: AppColors.error),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -209,31 +275,17 @@ class _ConfirmSheet extends ConsumerWidget {
         const SizedBox(height: 22),
 
         GradientButton(
-          label: 'Confirm Redemption',
+          label: _loading ? 'Processing…' : 'Confirm Redemption',
           icon: Icons.check_rounded,
-          onPressed: () {
-            Navigator.pop(context);
-            _doRedeem(context, widgetRef);
-          },
+          onPressed: _loading ? null : _confirm,
         ),
         const SizedBox(height: 10),
-        GhostButton(label: 'Cancel', onPressed: () => Navigator.pop(context)),
+        GhostButton(
+          label: 'Cancel',
+          onPressed: _loading ? null : () => Navigator.pop(context),
+        ),
       ]),
     );
-  }
-
-  void _doRedeem(BuildContext context, WidgetRef widgetRef) {
-    final user = widgetRef.read(currentUserProvider)!;
-    try {
-      final code = MockPointsService.instance.redeemOffer(user.id, offer);
-      widgetRef.read(authProvider.notifier).refreshUser();
-      Navigator.push(context,
-        MaterialPageRoute(builder: (_) => RedeemSuccessScreen(
-          offer: offer, code: code)));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())));
-    }
   }
 }
 
