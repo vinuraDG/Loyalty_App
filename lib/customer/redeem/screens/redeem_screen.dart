@@ -209,7 +209,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
     setState(() => _loading = true);
     final user = ref.read(currentUserProvider)!;
     try {
-      final code = await redeemService.redeemOffer(user.id, widget.offer);
+      final code = await redeemService.redeemOffer(user.id, widget.offer, points: user.totalPoints);
       ref.read(authProvider.notifier).refreshUser();
       if (!mounted) return;
       Navigator.pop(context);

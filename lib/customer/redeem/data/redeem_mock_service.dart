@@ -24,7 +24,7 @@ class RedeemMockService implements IRedeemService {
   }
 
   @override
-  Future<String> redeemOffer(String userId, OfferModel offer) async {
+  Future<String> redeemOffer(String userId, OfferModel offer, {int points = 0}) async {
     await _delay(ms: 600);
     final user = AuthMockService.instance.findByIdSync(userId);
     if (user == null) throw Exception('User not found.');

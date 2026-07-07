@@ -219,7 +219,7 @@ class AuthApiService implements IAuthService {
       if (parts.length != 3) return '';
       String payload = parts[1];
       // Base64url padding
-      while (payload.length % 4 != 0) payload += '=';
+      while (payload.length % 4 != 0) { payload += '='; }
       final decoded = utf8.decode(base64Url.decode(payload));
       final map = jsonDecode(decoded) as Map<String, dynamic>;
       return (map['sub'] ?? '').toString();
@@ -554,6 +554,15 @@ class AuthApiService implements IAuthService {
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     final storedEmail = prefs.getString(AppConstants.prefUserEmail) ?? '';
     final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
+    final storedId = prefs.getString(AppConstants.prefUserId) ?? '';
+    int storedPoints = 0;
+    try {
+      final uj = prefs.getString('userJson');
+      if (uj != null && uj.isNotEmpty) {
+        final parsed = jsonDecode(uj) as Map<String, dynamic>?;
+        storedPoints = (parsed?['totalPoints'] as int?) ?? 0;
+      }
+    } catch (_) {}
     final newEmail = email.trim().toLowerCase();
     final emailChanging = newEmail.isNotEmpty && newEmail != storedEmail.toLowerCase();
     // Always send Email — backend marks it [Required] and returns 400 if absent.
@@ -585,13 +594,13 @@ class AuthApiService implements IAuthService {
       }
       if (_isEmptyBody(res.data) || res.data is! Map) {
         return UserModel(
-          id: '',
+          id: storedId,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: emailChanging ? newEmail : storedEmail,
           phone: phone,
           role: 'customer',
-          totalPoints: 0,
+          totalPoints: storedPoints,
           address: address.trim(),
           createdAt: DateTime.now(),
         );
@@ -609,13 +618,13 @@ class AuthApiService implements IAuthService {
             (data['errors'] as Map?)?.containsKey('Email') == true;
         if (hasEmailError) {
           return UserModel(
-            id: '',
+            id: storedId,
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: storedEmail,
             phone: phone,
             role: 'customer',
-            totalPoints: 0,
+            totalPoints: storedPoints,
             address: address.trim(),
             createdAt: DateTime.now(),
           );

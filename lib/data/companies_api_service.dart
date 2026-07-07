@@ -14,16 +14,25 @@ class CompaniesApiService implements ICompaniesService {
   final Dio _dio = ApiClient.instance.dio;
 
   List<CompanyModel>? _cache;
+  DateTime? _cacheTime;
   // In-flight deduplication: multiple screens init concurrently at startup
   // (IndexedStack); without this, each fires a separate GetAllCompanies call.
   Future<List<CompanyModel>>? _pending;
 
+  static const _cacheTtl = Duration(minutes: 5);
+
   @override
   Future<List<CompanyModel>> getCompanies() {
-    if (_cache != null) return Future.value(_cache!);
+    final now = DateTime.now();
+    if (_cache != null &&
+        _cacheTime != null &&
+        now.difference(_cacheTime!) < _cacheTtl) {
+      return Future.value(_cache!);
+    }
     if (_pending != null) return _pending!;
+    _cache = null;
     _pending = _doGetCompanies();
-    _pending!.then((list) => _cache = list)
+    _pending!.then((list) { _cache = list; _cacheTime = DateTime.now(); })
              .whenComplete(() => _pending = null);
     return _pending!;
   }

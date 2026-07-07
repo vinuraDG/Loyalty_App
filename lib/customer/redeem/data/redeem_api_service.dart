@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/data/companies_api_service.dart';
+import 'package:loyalty_app/data/customer_ledger_service.dart';
 import 'package:loyalty_app/models/offer_models.dart';
 import 'package:loyalty_app/customer/redeem/data/redeem_mock_service.dart';
 
@@ -11,7 +12,7 @@ import 'package:loyalty_app/customer/redeem/data/redeem_mock_service.dart';
 
 abstract class IRedeemService {
   Future<List<OfferModel>> getOffers();
-  Future<String> redeemOffer(String userId, OfferModel offer);
+  Future<String> redeemOffer(String userId, OfferModel offer, {int points = 0});
 }
 
 // ── Real API service ──────────────────────────────────────────────────────────
@@ -55,11 +56,14 @@ class RedeemApiService implements IRedeemService {
   }
 
   @override
-  Future<String> redeemOffer(String userId, OfferModel offer) async {
+  Future<String> redeemOffer(String userId, OfferModel offer, {int points = 0}) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     final redeemPhone =
         offer.companyPhoneNo.isNotEmpty ? offer.companyPhoneNo : '0112948777';
+    // Use the caller-supplied points (user's full balance); fall back to
+    // pointsCost only when explicitly set (mock data / future API-driven offers).
+    final pointsToSend = points > 0 ? points : offer.pointsCost;
     try {
       final res = await _dio.post(
         'Common/RedeemPoints',
@@ -68,10 +72,14 @@ class RedeemApiService implements IRedeemService {
           'TransactionCompanyId': AppConstants.activeCompanyId,
           'CustomerPhoneNo': phone,
           'EmployeePhoneNo': '',
-          'Points': offer.pointsCost,
+          'Points': pointsToSend,
           'PointsRedeemCompanyPhoneNo': redeemPhone,
         },
       );
+
+      // Invalidate the ledger cache so the next balance fetch reflects
+      // the just-completed redemption.
+      CustomerLedgerService.instance.clearCache();
 
       // Parse plain-text response as JSON if non-empty.
       Map<String, dynamic> data = {};

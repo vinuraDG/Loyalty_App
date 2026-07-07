@@ -34,21 +34,24 @@ class UserModel {
   }
 
   String get loyaltyTier {
-    if (totalPoints >= 5000) return 'Gold';
-    if (totalPoints >= 1000) return 'Silver';
+    if (totalPoints >= 5000) return 'Platinum';
+    if (totalPoints >= 2000) return 'Gold';
+    if (totalPoints >= 500)  return 'Silver';
     return 'Bronze';
   }
 
   int get pointsToNextTier {
     if (totalPoints >= 5000) return 0;
-    if (totalPoints >= 1000) return 5000 - totalPoints;
-    return 1000 - totalPoints;
+    if (totalPoints >= 2000) return 5000 - totalPoints;
+    if (totalPoints >= 500)  return 2000 - totalPoints;
+    return 500 - totalPoints;
   }
 
   double get tierProgress {
     if (totalPoints >= 5000) return 1.0;
-    if (totalPoints >= 1000) return (totalPoints - 1000) / 4000;
-    return totalPoints / 1000;
+    if (totalPoints >= 2000) return (totalPoints - 2000) / 3000;
+    if (totalPoints >= 500)  return (totalPoints - 500) / 1500;
+    return totalPoints / 500;
   }
 
   bool get isEmployee => role == 'employee';

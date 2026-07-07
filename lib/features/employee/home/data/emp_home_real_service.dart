@@ -348,6 +348,7 @@ class EmpHomeRealService implements IEmpHomeService {
           'EmployeePhoneNo': phone,
           'Points': pointsToRedeem,
           'PointsRedeemCompanyPhoneNo': redeemPhone,
+          'OTP': otp,
         },
       );
 
