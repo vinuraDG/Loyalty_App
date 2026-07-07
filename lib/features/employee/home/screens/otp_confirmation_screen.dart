@@ -82,6 +82,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
         otp: _otp,
         employeeId: widget.employeeId,
         pointsToRedeem: widget.pointsToRedeem,
+        companyPhoneNo: widget.offer.companyPhoneNo,
       );
       if (mounted) setState(() => _result = result);
     } on InvalidOtpException catch (e) {

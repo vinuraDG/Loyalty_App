@@ -93,6 +93,7 @@ class EmpHomeMockService implements IEmpHomeService {
     required String otp,
     required String employeeId,
     int pointsToRedeem = 0,
+    String companyPhoneNo = '',
   }) async {
     await _delay(ms: 600);
     final expected = _activeOtps['$customerId:$offerId'];

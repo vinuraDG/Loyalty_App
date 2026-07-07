@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/data/companies_api_service.dart';
 import 'emp_home_api_service.dart';
 import 'emp_home_mock_service.dart';
 
@@ -253,22 +254,41 @@ class EmpHomeRealService implements IEmpHomeService {
     return result;
   }
 
-  // ── getRedeemableOffers ───────────────────────────────────────────────────
-  // The backend has no dedicated offers endpoint. Return a single synthetic
-  // Gold Shop offer so the redemption UI can proceed; the actual points
-  // amount is entered manually by the employee.
+  // ── getRedeemableOffers — built from GetAllCompanies ─────────────────────
+  // Fetches all companies and returns every company except the active earn
+  // company (Fuel) as a redeemable offer. PhoneNo from the backend is used
+  // as PointsRedeemCompanyPhoneNo in confirmRedemption.
+
+  static const _fallbackOffer = RedeemableOffer(
+    id: 'gold-house-redeem',
+    title: 'Gold House',
+    description: 'Redeem at Gold House',
+    business: 'Gold House',
+    pointsCost: 0,
+    companyPhoneNo: '0112948777',
+  );
 
   @override
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
-    return const [
-      RedeemableOffer(
-        id: 'gold-shop-redeem',
-        title: 'Gold Shop',
-        description: 'Redeem at Gold Shop',
-        business: 'Gold Shop',
-        pointsCost: 0,
-      ),
-    ];
+    try {
+      final companies = await CompaniesApiService.instance.getCompanies();
+      final redeemable = companies
+          .where((c) => c.id != AppConstants.transactionCompanyId)
+          .toList();
+      if (redeemable.isEmpty) return [_fallbackOffer];
+      return redeemable
+          .map((c) => RedeemableOffer(
+                id: 'redeem-${c.id}',
+                title: c.displayName,
+                description: 'Redeem at ${c.name}',
+                business: c.displayName,
+                pointsCost: 0,
+                companyPhoneNo: c.phoneNo,
+              ))
+          .toList();
+    } catch (_) {
+      return [_fallbackOffer];
+    }
   }
 
   // ── sendRedemptionOtp — POST /Common/ForgotPassword (OTP channel) ─────────
@@ -299,8 +319,13 @@ class EmpHomeRealService implements IEmpHomeService {
     required String otp,
     required String employeeId,
     int pointsToRedeem = 0,
+    String companyPhoneNo = '',
   }) async {
     final phone = await _empPhone;
+    // Use the phone number from the selected offer if available;
+    // fall back to the known Gold House number if backend didn't return one yet.
+    final redeemPhone =
+        companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
     try {
       // ResponseType.plain avoids a FormatException when the backend returns
       // HTTP 200 with an empty body on success (same pattern as ResetPassword).
@@ -313,7 +338,7 @@ class EmpHomeRealService implements IEmpHomeService {
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
           'Points': pointsToRedeem,
-          'PointsRedeemCompanyPhoneNo': '0112948777',
+          'PointsRedeemCompanyPhoneNo': redeemPhone,
         },
       );
 

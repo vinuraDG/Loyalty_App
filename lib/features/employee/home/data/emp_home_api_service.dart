@@ -72,6 +72,7 @@ class RedeemableOffer {
   final String business;
   final int pointsCost;
   final bool isExpired;
+  final String companyPhoneNo;
 
   const RedeemableOffer({
     required this.id,
@@ -80,6 +81,7 @@ class RedeemableOffer {
     required this.business,
     required this.pointsCost,
     this.isExpired = false,
+    this.companyPhoneNo = '',
   });
 
   factory RedeemableOffer.fromJson(Map<String, dynamic> j) => RedeemableOffer(
@@ -145,5 +147,6 @@ abstract interface class IEmpHomeService {
     required String otp,
     required String employeeId,
     int pointsToRedeem = 0,
+    String companyPhoneNo = '',
   });
 }

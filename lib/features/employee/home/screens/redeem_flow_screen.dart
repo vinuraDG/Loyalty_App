@@ -8,7 +8,7 @@ import '../data/emp_home_api_service.dart';
 import 'otp_confirmation_screen.dart';
 import '../../../../models/user_model.dart';
 
-const _kRedeemBusiness = 'Gold Shop';
+const _kRedeemBusiness = 'Gold House';
 
 class RedeemFlowScreen extends StatefulWidget {
   final ScannedMember member;
@@ -109,19 +109,15 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     try {
       final offers = await widget.svc.getRedeemableOffers(widget.member.userId);
       if (mounted) {
-        final grouped = <String, List<RedeemableOffer>>{};
-        for (final o in offers) {
-          grouped.putIfAbsent(o.business, () => []).add(o);
-        }
-        // Always default to Gold Shop since tabs are hidden
-        final active = (grouped[_kRedeemBusiness] ?? [])
-            .where((o) => !o.isExpired)
-            .toList();
+        // Auto-select the first available offer from whatever the backend returns
+        final firstActive = offers.where((o) => !o.isExpired).toList();
         setState(() {
           _offers = offers;
           _loading = false;
-          _selectedBusiness = _kRedeemBusiness;
-          _selectedOffer = active.isNotEmpty ? active.first : null;
+          _selectedBusiness =
+              firstActive.isNotEmpty ? firstActive.first.business : null;
+          _selectedOffer =
+              firstActive.isNotEmpty ? firstActive.first : null;
         });
       }
     } catch (e) {
@@ -151,11 +147,12 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     if (_sendingOtp || _pointsToRedeem == null) return;
     final offer = _selectedOffer ??
         const RedeemableOffer(
-          id: 'gold-shop-redeem',
-          title: 'Gold Shop',
+          id: 'gold-house-redeem',
+          title: 'Gold House',
           description: '',
-          business: 'Gold Shop',
+          business: 'Gold House',
           pointsCost: 0,
+          companyPhoneNo: '0112948777',
         );
     setState(() => _sendingOtp = true);
     try {

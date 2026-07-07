@@ -2,11 +2,13 @@ class CompanyModel {
   final int    id;
   final String name;        // full name from backend Name field
   final String displayName; // short name from backend DisplayName field
+  final String phoneNo;     // company phone number from backend PhoneNo field
 
   const CompanyModel({
     required this.id,
     required this.name,
     required this.displayName,
+    this.phoneNo = '',
   });
 
   factory CompanyModel.fromMap(Map<String, dynamic> m, {int fallbackIndex = 0}) {
@@ -17,9 +19,10 @@ class CompanyModel {
       id:          fallbackIndex,
       name:        fallback,
       displayName: raw.isNotEmpty ? raw : fallback,
+      phoneNo:     (m['PhoneNo'] ?? m['Phone'] ?? m['phoneNo'] ?? '').toString().trim(),
     );
   }
 
   @override
-  String toString() => 'CompanyModel(id: $id, name: $name, displayName: $displayName)';
+  String toString() => 'CompanyModel(id: $id, name: $name, displayName: $displayName, phoneNo: $phoneNo)';
 }
