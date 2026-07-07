@@ -141,6 +141,12 @@ class EmpCommissionApiService implements IEmpCommissionService {
         final amount = double.tryParse(
                 (m['ValueFrom'] ?? m['Amount'] ?? m['saleAmount'] ?? 0).toString()) ??
             0;
+        // Prefer backend's Commission field; fall back to 2% calculation.
+        final commissionRaw =
+            m['Commission'] ?? m['commission'] ?? m['CommissionAmount'];
+        final commission = commissionRaw != null
+            ? (double.tryParse(commissionRaw.toString()) ?? amount * kCommissionRate)
+            : amount * kCommissionRate;
         final dateStr =
             (m['DateCreated'] ?? m['Date'] ?? m['date'] ?? '').toString();
         final parsed = DateTime.tryParse(dateStr);
@@ -149,10 +155,11 @@ class EmpCommissionApiService implements IEmpCommissionService {
           id:           (m['Id']           ?? m['id']           ?? '').toString(),
           business:     (m['CompanyName']   ?? m['MerchantName'] ?? '').toString(),
           customerName: (m['CustomerName']  ?? m['MemberName']   ??
-                         m['customerName']  ?? '').toString(),
+                         m['customerName']  ?? m['FullName']     ??
+                         m['Name']          ?? '').toString(),
           litres:       0.0,
           saleAmount:   amount,
-          commission:   amount * kCommissionRate,
+          commission:   commission,
           time:         safeDate != null ? _timeFromDate(safeDate) : '',
           date:         safeDate != null ? _dateLabelFromDate(safeDate) : '',
           month:        month,
@@ -161,12 +168,12 @@ class EmpCommissionApiService implements IEmpCommissionService {
     } on DioException catch (e) {
       assert(() {
         debugPrint(
-          '[EmpCommission] GetAllEmployeeLedgers failed (treated as empty): '
+          '[EmpCommission] GetAllEmployeeLedgers failed: '
           'status=${e.response?.statusCode} msg=${dioErrorMessage(e)}',
         );
         return true;
       }());
-      return [];
+      rethrow;
     }
   }
 
