@@ -200,7 +200,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
       if (!mounted) return;
       _showSuccessAndPop();
     } catch (e) {
-      _setError(e.toString());
+      if (!mounted) return;
+      // Password validation passed locally, so a backend rejection is
+      // almost always an expired or incorrect OTP — navigate back to
+      // step 2 so the user can re-enter the code.
+      for (final c in _otpCtrl) c.clear();
+      _goToStep(_Step.otp);
+      _setError('The OTP was incorrect or has expired. Please re-enter the code.');
+      _otpFocus[0].requestFocus();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

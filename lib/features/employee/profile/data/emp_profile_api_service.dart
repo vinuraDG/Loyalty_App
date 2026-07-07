@@ -11,13 +11,25 @@ import 'emp_profile_mock_service.dart';
 class EmployeeProfileInfo {
   final String phone;
   final String title;
+  final String firstName;
+  final String lastName;
+  final String email;
 
-  const EmployeeProfileInfo({required this.phone, required this.title});
+  const EmployeeProfileInfo({
+    required this.phone,
+    required this.title,
+    this.firstName = '',
+    this.lastName = '',
+    this.email = '',
+  });
 
   factory EmployeeProfileInfo.fromJson(Map<String, dynamic> json) =>
       EmployeeProfileInfo(
-        phone: json['phone'] as String? ?? '—',
-        title: json['title'] as String? ?? 'Staff Member',
+        phone:     (json['PhoneNo']    ?? json['phoneNo']    ?? json['phone'] ?? '').toString(),
+        title:     (json['Title']      ?? json['title']      ?? 'Staff Member').toString(),
+        firstName: (json['FirstName']  ?? json['firstName']  ?? '').toString(),
+        lastName:  (json['LastName']   ?? json['lastName']   ?? '').toString(),
+        email:     (json['Email']      ?? json['email']      ?? '').toString(),
       );
 }
 
@@ -44,6 +56,18 @@ class EmpProfileApiService implements IEmpProfileService {
   Future<EmployeeProfileInfo> getProfileInfo(String employeeId) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    try {
+      final res = await _dio.get(
+        'Common/GetEmployeeByPhoneNo',
+        queryParameters: {'EmployeePhoneNo': phone},
+      );
+      final data = res.data;
+      if (data is Map<String, dynamic>) {
+        return EmployeeProfileInfo.fromJson(data);
+      }
+    } on DioException catch (_) {
+      // fall through to fallback
+    }
     return EmployeeProfileInfo(phone: phone, title: 'Staff Member');
   }
 

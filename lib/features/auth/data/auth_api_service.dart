@@ -358,6 +358,9 @@ class AuthApiService implements IAuthService {
         return employee;
       }
 
+      // Reset to Fuel (3) — guards against a previous employee session having
+      // set activeCompanyId to a different company (e.g. Gold House = 1).
+      AppConstants.setActiveCompanyId(AppConstants.transactionCompanyId);
       return _fetchAndPersistCustomer(phoneForLookup, token);
     } on AuthException {
       rethrow;
@@ -552,7 +555,7 @@ class AuthApiService implements IAuthService {
     final storedEmail = prefs.getString(AppConstants.prefUserEmail) ?? '';
     final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
     final newEmail = email.trim().toLowerCase();
-    final emailChanging = newEmail.isNotEmpty && newEmail != storedEmail;
+    final emailChanging = newEmail.isNotEmpty && newEmail != storedEmail.toLowerCase();
     // Always send Email — backend marks it [Required] and returns 400 if absent.
     // When email is unchanged, storedEmail is sent; the backend may reject it
     // with "Email already taken" due to a missing self-exclusion in its

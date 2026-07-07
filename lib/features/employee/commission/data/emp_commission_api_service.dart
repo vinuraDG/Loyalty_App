@@ -229,7 +229,8 @@ DateTime _txDate(DateTime? parsed) {
 List _asList(dynamic data) {
   if (data is List) return data;
   if (data is Map) {
-    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    final inner = data['Value'] ?? data['value'] ??
+        data['Data'] ?? data['data'] ?? data['items'];
     if (inner is List) return inner;
   }
   return [];
