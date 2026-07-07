@@ -14,27 +14,40 @@ class CompaniesApiService implements ICompaniesService {
   final Dio _dio = ApiClient.instance.dio;
 
   List<CompanyModel>? _cache;
+  // In-flight deduplication: multiple screens init concurrently at startup
+  // (IndexedStack); without this, each fires a separate GetAllCompanies call.
+  Future<List<CompanyModel>>? _pending;
 
   @override
-  Future<List<CompanyModel>> getCompanies() async {
-    if (_cache != null) return _cache!;
+  Future<List<CompanyModel>> getCompanies() {
+    if (_cache != null) return Future.value(_cache!);
+    if (_pending != null) return _pending!;
+    _pending = _doGetCompanies();
+    _pending!.then((list) => _cache = list)
+             .whenComplete(() => _pending = null);
+    return _pending!;
+  }
+
+  Future<List<CompanyModel>> _doGetCompanies() async {
     try {
       final res  = await _dio.get('Mobile/GetAllCompanies');
       final list = _asList(res.data);
       // Pass the list index as fallbackIndex so each company gets a stable id
-      _cache = List.generate(list.length, (i) {
+      return List.generate(list.length, (i) {
         return CompanyModel.fromMap(
           list[i] as Map<String, dynamic>,
           fallbackIndex: i,
         );
       }).where((c) => c.name.isNotEmpty).toList();
-      return _cache!;
     } on DioException catch (e) {
       throw Exception(dioErrorMessage(e));
     }
   }
 
-  void clearCache() => _cache = null;
+  void clearCache() {
+    _cache = null;
+    _pending = null;
+  }
 }
 
 List _asList(dynamic data) {

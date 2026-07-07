@@ -7,6 +7,7 @@ import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/models/company_model.dart';
 import 'package:loyalty_app/data/companies_api_service.dart';
 import 'package:loyalty_app/customer/points/data/points_mock_service.dart';
+import 'package:loyalty_app/data/customer_ledger_service.dart';
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
@@ -98,20 +99,10 @@ class PointsApiService implements IPointsService {
     }
   }
 
-  Future<List<dynamic>> _fetchLedgers(String phone) async {
-    try {
-      final res = await _dio.get(
-        'Mobile/GetAllCustomerLedgers',
-        data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CustomerPhoneNo': phone,
-        },
-      );
-      return _asList(res.data);
-    } on DioException catch (e) {
-      throw Exception(dioErrorMessage(e));
-    }
-  }
+  // Delegates to the shared CustomerLedgerService so HomeApiService and
+  // PointsApiService share one in-flight request + TTL cache.
+  Future<List<dynamic>> _fetchLedgers(String phone) =>
+      CustomerLedgerService.instance.fetchLedger(phone);
 
   TransactionModel _txFromMap(
   Map<String, dynamic> m,
@@ -186,16 +177,6 @@ DateTime _resolveDate(DateTime? parsed, TransactionType type) {
     );
   }
   return parsed;
-}
-
-List _asList(dynamic data) {
-  if (data is List) return data;
-  if (data is Map) {
-    final inner =
-        data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
-    if (inner is List) return inner;
-  }
-  return [];
 }
 
 // ── Service factory ───────────────────────────────────────────────────────────

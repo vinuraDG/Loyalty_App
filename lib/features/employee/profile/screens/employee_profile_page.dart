@@ -8,8 +8,6 @@ import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/screens/login_screen.dart';
-import '../../../../core/constants/app_constants.dart';
-import '../../../dev/dev_bypass_screen.dart';
 import '../data/emp_profile_api_service.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
@@ -177,12 +175,9 @@ Future<void> _signOut(BuildContext context, WidgetRef ref) async {
   if (!confirmed) return;
   await ref.read(authProvider.notifier).signOut();
   if (!context.mounted) return;
-  final dest = AppConstants.devBypass
-      ? const DevBypassScreen()
-      : const LoginScreen();
   Navigator.pushAndRemoveUntil(
     context,
-    MaterialPageRoute(builder: (_) => dest),
+    MaterialPageRoute(builder: (_) => const LoginScreen()),
     (_) => false,
   );
 }

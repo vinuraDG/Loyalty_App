@@ -6,8 +6,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../models/user_model.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/screens/login_screen.dart';
-import '../../../../core/constants/app_constants.dart';
-import '../../../dev/dev_bypass_screen.dart';
 import 'employee_home_page.dart';
 import '../../commission/screens/employee_commission_page.dart';
 import '../../profile/screens/employee_profile_page.dart';
@@ -44,12 +42,9 @@ class EmployeeDashboardScreenState
   Future<void> _signOut() async {
     await ref.read(authProvider.notifier).signOut();
     if (!mounted) return;
-    final dest = AppConstants.devBypass
-        ? const DevBypassScreen()
-        : const LoginScreen();
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => dest),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
     );
   }

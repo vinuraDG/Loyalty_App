@@ -1,7 +1,6 @@
-import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/data/customer_ledger_service.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/home/data/home_mock_service.dart';
 
@@ -43,19 +42,11 @@ class HomeApiService implements IHomeService {
   HomeApiService._();
   static final HomeApiService instance = HomeApiService._();
 
-  final Dio _dio = ApiClient.instance.dio;
-
-  // Fetch the full ledger once and cache it for this request cycle.
-  Future<List<dynamic>> _fetchLedger(String phone) async {
-    final res = await _dio.get(
-      'Mobile/GetAllCustomerLedgers',
-      data: {
-        'TransactionCompanyId': AppConstants.activeCompanyId,
-        'CustomerPhoneNo': phone,
-      },
-    );
-    return _asList(res.data);
-  }
+  // Delegates to the shared CustomerLedgerService so that all services
+  // (HomeApiService + PointsApiService) share a single in-flight request
+  // and TTL cache rather than each firing their own.
+  Future<List<dynamic>> _fetchLedger(String phone) =>
+      CustomerLedgerService.instance.fetchLedger(phone);
 
   @override
   Future<List<AdItem>> getAds() async {
@@ -97,7 +88,7 @@ class HomeApiService implements IHomeService {
         }
       }
       return 0;
-    } on DioException catch (_) {
+    } catch (_) {
       return 0;
     }
   }
@@ -136,33 +127,10 @@ Future<List<int>> getWeeklyPoints(String userId) async {
       if (dayIdx >= 0 && dayIdx < 7) result[dayIdx] += points;
     }
     return result;
-  } on DioException catch (_) {
+  } catch (_) {
     return List.filled(7, 0);
   }
 }
-}
-
-/// If the backend stores the expiry year instead of transaction year,
-/// shift back one year so the date lands in the past correctly.
-DateTime _normaliseDate(DateTime parsed) {
-  if (parsed.year < 2000) return DateTime.now();
-  final now = DateTime.now();
-  if (parsed.year > now.year) {
-    return DateTime(
-        parsed.year - 1, parsed.month, parsed.day,
-        parsed.hour, parsed.minute, parsed.second);
-  }
-  return parsed;
-}
-
-List _asList(dynamic data) {
-  if (data is List) return data;
-  if (data is Map) {
-    final inner =
-        data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
-    if (inner is List) return inner;
-  }
-  return [];
 }
 
 // ── Service factory ───────────────────────────────────────────────────────────

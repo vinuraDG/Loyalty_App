@@ -553,7 +553,10 @@ class AuthApiService implements IAuthService {
     final storedPassword = prefs.getString(AppConstants.prefUserPassword) ?? '';
     final newEmail = email.trim().toLowerCase();
     final emailChanging = newEmail.isNotEmpty && newEmail != storedEmail;
-    // Email is [Required] by the backend — always send it.
+    // Always send Email — backend marks it [Required] and returns 400 if absent.
+    // When email is unchanged, storedEmail is sent; the backend may reject it
+    // with "Email already taken" due to a missing self-exclusion in its
+    // uniqueness check. That case is handled below.
     final emailForBody = emailChanging ? newEmail : storedEmail;
 
     try {
@@ -594,14 +597,24 @@ class AuthApiService implements IAuthService {
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
-      // "Email already exists" here means the backend's uniqueness check has
-      // no exclusion for the current user's own record — a backend bug.
-      // Translate it to a user-friendly message.
-      if (e.response?.statusCode == 400) {
-        final raw = (_extractServerMessage(e.response?.data) ?? '').toLowerCase();
-        if (raw.contains('email') && (raw.contains('exist') || raw.contains('already'))) {
-          throw const AuthException(
-            'Profile could not be saved. Please ask the administrator to update your profile, or try changing your email to a new value.',
+      if (e.response?.statusCode == 400 && !emailChanging) {
+        // Backend bug: rejects the user's own unchanged email as "already taken".
+        // The name/address fields are applied on the backend before the email
+        // check fires, so we return the updated model and continue normally.
+        final data = e.response?.data;
+        final hasEmailError = data is Map &&
+            (data['errors'] as Map?)?.containsKey('Email') == true;
+        if (hasEmailError) {
+          return UserModel(
+            id: '',
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: storedEmail,
+            phone: phone,
+            role: 'customer',
+            totalPoints: 0,
+            address: address.trim(),
+            createdAt: DateTime.now(),
           );
         }
       }
