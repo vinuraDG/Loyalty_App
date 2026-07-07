@@ -8,6 +8,7 @@ import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/models/company_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../home/screens/main_screen.dart';
 
 // ── Color palette cycling for dynamic companies ────────────────────────────────
 
@@ -370,10 +371,35 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: Column(children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(children: [
-              Text('My Points', style: AppTextStyles.h3),
+              GestureDetector(
+                onTap: () {
+                  final main = context.findAncestorStateOfType<MainScreenState>();
+                  if (main != null) {
+                    main.setIndex(0);
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.bgCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AppColors.textSecondary,
+                    size: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Text('My Points', style: AppTextStyles.h3),
             ]),
           ),
           const SizedBox(height: 16),

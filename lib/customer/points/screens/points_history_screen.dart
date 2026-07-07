@@ -217,13 +217,14 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
             final tabMatch = switch (_activeTab) {
               _Tab.earned => t.isEarned,
               _Tab.redeemed => t.isRedeemed,
-              _Tab.expired => t.isExpired,
+              _Tab.expired => (t.expiringBalance ?? 0) > 0,
               _Tab.all => true,
             };
             return bizMatch && tabMatch;
           }).toList();
 
-          // ── Group by date ─────────────────────────────────────────────────
+          // ── Group by date (most recent first) ─────────────────────────────
+          filtered.sort((a, b) => b.date.compareTo(a.date));
           final grouped = <String, List<TransactionModel>>{};
           for (final t in filtered) {
             grouped.putIfAbsent(_dateLabel(t.date), () => []).add(t);
@@ -300,7 +301,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                       .length,
                   expiredCount: allTxs
                       .where((t) =>
-                          t.isExpired &&
+                          (t.expiringBalance ?? 0) > 0 &&
                           (_selectedBusiness == null ||
                               t.business == _selectedBusiness))
                       .length,
@@ -1444,9 +1445,13 @@ class _HistoryTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    tx.businessFullName?.isNotEmpty == true
-                        ? tx.businessFullName!
-                        : tx.business,
+                    tx.isRedeemed
+      ? (tx.redeemCompanyFullName?.isNotEmpty == true
+          ? tx.redeemCompanyFullName!
+          : tx.redeemCompanyName ?? tx.business)
+      : (tx.businessFullName?.isNotEmpty == true
+          ? tx.businessFullName!
+          : tx.business),
                     style: AppTextStyles.labelMedium.copyWith(
                       color: isExpired
                           ? AppColors.textSecondary.withValues(alpha: 0.5)
@@ -1487,15 +1492,19 @@ class _HistoryTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  tx.displayPoints,
+                  tx.isEarned && (tx.expiringBalance ?? 0) > 0
+                      ? '${tx.expiringBalance} pts'
+                      : tx.displayPoints,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: isExpired
                         ? AppColors.textSecondary.withValues(alpha: 0.45)
-                        : tx.isEarned
-                            ? AppColors.success
-                            : AppColors.error,
+                        : tx.isEarned && (tx.expiringBalance ?? 0) > 0
+                            ? const Color(0xFFFBBF24)
+                            : tx.isEarned
+                                ? AppColors.success
+                                : AppColors.error,
                     decoration: isExpired
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,

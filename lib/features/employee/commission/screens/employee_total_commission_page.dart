@@ -43,7 +43,7 @@ class _EmployeeTotalCommissionPageState
         await _svc.getSalesForMonth(widget.employee.id, _currentMonthKey);
     if (!mounted) return;
     setState(() {
-      _fuelSales = sales;
+      _fuelSales = sales.reversed.toList();
       _loading = false;
     });
   }
@@ -125,7 +125,7 @@ class _EmployeeTotalCommissionPageState
                           color: AppColors.fuelColor.withValues(alpha: 0.4)),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.local_gas_station_rounded,
+                      const Icon(Icons.local_gas_station_rounded,
                           size: 11, color: AppColors.fuelColor),
                       const SizedBox(width: 4),
                       Text('Fuel',
@@ -170,13 +170,13 @@ class _EmployeeTotalCommissionPageState
 
         // ── Transaction list ───────────────────────────────────────────────
         if (_fuelSales.isEmpty)
-          Center(
+          const Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
+              padding: EdgeInsets.all(32),
               child: Column(children: [
-                const Icon(Icons.local_gas_station_outlined,
+                Icon(Icons.local_gas_station_outlined,
                     color: AppColors.textSecondary, size: 40),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   'No fuel sales recorded.',
                   style: AppTextStyles.bodySmall,
@@ -198,61 +198,261 @@ class _EmployeeTotalCommissionPageState
   }
 }
 
-// ── Fuel sale tile (no tap / no detail popup) ─────────────────────────────────
+// ── Extension: full date with year ───────────────────────────────────────────
+
+extension _SaleDate on SaleEntry {
+  String get fullDate {
+    final year = month.split(' ').last;
+    return '$date $year';
+  }
+}
+
+// ── Fuel sale tile ────────────────────────────────────────────────────────────
 
 class _FuelSaleTile extends StatelessWidget {
   final SaleEntry sale;
   const _FuelSaleTile({required this.sale});
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.fuelColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.local_gas_station_rounded,
-                color: AppColors.fuelColor, size: 22),
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: () => _showDetail(context),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.bgCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(sale.customerName,
+          child: Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.fuelColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.local_gas_station_rounded,
+                  color: AppColors.fuelColor, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    sale.customerName.isNotEmpty ? sale.customerName : 'Customer',
                     style: AppTextStyles.labelMedium,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 3),
-                Text(
-                  '${sale.date}  ·  ${sale.time}',
-                  style: AppTextStyles.caption,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.calendar_today_rounded,
+                        size: 11, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Text(sale.fullDate,
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textMuted)),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.access_time_rounded,
+                        size: 11, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Text(sale.time,
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textMuted)),
+                  ]),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(
+                '+LKR ${formatAmount(sale.commission)}',
+                style: AppTextStyles.labelMedium
+                    .copyWith(color: AppColors.success),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'LKR ${formatAmount(sale.saleAmount)} sale',
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary, fontSize: 10),
+              ),
+            ]),
+          ]),
+        ),
+      );
+
+  void _showDetail(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgCard,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 28,
           ),
-          const SizedBox(width: 8),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 60, height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.fuelColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.local_gas_station_rounded,
+                  color: AppColors.fuelColor, size: 30),
+            ),
+            const SizedBox(height: 12),
             Text(
               '+LKR ${formatAmount(sale.commission)}',
-              style: AppTextStyles.labelMedium
-                  .copyWith(color: AppColors.success),
+              style: AppTextStyles.display
+                  .copyWith(fontSize: 34, color: Colors.greenAccent),
             ),
-            const SizedBox(height: 2),
-            Text(
-              'LKR ${formatAmount(sale.saleAmount)} sale',
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary, fontSize: 10),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.fuelColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Commission Earned',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.fuelColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.bgDark,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(children: [
+                if (sale.customerName.isNotEmpty) ...[
+                  _DetailRow(
+                      icon: Icons.person_rounded,
+                      label: 'Customer',
+                      value: sale.customerName),
+                  _TxDivider(),
+                ],
+                _DetailRow(
+                    icon: Icons.payments_outlined,
+                    label: 'Sale amount',
+                    value: 'LKR ${formatAmount(sale.saleAmount)}'),
+                _TxDivider(),
+                _DetailRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Date',
+                    value: sale.fullDate),
+                _TxDivider(),
+                _DetailRow(
+                    icon: Icons.access_time_rounded,
+                    label: 'Time',
+                    value: sale.time),
+                _TxDivider(),
+                _DetailRow(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Commission',
+                    value: 'LKR ${formatAmount(sale.commission)}',
+                    valueColor: Colors.greenAccent),
+              ]),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: AppColors.buttonGradient),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text(
+                    'Close',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ]),
-        ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Detail row ────────────────────────────────────────────────────────────────
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  final Color?   valueColor;
+
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 110,
+              child: Text(label,
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary)),
+            ),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: valueColor ?? AppColors.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _TxDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: AppColors.border,
       );
 }

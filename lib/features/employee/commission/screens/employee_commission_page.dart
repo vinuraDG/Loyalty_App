@@ -80,7 +80,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
       ]);
       if (!mounted) return;
       setState(() {
-        _sales   = results[0] as List<SaleEntry>;
+        _sales   = (results[0] as List<SaleEntry>).reversed.toList();
         _summary = results[1] as MonthlySummary;
         _loading = false;
       });
@@ -391,16 +391,12 @@ class _SaleTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(sale.customerName, style: AppTextStyles.labelMedium),
+                Text(
+                  sale.customerName.isNotEmpty ? sale.customerName : 'Customer',
+                  style: AppTextStyles.labelMedium,
+                ),
                 const SizedBox(height: 4),
                 Row(children: [
-                  const Icon(Icons.water_drop_outlined,
-                      size: 12, color: AppColors.textMuted),
-                  const SizedBox(width: 3),
-                  Text('${sale.litres.toStringAsFixed(1)} L',
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.textMuted)),
-                  const SizedBox(width: 10),
                   const Icon(Icons.access_time_rounded,
                       size: 12, color: AppColors.textMuted),
                   const SizedBox(width: 3),
@@ -511,20 +507,17 @@ class _SaleTile extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(children: [
-                _DetailRow(
-                    icon: Icons.person_rounded,
-                    label: 'Customer',
-                    value: sale.customerName),
-                _TxDivider(),
+                if (sale.customerName.isNotEmpty) ...[
+                  _DetailRow(
+                      icon: Icons.person_rounded,
+                      label: 'Customer',
+                      value: sale.customerName),
+                  _TxDivider(),
+                ],
                 _DetailRow(
                     icon: Icons.payments_outlined,
                     label: 'Sale amount',
                     value: 'LKR ${formatAmount(sale.saleAmount)}'),
-                _TxDivider(),
-                _DetailRow(
-                    icon: Icons.water_drop_outlined,
-                    label: 'Litres',
-                    value: '${sale.litres.toStringAsFixed(1)} L'),
                 _TxDivider(),
                 _DetailRow(
                     icon: Icons.calendar_today_rounded,

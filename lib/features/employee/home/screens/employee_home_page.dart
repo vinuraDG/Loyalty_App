@@ -10,6 +10,7 @@ import '../data/emp_home_real_service.dart';
 import '../../commission/data/emp_commission_api_service.dart';
 import 'qr_scanner_screen.dart';
 import 'customer_identified_screen.dart';
+import '../../commission/screens/employee_total_commission_page.dart';
 import 'employee_dashboard_screen.dart';
 
 class EmployeeHomePage extends StatefulWidget {
@@ -128,14 +129,24 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     await _silentRefresh();
   }
 
-  // FIX: Always switch the bottom nav tab via the dashboard ancestor state.
-  // Navigator.push to EmployeeTotalCommissionPage would bypass the IndexedStack
-  // shell, losing the bottom nav bar entirely.
+  // Gradient commission card → full history detail page (no bottom nav)
   void _goToCommission(BuildContext context) {
-    final dashState =
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EmployeeTotalCommissionPage(employee: widget.employee),
+      ),
+    );
+  }
+
+  // "My Commission" quick action → Commission tab in bottom nav (has month filter)
+  void _goToCommissionTab(BuildContext context) {
+    final dashboard =
         context.findAncestorStateOfType<EmployeeDashboardScreenState>();
-    if (dashState != null) {
-      dashState.switchToCommission();
+    if (dashboard != null) {
+      dashboard.switchToCommission();
+    } else {
+      _goToCommission(context);
     }
   }
 
@@ -243,7 +254,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   icon: Icons.payments_outlined,
                   label: 'My Commission',
                   color: AppColors.primary,
-                  onTap: () => _goToCommission(context),
+                  onTap: () => _goToCommissionTab(context),
                 ),
               ]),
               const SizedBox(height: 24),

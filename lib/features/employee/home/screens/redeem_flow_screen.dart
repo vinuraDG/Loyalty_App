@@ -8,7 +8,7 @@ import '../data/emp_home_api_service.dart';
 import 'otp_confirmation_screen.dart';
 import '../../../../models/user_model.dart';
 
-const _kRedeemBusiness = 'Gold House';
+// No longer used — panel visibility is driven by _selectedOffer != null
 
 class RedeemFlowScreen extends StatefulWidget {
   final ScannedMember member;
@@ -95,7 +95,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   int _expiredTotalPoints(String business) =>
       _expiredOffers(business).fold(0, (s, o) => s + o.pointsCost);
 
-  bool get _isGoldSelected => _selectedBusiness == _kRedeemBusiness;
+  bool get _isGoldSelected => _selectedOffer != null;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -135,8 +135,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     final active = _activeOffers(business);
     setState(() {
       _selectedBusiness = business;
-      _selectedOffer =
-          (business == _kRedeemBusiness && active.isNotEmpty) ? active.first : null;
+      _selectedOffer = active.isNotEmpty ? active.first : null;
       _resetPointsInput();
     });
   }
@@ -264,7 +263,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
           final business = businesses[i];
           final theme = _BusinessTheme.of(business);
           final isActive = _selectedBusiness == business;
-          final isGold = business == _kRedeemBusiness;
+          final isGold = _selectedOffer?.business == business;
 
           return GestureDetector(
             onTap: () => _onTabTapped(business),

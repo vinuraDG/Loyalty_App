@@ -40,7 +40,7 @@ class ScanEntry {
     final parsed = rawDate != null
         ? DateTime.tryParse(rawDate.toString())
         : null;
-    final txDate = parsed ?? DateTime.now();
+    final txDate = (parsed ?? DateTime.now()).toLocal();
 
     final h = txDate.hour % 12 == 0 ? 12 : txDate.hour % 12;
     final m = txDate.minute.toString().padLeft(2, '0');

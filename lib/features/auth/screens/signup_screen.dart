@@ -216,7 +216,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                 AppTextField(
                   label: 'Password',
-                  hint: 'Min 6 chars, A-Z, a-z, 0-9, symbol',
+                  hint: 'Min 12 chars, A-Z, a-z, 0-9, symbol',
                   controller: _passCtrl,
                   isPassword: true,
                   prefixIconData: Icons.lock_outline,

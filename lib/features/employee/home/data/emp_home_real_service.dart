@@ -161,24 +161,30 @@ class EmpHomeRealService implements IEmpHomeService {
     }
   }
 
-  // ── getTodayScans — GET /Mobile/GetAllEmployeeWallets (body required) ──────
-  // fallback to an empty list is kept defensively so a genuine transient/
-  // server failure still degrades gracefully instead of crashing the
-  // dashboard.
+  // ── _fmt helper for date strings ─────────────────────────────────────────
+
+  String _fmt(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  // ── getTodayScans — GET /Mobile/GetAllEmployeeLedgers ────────────────────
+  // GetAllEmployeeWallets always returns 500; switched to GetAllEmployeeLedgers
+  // (same working endpoint used by the commission page) and filter client-side.
 
   @override
   Future<List<ScanEntry>> getTodayScans(String employeeId) async {
     final phone = await _empPhone;
     final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd   = DateTime(now.year, now.month + 1, 0);
     try {
       final res = await _dio.get(
-        'Mobile/GetAllEmployeeWallets',
+        'Mobile/GetAllEmployeeLedgers',
         data: {
           'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CompanyId': AppConstants.activeCompanyId,
-          'EmployeePhoneNo': phone,
-          'Year': now.year,
-          'Month': now.month,
+          'CompanyId':            AppConstants.activeCompanyId,
+          'EmployeePhoneNo':      phone,
+          'DateFrom':             _fmt(monthStart),
+          'DateTo':               _fmt(monthEnd),
         },
       );
       final list = _asList(res.data);
@@ -188,8 +194,7 @@ class EmpHomeRealService implements IEmpHomeService {
           .toList();
 
       bool isToday(Map<String, dynamic> j) {
-        final raw =
-            j['DateCreated'] ?? j['dateCreated'] ?? j['CreatedAt'] ?? j['Date'];
+        final raw = j['DateCreated'] ?? j['dateCreated'] ?? j['Date'];
         final d = raw != null ? DateTime.tryParse(raw.toString()) : null;
         if (d == null) return false;
         return d.year == now.year && d.month == now.month && d.day == now.day;
@@ -200,65 +205,61 @@ class EmpHomeRealService implements IEmpHomeService {
           .map((m) => ScanEntry.fromJson(m))
           .toList();
     } on DioException catch (e) {
-      _logBackendFailure('GetAllEmployeeWallets (getTodayScans)', e);
+      _logBackendFailure('GetAllEmployeeLedgers (getTodayScans)', e);
       return const [];
     }
   }
 
-  // ── getWeeklyCommission — derived from GET /Mobile/GetAllEmployeeWallets ──
-  // FIX (2026-06-30): same GET + "Request"-wrapped body fix as
-  // getTodayScans. CalculateCommission is confirmed to be a single-document
-  // endpoint (requires CustomerPhoneNo + DocumentNo), not a date-range
-  // rollup, so it's intentionally not called here at all.
+  // ── getWeeklyCommission — GET /Mobile/GetAllEmployeeLedgers ──────────────
+  // GetAllEmployeeWallets always returns 500; switched to GetAllEmployeeLedgers.
 
   @override
   Future<List<int>> getWeeklyCommission(String employeeId) async {
     final phone = await _empPhone;
-    final now = DateTime.now();
+    final now    = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     final result = List<int>.filled(7, 0);
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd   = DateTime(now.year, now.month + 1, 0);
 
     try {
       final res = await _dio.get(
-        'Mobile/GetAllEmployeeWallets',
+        'Mobile/GetAllEmployeeLedgers',
         data: {
           'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CompanyId': AppConstants.activeCompanyId,
-          'EmployeePhoneNo': phone,
-          'Year': now.year,
-          'Month': now.month,
+          'CompanyId':            AppConstants.activeCompanyId,
+          'EmployeePhoneNo':      phone,
+          'DateFrom':             _fmt(monthStart),
+          'DateTo':               _fmt(monthEnd),
         },
       );
       final list = _asList(res.data);
       for (final raw in list) {
         if (raw is! Map) continue;
         final j = Map<String, dynamic>.from(raw);
-        final dateRaw =
-            j['DateCreated'] ?? j['dateCreated'] ?? j['CreatedAt'] ?? j['Date'];
+        final dateRaw = j['DateCreated'] ?? j['dateCreated'] ?? j['Date'];
         final d = dateRaw != null ? DateTime.tryParse(dateRaw.toString()) : null;
         if (d == null) continue;
 
-        final dayIndex = d.difference(monday).inDays;
+        final dayIndex = d.toLocal().difference(
+          DateTime(monday.year, monday.month, monday.day),
+        ).inDays;
         if (dayIndex < 0 || dayIndex > 6) continue;
 
-        // Prefer a server-supplied Commission field; fall back to deriving
-        // 2 % of sale amount if the wallet response omits it.
         final commissionRaw =
             j['Commission'] ?? j['commission'] ?? j['CommissionAmount'];
         double commissionAmt;
         if (commissionRaw != null) {
           commissionAmt = double.tryParse(commissionRaw.toString()) ?? 0.0;
         } else {
-          final amountRaw = j['ValueFrom'] ?? j['Amount'] ??
-              j['amount'] ?? j['SaleAmount'] ?? 0;
-          final saleAmount = double.tryParse(amountRaw.toString()) ?? 0.0;
-          commissionAmt = saleAmount * 0.02;
+          final amountRaw = j['ValueFrom'] ?? j['Amount'] ?? 0;
+          commissionAmt =
+              (double.tryParse(amountRaw.toString()) ?? 0.0) * 0.02;
         }
         result[dayIndex] += commissionAmt.round();
       }
     } on DioException catch (e) {
-      _logBackendFailure('GetAllEmployeeWallets (getWeeklyCommission)', e);
-      // leave result as zeros
+      _logBackendFailure('GetAllEmployeeLedgers (getWeeklyCommission)', e);
     }
     return result;
   }

@@ -110,13 +110,16 @@ class EmpCommissionApiService implements IEmpCommissionService {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   String _timeFromDate(DateTime d) {
-    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
-    final m = d.minute.toString().padLeft(2, '0');
-    return '$h:$m ${d.hour >= 12 ? 'PM' : 'AM'}';
+    final local = d.toLocal();
+    final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final m = local.minute.toString().padLeft(2, '0');
+    return '$h:$m ${local.hour >= 12 ? 'PM' : 'AM'}';
   }
 
-  String _dateLabelFromDate(DateTime d) =>
-      '${d.day} ${_shortMonths[d.month - 1]}';
+  String _dateLabelFromDate(DateTime d) {
+    final local = d.toLocal();
+    return '${local.day} ${_shortMonths[local.month - 1]}';
+  }
 
   @override
   Future<List<SaleEntry>> getSalesForMonth(
@@ -197,7 +200,8 @@ class EmpCommissionApiService implements IEmpCommissionService {
     final sales = await getSalesForMonth(employeeId, month);
     final totalSales =
         sales.fold<double>(0, (sum, s) => sum + s.saleAmount);
-    final totalCommission = totalSales * kCommissionRate;
+    final totalCommission =
+        sales.fold<double>(0, (sum, s) => sum + s.commission);
 
     return MonthlySummary(
       month:            month,
