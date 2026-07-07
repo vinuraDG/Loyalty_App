@@ -241,11 +241,20 @@ class EmpHomeRealService implements IEmpHomeService {
         final dayIndex = d.difference(monday).inDays;
         if (dayIndex < 0 || dayIndex > 6) continue;
 
+        // Prefer a server-supplied Commission field; fall back to deriving
+        // 2 % of sale amount if the wallet response omits it.
         final commissionRaw =
-            j['Commission'] ?? j['commission'] ?? j['CommissionAmount'] ?? 0;
-        final commission =
-            (double.tryParse(commissionRaw.toString()) ?? 0.0).round();
-        result[dayIndex] += commission;
+            j['Commission'] ?? j['commission'] ?? j['CommissionAmount'];
+        double commissionAmt;
+        if (commissionRaw != null) {
+          commissionAmt = double.tryParse(commissionRaw.toString()) ?? 0.0;
+        } else {
+          final amountRaw = j['ValueFrom'] ?? j['Amount'] ??
+              j['amount'] ?? j['SaleAmount'] ?? 0;
+          final saleAmount = double.tryParse(amountRaw.toString()) ?? 0.0;
+          commissionAmt = saleAmount * 0.02;
+        }
+        result[dayIndex] += commissionAmt.round();
       }
     } on DioException catch (e) {
       _logBackendFailure('GetAllEmployeeWallets (getWeeklyCommission)', e);
