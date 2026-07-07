@@ -72,8 +72,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
   // Dynamic company list fetched from backend
   List<CompanyModel> _companies = [];
-  bool _companiesLoaded = false;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -91,9 +89,8 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     // transactions will still show.
     try {
       final companies = await CompaniesApiService.instance.getCompanies();
-      if (mounted) setState(() { _companies = companies; _companiesLoaded = true; });
+      if (mounted) setState(() { _companies = companies; });
     } catch (_) {
-      if (mounted) setState(() => _companiesLoaded = true);
     }
     return _svc.getTransactions(userId);
   }
@@ -174,7 +171,9 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     required int totalExpired,
     required Color color,
   }) {
-    final netPoints = totalEarned - totalRedeemed - totalExpired;
+    // Expiring is informational — those points are still spendable until
+    // DateExpire, so they are NOT deducted from the available balance.
+    final netPoints = totalEarned - totalRedeemed;
 
     showModalBottomSheet(
       context: context,
@@ -286,7 +285,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       icon: Icons.timer_off_rounded,
                       iconColor: const Color(0xFFFBBF24),
                       label: 'Expiring points',
-                      value: '-$totalExpired pts',
+                      value: '$totalExpired pts',
                       valueColor: const Color(0xFFFBBF24),
                     ),
                   ],
@@ -509,17 +508,20 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   } else if (t.isRedeemed) {
                     byBizRedeemed[t.business] =
                         (byBizRedeemed[t.business] ?? 0) + t.points;
-                  } else if (t.isExpired) {
+                  }
+                  // Expiring: sum PointBalance from earn entries with future
+                  // DateExpire. This is informational — not yet deducted.
+                  if (t.expiringBalance != null && t.expiringBalance! > 0) {
                     byBizExpired[t.business] =
-                        (byBizExpired[t.business] ?? 0) + t.points;
+                        (byBizExpired[t.business] ?? 0) + t.expiringBalance!;
                   }
                 }
 
                 final byBizNet = <String, int>{
                   for (final biz in bizNames)
                     biz: (byBizEarned[biz] ?? 0) -
-                         (byBizRedeemed[biz] ?? 0) -
-                         (byBizExpired[biz] ?? 0),
+                         (byBizRedeemed[biz] ?? 0),
+                  // Expiring is informational only — not subtracted from net.
                 };
 
                 // ── Filtered transaction list (selected month + company) ───
@@ -1127,20 +1129,6 @@ class _TxCard extends StatelessWidget {
     return Icons.timer_off_rounded;
   }
 
-  String _fmtRelative(DateTime d) {
-    final now  = DateTime.now();
-    final diff = now.difference(d);
-    if (d.year == now.year && d.month == now.month && d.day == now.day) {
-      return 'Today';
-    }
-    final yesterday = now.subtract(const Duration(days: 1));
-    if (d.year == yesterday.year &&
-        d.month == yesterday.month &&
-        d.day == yesterday.day) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return _fmtDate(d);
-  }
-
   String _fmtDate(DateTime d) {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -1192,9 +1180,13 @@ class _TxCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  tx.businessFullName?.isNotEmpty == true
-                      ? tx.businessFullName!
-                      : tx.business,
+                  tx.isRedeemed
+      ? (tx.redeemCompanyFullName?.isNotEmpty == true
+          ? tx.redeemCompanyFullName!
+          : tx.redeemCompanyName ?? tx.business)
+      : (tx.businessFullName?.isNotEmpty == true
+          ? tx.businessFullName!
+          : tx.business),
                   style: AppTextStyles.labelMedium,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

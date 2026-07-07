@@ -13,9 +13,14 @@ class TransactionModel {
   final String? billNo;
   final int? pointsOwnCompanyId;
   final int? pointsRedeemCompanyId;
-  final String? redeemCompanyName;
-  final String? businessFullName;
-  final String? redeemCompanyFullName;
+  final String?   redeemCompanyName;
+  final String?   businessFullName;
+  final String?   redeemCompanyFullName;
+  // Non-null on Earn entries whose DateExpire is in the future.
+  // expiringBalance = PointBalance from the backend (remaining points in
+  // that earn batch after any redeems applied against it).
+  final int?      expiringBalance;
+  final DateTime? expiryDate;
 
   const TransactionModel({
     required this.id,
@@ -31,6 +36,8 @@ class TransactionModel {
     this.redeemCompanyName,
     this.businessFullName,
     this.redeemCompanyFullName,
+    this.expiringBalance,
+    this.expiryDate,
   });
 
   bool get isEarned   => type == TransactionType.earned;

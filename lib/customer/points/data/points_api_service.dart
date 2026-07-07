@@ -38,7 +38,7 @@ class PointsApiService implements IPointsService {
     ]);
 
     final companies = results[0] as List<CompanyModel>;
-    final rawList   = results[1] as List<dynamic>;
+    final rawList   = results[1] as List<dynamic>? ?? <dynamic>[];
 
     // Build  PointsOwnCompanyId / PointsRedeemCompanyId → CompanyModel  map.
     // GetAllCompanies order: [Laundry(idx0), Gold House(idx1), Fuel(idx2)].
@@ -116,9 +116,12 @@ class PointsApiService implements IPointsService {
 
   final typeStr =
       (m['PointsTransactionType'] ?? m['transactionType'] ?? '').toString();
-  final type = typeStr.toLowerCase() == 'redeem'
-      ? TransactionType.redeemed
-      : TransactionType.earned;
+  final type = switch (typeStr.toLowerCase()) {
+  'redeem'                        => TransactionType.redeemed,
+  'expired' || 'expire' ||
+  'expiring' || 'pointsexpired'   => TransactionType.expired,
+  _                               => TransactionType.earned,
+};
 
   final ownId    = int.tryParse((m['PointsOwnCompanyId']    ?? 0).toString()) ?? 0;
   final redeemId = int.tryParse((m['PointsRedeemCompanyId'] ?? 0).toString()) ?? 0;
@@ -142,11 +145,29 @@ class PointsApiService implements IPointsService {
       (type == TransactionType.redeemed && redeemId > 0 ? 'Company $redeemId' : null);
   final redeemCompanyFullName = redeemCompany?.name.isNotEmpty == true ? redeemCompany!.name : null;
 
-  // ── Always use DateCreated — it is the actual transaction timestamp ────────
-  // DateExpire is irrelevant for display; it's 1 year ahead for Earn entries.
+  // ── Always use DateCreated — it is the actual transaction timestamp ──────
   final dateStr = (m['DateCreated'] ?? m['DateLastModified'] ?? '').toString();
   final parsed  = DateTime.tryParse(dateStr);
   final date    = (parsed != null && parsed.year >= 2000) ? parsed : DateTime.now();
+
+  // ── Expiry info — Earn entries only ────────────────────────────────────
+  // Backend never returns a separate "Expired" transaction type; instead
+  // each Earn entry carries DateExpire and PointBalance (remaining points
+  // from that batch after any redeems applied against it).
+  int?      expiringBalance;
+  DateTime? expiryDate;
+  if (type == TransactionType.earned) {
+    final expRaw    = (m['DateExpire'] ?? '').toString();
+    final expParsed = DateTime.tryParse(expRaw);
+    if (expParsed != null &&
+        expParsed.year > 2000 &&
+        expParsed.isAfter(DateTime.now())) {
+      expiryDate      = expParsed;
+      expiringBalance = int.tryParse(
+              (m['PointBalance'] ?? 0).toString()) ??
+          0;
+    }
+  }
 
   return TransactionModel(
     id:                    (m['Id'] ?? m['id'] ?? '').toString(),
@@ -160,23 +181,10 @@ class PointsApiService implements IPointsService {
     redeemCompanyName:     redeemCompanyName,
     businessFullName:      businessFullName,
     redeemCompanyFullName: redeemCompanyFullName,
+    expiringBalance:       expiringBalance,
+    expiryDate:            expiryDate,
   );
 }
-}
-
-DateTime _resolveDate(DateTime? parsed, TransactionType type) {
-  if (parsed == null || parsed.year < 2000) return DateTime.now();
-  if (type == TransactionType.earned && parsed.isAfter(DateTime.now())) {
-    return DateTime(
-      parsed.year - 1,
-      parsed.month,
-      parsed.day,
-      parsed.hour,
-      parsed.minute,
-      parsed.second,
-    );
-  }
-  return parsed;
 }
 
 // ── Service factory ───────────────────────────────────────────────────────────
