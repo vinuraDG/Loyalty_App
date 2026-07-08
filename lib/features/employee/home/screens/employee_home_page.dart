@@ -65,7 +65,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           fuelSales.fold<double>(0.0, (a, s) => a + s.commission);
       if (!mounted) return;
       setState(() {
-        _todayScans = scans.toList();
+        _todayScans = scans.reversed.toList();
         _weeklyCommission = commission;
         _monthlyCommission = monthlyCommission;
         _loading = false;
@@ -91,7 +91,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       final weekly = results[1] as List<int>;
       final sales  = results[2] as List<SaleEntry>;
       setState(() {
-        _todayScans        = scans;
+        _todayScans        = scans.reversed.toList();
         _weeklyCommission  = weekly;
         _monthlyCommission = sales.fold(0.0, (a, s) => a + s.commission);
       });
