@@ -525,7 +525,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 // ── Per-business aggregates (all time) ────────────────────
                 final byBizEarned   = <String, int>{};
                 final byBizRedeemed = <String, int>{};
-                final byBizExpired  = <String, int>{};
 
                 for (final t in allTxs) {
                   if (t.isEarned) {
@@ -534,12 +533,6 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   } else if (t.isRedeemed) {
                     byBizRedeemed[t.business] =
                         (byBizRedeemed[t.business] ?? 0) + t.points;
-                  }
-                  // Expiring: sum PointBalance from earn entries with future
-                  // DateExpire. This is informational — not yet deducted.
-                  if (t.expiringBalance != null && t.expiringBalance! > 0) {
-                    byBizExpired[t.business] =
-                        (byBizExpired[t.business] ?? 0) + t.expiringBalance!;
                   }
                 }
 
@@ -704,13 +697,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           byBizNet: byBizNet,
                           byBizEarned: byBizEarned,
                           byBizRedeemed: byBizRedeemed,
-                          byBizExpired: byBizExpired,
+                          byBizExpired: const {},
                           onTap: (biz, idx) => _showBizDetail(
                             context,
                             business: fullNameOf[biz] ?? biz,
                             totalEarned:   byBizEarned[biz]   ?? 0,
                             totalRedeemed: byBizRedeemed[biz] ?? 0,
-                            totalExpired:  byBizExpired[biz]  ?? 0,
+                            totalExpired:  0,
                             color: _colorForCompany(biz, idx),
                           ),
                         ),
