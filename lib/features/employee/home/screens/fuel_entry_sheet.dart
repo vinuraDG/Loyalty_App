@@ -114,23 +114,38 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         ]),
         const SizedBox(height: 20),
 
-        // Amount input
+        // Amount input + estimated points preview
         StatefulBuilder(
-          builder: (_, setInner) => Column(children: [
-            AppTextField(
-              label: 'Sale Amount',
-              hint: 'e.g. 7015',
-              controller: _amountCtrl,
-              prefixIconData: Icons.payments_outlined,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) {
-                setInner(() {});
-                setState(() {});
-              },
-            ),
-            
-          ]),
+          builder: (_, setInner) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppTextField(
+                label: 'Sale Amount (LKR)',
+                hint: 'e.g. 7015',
+                controller: _amountCtrl,
+                prefixIconData: Icons.payments_outlined,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) {
+                  setInner(() {});
+                  setState(() {});
+                },
+              ),
+              if (_amount > 0) ...[
+                const SizedBox(height: 10),
+                Row(children: [
+                  const Icon(Icons.stars_rounded,
+                      size: 15, color: Color(0xFFFFD700)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '≈ $_points pts will be awarded (estimate)',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textMuted),
+                  ),
+                ]),
+              ],
+            ],
+          ),
         ),
 
         const SizedBox(height: 20),

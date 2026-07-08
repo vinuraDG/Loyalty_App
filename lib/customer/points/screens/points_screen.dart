@@ -241,11 +241,14 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   border: Border.all(color: color.withValues(alpha: 0.3)),
                 ),
                 child: Column(children: [
-                  Text(
-                    '$netPoints',
-                    style: AppTextStyles.display.copyWith(
-                      fontSize: 44,
-                      color: color,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '$netPoints',
+                      style: AppTextStyles.display.copyWith(
+                        fontSize: 44,
+                        color: color,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -603,10 +606,16 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text(
-                                        '$totalBalance',
-                                        style: AppTextStyles.display
-                                            .copyWith(fontSize: 46),
+                                      Flexible(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            '$totalBalance',
+                                            style: AppTextStyles.display
+                                                .copyWith(fontSize: 46),
+                                          ),
+                                        ),
                                       ),
                                       const SizedBox(width: 6),
                                       Padding(
@@ -1166,6 +1175,16 @@ class _TxCard extends StatelessWidget {
     return '$h:$minute $period';
   }
 
+  String _fmtDateAndTime(DateTime d) {
+    final local  = d.toLocal();
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final hour   = local.hour;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h      = hour % 12 == 0 ? 12 : hour % 12;
+    return '${local.day} ${months[local.month - 1]} ${local.year}  ·  $h:$minute $period';
+  }
+
   // ── Card ─────────────────────────────────────────────────────────────────
 
   @override
@@ -1239,9 +1258,9 @@ class _TxCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Time
+                  // Date · Time
                   Text(
-                    _fmtTime(tx.date),
+                    _fmtDateAndTime(tx.date),
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -1334,9 +1353,12 @@ class _TxCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            Text(
-              tx.displayPoints,
-              style: AppTextStyles.display.copyWith(fontSize: 38, color: color),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                tx.displayPoints,
+                style: AppTextStyles.display.copyWith(fontSize: 38, color: color),
+              ),
             ),
             const SizedBox(height: 6),
 

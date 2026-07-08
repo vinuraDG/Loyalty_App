@@ -22,29 +22,39 @@ class ScanEntry {
   final String memberName;
   final double saleAmount;
   final int points;
+  final double commission;
   final String time;
 
   const ScanEntry({
     required this.memberName,
     required this.saleAmount,
     required this.points,
+    required this.commission,
     required this.time,
   });
 
   factory ScanEntry.fromJson(Map<String, dynamic> j) {
-    // FIX: Use DateCreated for the actual transaction date.
-    // DateExpire is when the points expire (typically 1 yr after creation),
-    // NOT when the transaction occurred — using it caused wrong date display.
     final rawDate =
         j['DateCreated'] ?? j['dateCreated'] ?? j['CreatedAt'] ?? j['Date'];
     final parsed = rawDate != null
         ? DateTime.tryParse(rawDate.toString())
         : null;
-    final txDate = (parsed ?? DateTime.now()).toLocal();
+    final txDate = parsed != null
+        ? DateTime(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second)
+        : DateTime.now();
 
     final h = txDate.hour % 12 == 0 ? 12 : txDate.hour % 12;
     final m = txDate.minute.toString().padLeft(2, '0');
     final timeStr = '$h:$m ${txDate.hour >= 12 ? 'PM' : 'AM'}';
+
+    final saleAmount = double.tryParse(
+            (j['ValueFrom'] ?? j['saleAmount'] ?? j['Amount'] ?? 0)
+                .toString()) ??
+        0;
+    final commissionRaw = j['Commission'] ?? j['commission'] ?? j['CommissionAmount'];
+    final commission = commissionRaw != null
+        ? (double.tryParse(commissionRaw.toString()) ?? saleAmount * 0.02)
+        : saleAmount * 0.02;
 
     return ScanEntry(
       memberName: (j['CustomerName'] ??
@@ -52,14 +62,12 @@ class ScanEntry {
               j['memberName'] ??
               '')
           .toString(),
-      saleAmount: double.tryParse(
-              (j['ValueFrom'] ?? j['saleAmount'] ?? j['Amount'] ?? 0)
-                  .toString()) ??
-          0,
+      saleAmount: saleAmount,
       points: int.tryParse(
               (j['PointsValue'] ?? j['points'] ?? j['Points'] ?? 0)
                   .toString()) ??
           0,
+      commission: commission,
       time: timeStr,
     );
   }

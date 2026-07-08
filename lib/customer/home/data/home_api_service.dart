@@ -120,8 +120,7 @@ Future<List<int>> getWeeklyPoints(String userId) async {
       final parsed  = DateTime.tryParse(dateStr);
       if (parsed == null || parsed.year < 2000) continue;
 
-      final local  = parsed.toLocal();
-      final dayIdx = DateTime(local.year, local.month, local.day)
+      final dayIdx = DateTime(parsed.year, parsed.month, parsed.day)
           .difference(weekStart)
           .inDays;
       if (dayIdx >= 0 && dayIdx < 7) result[dayIdx] += points;

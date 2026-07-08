@@ -337,14 +337,16 @@ class _CommissionCard extends StatelessWidget {
                   ),
                 ]),
                 const SizedBox(height: 6),
-                Text(
-                  'LKR ${formatAmount(monthlyCommission)}',
-                  style: const TextStyle(
-                      fontSize: 22,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'LKR ${formatAmount(monthlyCommission)}',
+                    style: const TextStyle(
+                        fontSize: 22,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Row(children: [
@@ -387,27 +389,30 @@ class _CommissionCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.12),
                 ),
                 const SizedBox(height: 7),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.calendar_view_week_rounded,
-                        size: 11,
-                        color: Colors.white.withValues(alpha: 0.55)),
-                    const SizedBox(width: 4),
-                    Text(
-                      'This week  ',
-                      style: TextStyle(
-                          fontSize: 10,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.calendar_view_week_rounded,
+                          size: 11,
                           color: Colors.white.withValues(alpha: 0.55)),
-                    ),
-                    Text(
-                      'LKR ${formatAmount(weeklyTotal)}',
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        'This week  ',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white.withValues(alpha: 0.55)),
+                      ),
+                      Text(
+                        'LKR ${formatAmount(weeklyTotal)}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -491,7 +496,7 @@ class _TodayScanTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.bgCard,
         borderRadius: BorderRadius.circular(14),
@@ -499,11 +504,11 @@ class _TodayScanTile extends StatelessWidget {
       ),
       child: Row(children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.local_gas_station_rounded,
               color: AppColors.primaryLight, size: 20),
@@ -513,36 +518,46 @@ class _TodayScanTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(scan.memberName, style: AppTextStyles.labelMedium),
-              const SizedBox(height: 2),
+              Text(
+                scan.memberName.isNotEmpty ? scan.memberName : 'Customer',
+                style: AppTextStyles.labelMedium,
+              ),
+              const SizedBox(height: 4),
               Row(children: [
-                const Icon(Icons.payments_outlined,
+                const Icon(Icons.access_time_rounded,
                     size: 12, color: AppColors.textMuted),
                 const SizedBox(width: 3),
                 Flexible(
                   child: Text(
-                    'LKR ${formatAmount(scan.saleAmount)}  •  ${scan.time}',
+                    scan.time,
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.textMuted),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ]),
+              const SizedBox(height: 3),
+              Text(
+                'Sale: LKR ${formatAmount(scan.saleAmount)}',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+              ),
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.green.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '+LKR ${formatAmount(scan.commission)}',
+              style: AppTextStyles.caption.copyWith(
+                  color: Colors.greenAccent, fontWeight: FontWeight.w700),
+            ),
           ),
-          child: Text(
-            '+${scan.points} pts',
-            style: AppTextStyles.caption.copyWith(
-                color: Colors.greenAccent, fontWeight: FontWeight.w600),
-          ),
-        ),
+        ]),
       ]),
     );
   }

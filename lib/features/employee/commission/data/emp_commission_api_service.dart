@@ -15,6 +15,7 @@ class SaleEntry {
   final String id;
   final String business;
   final String customerName;
+  final String customerId;
   final double litres;
   final double saleAmount;
   final double commission;
@@ -26,6 +27,7 @@ class SaleEntry {
     required this.id,
     required this.business,
     required this.customerName,
+    this.customerId = '',
     required this.litres,
     required this.saleAmount,
     required this.commission,
@@ -160,6 +162,8 @@ class EmpCommissionApiService implements IEmpCommissionService {
           customerName: (m['CustomerName']  ?? m['MemberName']   ??
                          m['customerName']  ?? m['FullName']     ??
                          m['Name']          ?? '').toString(),
+          customerId:   (m['CustomerPhoneNo'] ?? m['customerPhoneNo'] ??
+                         m['PhoneNo']         ?? '').toString(),
           litres:       0.0,
           saleAmount:   amount,
           commission:   commission,
@@ -208,11 +212,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
       totalCommission:  totalCommission,
       totalSales:       totalSales,
       transactionCount: sales.length,
-      uniqueCustomers:  sales
-          .map((s) => s.customerName)
-          .where((n) => n.isNotEmpty)
-          .toSet()
-          .length,
+      uniqueCustomers:  _countUniqueCustomers(sales),
     );
   }
 
@@ -226,6 +226,9 @@ class EmpCommissionApiService implements IEmpCommissionService {
   }
 }
 
+int _countUniqueCustomers(List<SaleEntry> sales) =>
+    sales.map((s) => s.customerId).where((s) => s.isNotEmpty).toSet().length;
+
 DateTime _txDate(DateTime? parsed) {
   if (parsed == null || parsed.year < 2000) return DateTime.now();
   final now = DateTime.now();
@@ -233,7 +236,7 @@ DateTime _txDate(DateTime? parsed) {
     return DateTime(parsed.year - 1, parsed.month, parsed.day,
         parsed.hour, parsed.minute, parsed.second);
   }
-  return parsed;
+  return DateTime(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second);
 }
 
 // Backend wraps lists in {"Value": [...], "StatusCode": 200}

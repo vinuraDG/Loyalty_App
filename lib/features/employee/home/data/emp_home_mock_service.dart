@@ -46,6 +46,7 @@ class EmpHomeMockService implements IEmpHomeService {
         memberName: kMockScannedMember['name'] as String,
         saleAmount: saleAmount,
         points: pointsAwarded,
+        commission: saleAmount * 0.02,
         time: _timeNow(),
       ),
     );

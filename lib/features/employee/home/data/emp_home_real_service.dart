@@ -195,7 +195,8 @@ class EmpHomeRealService implements IEmpHomeService {
 
       bool isToday(Map<String, dynamic> j) {
         final raw = j['DateCreated'] ?? j['dateCreated'] ?? j['Date'];
-        final d = raw != null ? DateTime.tryParse(raw.toString())?.toLocal() : null;
+        final _p = raw != null ? DateTime.tryParse(raw.toString()) : null;
+        final d = _p != null ? DateTime(_p.year, _p.month, _p.day, _p.hour, _p.minute, _p.second) : null;
         if (d == null) return false;
         return d.year == now.year && d.month == now.month && d.day == now.day;
       }
@@ -238,10 +239,11 @@ class EmpHomeRealService implements IEmpHomeService {
         if (raw is! Map) continue;
         final j = Map<String, dynamic>.from(raw);
         final dateRaw = j['DateCreated'] ?? j['dateCreated'] ?? j['Date'];
-        final d = dateRaw != null ? DateTime.tryParse(dateRaw.toString()) : null;
-        if (d == null) continue;
+        final _dp = dateRaw != null ? DateTime.tryParse(dateRaw.toString()) : null;
+        if (_dp == null) continue;
+        final d = DateTime(_dp.year, _dp.month, _dp.day, _dp.hour, _dp.minute, _dp.second);
 
-        final dayIndex = d.toLocal().difference(
+        final dayIndex = d.difference(
           DateTime(monday.year, monday.month, monday.day),
         ).inDays;
         if (dayIndex < 0 || dayIndex > 6) continue;
@@ -309,18 +311,22 @@ class EmpHomeRealService implements IEmpHomeService {
     required String offerId,
   }) async {
     try {
-      await _dio.post(
+      final res = await _dio.post(
         'Common/ForgotPassword',
         options: Options(responseType: ResponseType.plain),
         data: {'UserName': customerId, 'Password': ''},
       );
-      return '';
+      // Backend returns the OTP value in the response body.
+      final body = (res.data as String? ?? '').trim();
+      return body;
     } on DioException catch (e) {
       throw Exception(_msg(e) ?? 'Failed to send OTP.');
     }
   }
 
-  // ── confirmRedemption — POST /Common/RedeemPoints ─────────────────────────
+  // ── confirmRedemption — RedeemConfirmation (OTP) → RedeemPoints ──────────
+  // Step 1: POST /Common/RedeemConfirmation validates the OTP.
+  // Step 2: POST /Common/RedeemPoints deducts the points (no OTP field).
 
   @override
   Future<RedemptionResult> confirmRedemption({
@@ -332,14 +338,27 @@ class EmpHomeRealService implements IEmpHomeService {
     String companyPhoneNo = '',
   }) async {
     final phone = await _empPhone;
-    // Use the phone number from the selected offer if available;
-    // fall back to the known Gold House number if backend didn't return one yet.
     final redeemPhone =
         companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
+
+    // Step 1 — validate OTP (400 here = wrong OTP)
     try {
-      // ResponseType.plain avoids a FormatException when the backend returns
-      // HTTP 200 with an empty body on success (same pattern as ResetPassword).
-      // DioException is still thrown automatically for 4xx/5xx status codes.
+      await _dio.post(
+        'Common/RedeemConfirmation',
+        options: Options(responseType: ResponseType.plain),
+        queryParameters: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': customerId,
+          'OTP': otp,
+        },
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) throw const InvalidOtpException();
+      throw Exception(_msg(e) ?? 'OTP verification failed. Please try again.');
+    }
+
+    // Step 2 — deduct points (400 here = redemption error, not OTP issue)
+    try {
       final res = await _dio.post(
         'Common/RedeemPoints',
         options: Options(responseType: ResponseType.plain),
@@ -349,7 +368,6 @@ class EmpHomeRealService implements IEmpHomeService {
           'EmployeePhoneNo': phone,
           'Points': pointsToRedeem,
           'PointsRedeemCompanyPhoneNo': redeemPhone,
-          'OTP': otp,
         },
       );
 
@@ -381,7 +399,6 @@ class EmpHomeRealService implements IEmpHomeService {
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       final msg = _msg(e);
-      if (status == 400) throw const InvalidOtpException();
       if (status == 422) throw const InsufficientPointsException();
       throw Exception(msg ?? 'Redemption failed. Please try again.');
     }

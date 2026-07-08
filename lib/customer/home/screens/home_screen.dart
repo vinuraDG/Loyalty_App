@@ -299,9 +299,15 @@ Future<void> _loadPoints(String userId) async {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Text(_formatPoints(_totalPoints),
-                                      style: AppTextStyles.display
-                                          .copyWith(fontSize: 42)),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(_formatPoints(_totalPoints),
+                                          style: AppTextStyles.display
+                                              .copyWith(fontSize: 42)),
+                                    ),
+                                  ),
                                   const SizedBox(width: 6),
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 7),
@@ -742,8 +748,11 @@ class _TxTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Text(tx.displayPoints,
-                style: AppTextStyles.display.copyWith(fontSize: 38, color: color)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(tx.displayPoints,
+                  style: AppTextStyles.display.copyWith(fontSize: 38, color: color)),
+            ),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -832,7 +841,8 @@ class _TxTile extends StatelessWidget {
         : tx.business;
     final local = tx.date.toLocal();
     final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    final timeStr = '$h:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
+    const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final timeStr = '${local.day} ${_sm[local.month - 1]} ${local.year}  ·  $h:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
 
     return GestureDetector(
       onTap: () => _showDetail(context),

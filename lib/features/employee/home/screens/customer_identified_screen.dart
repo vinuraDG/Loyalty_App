@@ -139,8 +139,10 @@ class _CustomerIdentifiedScreenState extends State<CustomerIdentifiedScreen>
 
   @override
   Widget build(BuildContext context) {
-    final initials =
-        _member.name.split(' ').map((w) => w[0]).take(2).join();
+    final nameParts = _member.name.split(' ').where((w) => w.isNotEmpty).toList();
+    final initials = nameParts.isEmpty
+        ? '?'
+        : nameParts.map((w) => w[0].toUpperCase()).take(2).join();
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -344,13 +346,16 @@ class _PointsHero extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                member.currentPoints.toString(),
-                style: AppTextStyles.h4.copyWith(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  height: 1.1,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  member.currentPoints.toString(),
+                  style: AppTextStyles.h4.copyWith(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    height: 1.1,
+                  ),
                 ),
               ),
             ],

@@ -1258,7 +1258,10 @@ class _HistoryTile extends StatelessWidget {
     final isExpired = tx.isExpired;
     final tileAccent =
         isExpired ? AppColors.textSecondary.withValues(alpha: 0.4) : accent;
-    final time = _timeString(tx.date);
+    final _local = tx.date.toLocal();
+    final _hh = _local.hour % 12 == 0 ? 12 : _local.hour % 12;
+    const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final time = '${_local.day} ${_sm[_local.month - 1]} ${_local.year}  ·  $_hh:${_local.minute.toString().padLeft(2, '0')} ${_local.hour >= 12 ? 'PM' : 'AM'}';
 
     return GestureDetector(
       onTap: () => _showDetail(context),

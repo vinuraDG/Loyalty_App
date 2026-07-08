@@ -362,7 +362,7 @@ class _PasswordStrengthHintState extends State<_PasswordStrengthHint> {
   Widget build(BuildContext context) {
     final p = widget.controller.text;
     final rules = [
-      (_RuleCheck('At least 6 characters',        p.length >= 6)),
+      (_RuleCheck('At least 12 characters',        p.length >= 12)),
       (_RuleCheck('Uppercase letter (A-Z)',        p.contains(RegExp(r'[A-Z]')))),
       (_RuleCheck('Lowercase letter (a-z)',        p.contains(RegExp(r'[a-z]')))),
       (_RuleCheck('Number (0-9)',                  p.contains(RegExp(r'[0-9]')))),

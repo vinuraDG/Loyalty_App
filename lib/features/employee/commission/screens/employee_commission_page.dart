@@ -333,10 +333,6 @@ class _SummaryCard extends StatelessWidget {
             _MiniStat(
                 label: 'Transactions',
                 value: '${summary.transactionCount}'),
-            const SizedBox(width: 28),
-            _MiniStat(
-                label: 'Customers',
-                value: '${summary.uniqueCustomers}'),
           ]),
         ],
       ),
@@ -475,10 +471,13 @@ class _SaleTile extends StatelessWidget {
             const SizedBox(height: 12),
 
             // ── Commission amount ────────────────────────────────────────
-            Text(
-              '+LKR ${formatAmount(sale.commission)}',
-              style: AppTextStyles.display
-                  .copyWith(fontSize: 34, color: Colors.greenAccent),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '+LKR ${formatAmount(sale.commission)}',
+                style: AppTextStyles.display
+                    .copyWith(fontSize: 34, color: Colors.greenAccent),
+              ),
             ),
             const SizedBox(height: 4),
 
