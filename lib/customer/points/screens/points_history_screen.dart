@@ -5,7 +5,7 @@ import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 
 // ── Tab options ───────────────────────────────────────────────────────────────
-enum _Tab { all, earned, redeemed }
+enum _Tab { all, earned, redeemed, expired }
 
 class PointsHistoryScreen extends StatefulWidget {
   final String userId;
@@ -210,6 +210,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
             final tabMatch = switch (_activeTab) {
               _Tab.earned => t.isEarned,
               _Tab.redeemed => t.isRedeemed,
+              _Tab.expired => false,
               _Tab.all => true,
             };
             return bizMatch && tabMatch;
@@ -278,6 +279,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                           (_selectedBusiness == null ||
                               t.business == _selectedBusiness))
                       .length,
+                  expiredCount: 0,
                   onTabChanged: (t) => setState(() => _activeTab = t),
                 ),
               ),
@@ -601,6 +603,7 @@ class _TabBar extends StatelessWidget {
   final int allCount;
   final int earnedCount;
   final int redeemedCount;
+  final int expiredCount;
   final void Function(_Tab) onTabChanged;
 
   const _TabBar({
@@ -608,6 +611,7 @@ class _TabBar extends StatelessWidget {
     required this.allCount,
     required this.earnedCount,
     required this.redeemedCount,
+    required this.expiredCount,
     required this.onTabChanged,
   });
 
@@ -643,6 +647,13 @@ class _TabBar extends StatelessWidget {
             isActive: activeTab == _Tab.redeemed,
             activeColor: const Color(0xFFFCA5A5),
             onTap: () => onTabChanged(_Tab.redeemed),
+          ),
+          _TabItem(
+            label: 'Expiring',
+            count: expiredCount,
+            isActive: activeTab == _Tab.expired,
+            activeColor: const Color(0xFFF97316),
+            onTap: () => onTabChanged(_Tab.expired),
           ),
         ]),
       ),
@@ -789,6 +800,10 @@ class _EmptyState extends StatelessWidget {
       _Tab.redeemed => (
           Icons.remove_circle_outline_rounded,
           'No redeem transactions'
+        ),
+      _Tab.expired => (
+          Icons.timer_off_rounded,
+          'No expiring points'
         ),
       _Tab.all => (Icons.receipt_long_rounded, 'No transactions found'),
     };
