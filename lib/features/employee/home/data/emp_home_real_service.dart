@@ -195,7 +195,7 @@ class EmpHomeRealService implements IEmpHomeService {
 
       bool isToday(Map<String, dynamic> j) {
         final raw = j['DateCreated'] ?? j['dateCreated'] ?? j['Date'];
-        final d = raw != null ? DateTime.tryParse(raw.toString()) : null;
+        final d = raw != null ? DateTime.tryParse(raw.toString())?.toLocal() : null;
         if (d == null) return false;
         return d.year == now.year && d.month == now.month && d.day == now.day;
       }

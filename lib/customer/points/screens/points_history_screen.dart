@@ -75,9 +75,10 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
   }
 
   String _dateLabel(DateTime date) {
+    final local = date.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final d = DateTime(date.year, date.month, date.day);
+    final d = DateTime(local.year, local.month, local.day);
     final diff = today.difference(d).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
@@ -96,7 +97,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
       'Nov',
       'Dec',
     ];
-    return '${months[date.month]} ${date.day}, ${date.year}';
+    return '${months[local.month]} ${local.day}, ${local.year}';
   }
 
   Color _businessAccent(String business) {
@@ -1049,13 +1050,14 @@ class _HistoryTile extends StatelessWidget {
   const _HistoryTile({required this.tx, required this.accent});
 
   String _timeString(DateTime dt) {
-    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final m = dt.minute.toString().padLeft(2, '0');
-    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    final t = dt.toLocal();
+    final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+    final m = t.minute.toString().padLeft(2, '0');
+    final ampm = t.hour >= 12 ? 'PM' : 'AM';
     return '$h:$m $ampm';
   }
 
-  String _fmtDate(DateTime d) {
+  String _fmtDate(DateTime d) { d = d.toLocal();
     const months = [
       'Jan',
       'Feb',
@@ -1074,8 +1076,9 @@ class _HistoryTile extends StatelessWidget {
   }
 
   String _fmtTime(DateTime d) {
-    final hour   = d.hour;
-    final minute = d.minute.toString().padLeft(2, '0');
+    final local  = d.toLocal();
+    final hour   = local.hour;
+    final minute = local.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final h      = hour % 12 == 0 ? 12 : hour % 12;
     return '$h:$minute $period';

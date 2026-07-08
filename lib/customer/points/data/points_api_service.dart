@@ -148,7 +148,7 @@ class PointsApiService implements IPointsService {
   // ── Always use DateCreated — it is the actual transaction timestamp ──────
   final dateStr = (m['DateCreated'] ?? m['DateLastModified'] ?? '').toString();
   final parsed  = DateTime.tryParse(dateStr);
-  final date    = (parsed != null && parsed.year >= 2000) ? parsed : DateTime.now();
+  final date    = (parsed != null && parsed.year >= 2000) ? parsed.toLocal() : DateTime.now();
 
   // ── Expiry info — Earn entries only ────────────────────────────────────
   // Backend never returns a separate "Expired" transaction type; instead

@@ -63,9 +63,8 @@ class HomeApiService implements IHomeService {
         .toList();
   }
 
-  /// Total points = PointBalance from the most recent Earn entry.
-  /// The backend stores the running balance on each Earn ledger row,
-  /// so the last Earn row's PointBalance IS the current spendable balance.
+  /// Total points = sum of all Earn PointsValue − sum of all Redeem PointsValue.
+  /// Matches the balance shown on the Points History screen.
   @override
   Future<int> getTotalPoints(String userId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -74,20 +73,20 @@ class HomeApiService implements IHomeService {
 
     try {
       final list = await _fetchLedger(phone);
-
-      // Walk backwards to find the most recent Earn entry — its PointBalance
-      // is the current running balance after all redeems have been applied.
-      for (int i = list.length - 1; i >= 0; i--) {
-        final m = list[i] as Map<String, dynamic>;
+      int earned = 0, redeemed = 0;
+      for (final entry in list) {
+        final m    = entry as Map<String, dynamic>;
         final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        final pts  = int.tryParse(
+                (m['PointsValue'] ?? m['Points'] ?? 0).toString()) ??
+            0;
         if (type == 'earn') {
-          final balance = int.tryParse(
-                  (m['PointBalance'] ?? 0).toString()) ??
-              0;
-          return balance;
+          earned += pts;
+        } else if (type == 'redeem') {
+          redeemed += pts;
         }
       }
-      return 0;
+      return (earned - redeemed).clamp(0, 999999999);
     } catch (_) {
       return 0;
     }
@@ -121,7 +120,8 @@ Future<List<int>> getWeeklyPoints(String userId) async {
       final parsed  = DateTime.tryParse(dateStr);
       if (parsed == null || parsed.year < 2000) continue;
 
-      final dayIdx = DateTime(parsed.year, parsed.month, parsed.day)
+      final local  = parsed.toLocal();
+      final dayIdx = DateTime(local.year, local.month, local.day)
           .difference(weekStart)
           .inDays;
       if (dayIdx >= 0 && dayIdx < 7) result[dayIdx] += points;

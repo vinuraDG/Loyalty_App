@@ -86,10 +86,12 @@ Future<void> _loadPoints(String userId) async {
       final txs = await pointsService.getTransactions(userId);
       final today = DateTime.now();
       final todayTxs = txs
-          .where((t) =>
-              t.date.year == today.year &&
-              t.date.month == today.month &&
-              t.date.day == today.day)
+          .where((t) {
+            final d = t.date.toLocal();
+            return d.year == today.year &&
+                   d.month == today.month &&
+                   d.day == today.day;
+          })
           .take(3)
           .toList();
       if (mounted) setState(() => _recentTxs = todayTxs);
