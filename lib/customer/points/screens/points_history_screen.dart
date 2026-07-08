@@ -5,7 +5,7 @@ import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 
 // ── Tab options ───────────────────────────────────────────────────────────────
-enum _Tab { all, earned, redeemed }
+enum _Tab { all, earned, redeemed, expired }
 
 class PointsHistoryScreen extends StatefulWidget {
   final String userId;
@@ -186,6 +186,9 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
           final totalRedeemed = allTxs
               .where((t) => t.isRedeemed)
               .fold<int>(0, (s, t) => s + t.points);
+          final totalExpired = allTxs
+              .where((t) => t.isExpired)
+              .fold<int>(0, (s, t) => s + t.points);
           final balance = totalEarned - totalRedeemed;
 
           // ── Per-business stats ────────────────────────────────────────────
@@ -200,8 +203,11 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
             final redeemed = bTxs
                 .where((t) => t.isRedeemed)
                 .fold<int>(0, (s, t) => s + t.points);
+            final expired = bTxs
+                .where((t) => t.isExpired)
+                .fold<int>(0, (s, t) => s + t.points);
             bizStats[b] =
-                _BizStats(earned: earned, redeemed: redeemed);
+                _BizStats(earned: earned, redeemed: redeemed, expired: expired);
           }
 
           // ── Filtered list ─────────────────────────────────────────────────
@@ -211,6 +217,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
             final tabMatch = switch (_activeTab) {
               _Tab.earned => t.isEarned,
               _Tab.redeemed => t.isRedeemed,
+              _Tab.expired => (t.expiringBalance ?? 0) > 0,
               _Tab.all => true,
             };
             return bizMatch && tabMatch;
@@ -237,11 +244,23 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                   balance: balance,
                   totalEarned: totalEarned,
                   totalRedeemed: totalRedeemed,
+                  totalExpired: totalExpired,
                   heroFade: _heroFade,
                   heroSlide: _heroSlide,
                   fmtFn: _fmt,
                 ),
               ),
+
+              // ── Expired warning banner (if any expired points) ────────────
+              if (totalExpired > 0)
+                SliverToBoxAdapter(
+                  child: _ExpiredBanner(
+                    totalExpired: totalExpired,
+                    fmtFn: _fmt,
+                    onViewExpired: () =>
+                        setState(() => _activeTab = _Tab.expired),
+                  ),
+                ),
 
               // ── Business selector ─────────────────────────────────────────
               SliverToBoxAdapter(
@@ -251,6 +270,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                   selectedBusiness: _selectedBusiness,
                   totalEarned: totalEarned,
                   totalRedeemed: totalRedeemed,
+                  totalExpired: totalExpired,
                   fmtFn: _fmt,
                   businessAccent: _businessAccent,
                   businessIcon: _businessIcon,
@@ -279,6 +299,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                           (_selectedBusiness == null ||
                               t.business == _selectedBusiness))
                       .length,
+                  expiredCount: allTxs
+                      .where((t) =>
+                          (t.expiringBalance ?? 0) > 0 &&
+                          (_selectedBusiness == null ||
+                              t.business == _selectedBusiness))
+                      .length,
                   onTabChanged: (t) => setState(() => _activeTab = t),
                 ),
               ),
@@ -304,6 +330,26 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                         fontWeight: FontWeight.w400,
                       ),
                     ),
+                    if (_activeTab == _Tab.expired && filtered.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFFF97316).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${_fmt(totalExpired)} pts expiring',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFF97316),
+                          ),
+                        ),
+                      ),
+                    ],
                   ]),
                 ),
               ),
@@ -342,6 +388,7 @@ class _Header extends StatelessWidget {
   final int balance;
   final int totalEarned;
   final int totalRedeemed;
+  final int totalExpired;
   final Animation<double> heroFade;
   final Animation<Offset> heroSlide;
   final String Function(int) fmtFn;
@@ -350,6 +397,7 @@ class _Header extends StatelessWidget {
     required this.balance,
     required this.totalEarned,
     required this.totalRedeemed,
+    required this.totalExpired,
     required this.heroFade,
     required this.heroSlide,
     required this.fmtFn,
@@ -497,6 +545,14 @@ class _Header extends StatelessWidget {
                             value: '-${fmtFn(totalRedeemed)}',
                             color: const Color(0xFFFCA5A5),
                           ),
+                          if (totalExpired > 0) ...[
+                            const SizedBox(height: 6),
+                            _MiniStatLine(
+                              label: 'Expiring',
+                              value: fmtFn(totalExpired),
+                              color: const Color(0xFFFBBF24),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -511,6 +567,95 @@ class _Header extends StatelessWidget {
   }
 }
 
+// ── Expired Warning Banner ────────────────────────────────────────────────────
+class _ExpiredBanner extends StatelessWidget {
+  final int totalExpired;
+  final String Function(int) fmtFn;
+  final VoidCallback onViewExpired;
+
+  const _ExpiredBanner({
+    required this.totalExpired,
+    required this.fmtFn,
+    required this.onViewExpired,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: GestureDetector(
+        onTap: onViewExpired,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF97316).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFFF97316).withValues(alpha: 0.35),
+              width: 1,
+            ),
+          ),
+          child: Row(children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF97316).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.timer_off_rounded,
+                color: Color(0xFFF97316),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${fmtFn(totalExpired)} points expiring soon',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF97316),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Expiring points cannot be redeemed.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: const Color(0xFFF97316).withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'View',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFF97316).withValues(alpha: 0.85),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: const Color(0xFFF97316).withValues(alpha: 0.7),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Business Selector ─────────────────────────────────────────────────────────
 class _BusinessSelector extends StatelessWidget {
   final List<String> businesses;
@@ -518,6 +663,7 @@ class _BusinessSelector extends StatelessWidget {
   final String? selectedBusiness;
   final int totalEarned;
   final int totalRedeemed;
+  final int totalExpired;
   final String Function(int) fmtFn;
   final Color Function(String) businessAccent;
   final IconData Function(String) businessIcon;
@@ -529,6 +675,7 @@ class _BusinessSelector extends StatelessWidget {
     required this.selectedBusiness,
     required this.totalEarned,
     required this.totalRedeemed,
+    required this.totalExpired,
     required this.fmtFn,
     required this.businessAccent,
     required this.businessIcon,
@@ -567,6 +714,7 @@ class _BusinessSelector extends StatelessWidget {
                 accent: AppColors.primary,
                 earned: totalEarned,
                 redeemed: totalRedeemed,
+                expired: totalExpired,
                 selected: selectedBusiness == null,
                 fmtFn: fmtFn,
                 onTap: () => onSelect(null),
@@ -582,6 +730,7 @@ class _BusinessSelector extends StatelessWidget {
                     accent: businessAccent(b),
                     earned: stats.earned,
                     redeemed: stats.redeemed,
+                    expired: stats.expired,
                     selected: selectedBusiness == b,
                     fmtFn: fmtFn,
                     onTap: () => onSelect(b),
@@ -602,6 +751,7 @@ class _TabBar extends StatelessWidget {
   final int allCount;
   final int earnedCount;
   final int redeemedCount;
+  final int expiredCount;
   final void Function(_Tab) onTabChanged;
 
   const _TabBar({
@@ -609,6 +759,7 @@ class _TabBar extends StatelessWidget {
     required this.allCount,
     required this.earnedCount,
     required this.redeemedCount,
+    required this.expiredCount,
     required this.onTabChanged,
   });
 
@@ -644,6 +795,13 @@ class _TabBar extends StatelessWidget {
             isActive: activeTab == _Tab.redeemed,
             activeColor: const Color(0xFFFCA5A5),
             onTap: () => onTabChanged(_Tab.redeemed),
+          ),
+          _TabItem(
+            label: 'Expiring',
+            count: expiredCount,
+            isActive: activeTab == _Tab.expired,
+            activeColor: const Color(0xFFF97316),
+            onTap: () => onTabChanged(_Tab.expired),
           ),
         ]),
       ),
@@ -791,6 +949,10 @@ class _EmptyState extends StatelessWidget {
           Icons.remove_circle_outline_rounded,
           'No redeem transactions'
         ),
+      _Tab.expired => (
+          Icons.timer_off_rounded,
+          'No expiring points — great job!'
+        ),
       _Tab.all => (Icons.receipt_long_rounded, 'No transactions found'),
     };
 
@@ -820,7 +982,9 @@ class _EmptyState extends StatelessWidget {
 class _BizStats {
   final int earned;
   final int redeemed;
-  const _BizStats({required this.earned, required this.redeemed});
+  final int expired;
+  const _BizStats(
+      {required this.earned, required this.redeemed, required this.expired});
 }
 
 // ── Company Card ──────────────────────────────────────────────────────────────
@@ -830,6 +994,7 @@ class _CompanyCard extends StatelessWidget {
   final Color accent;
   final int earned;
   final int redeemed;
+  final int expired;
   final bool selected;
   final String Function(int) fmtFn;
   final VoidCallback onTap;
@@ -840,6 +1005,7 @@ class _CompanyCard extends StatelessWidget {
     required this.accent,
     required this.earned,
     required this.redeemed,
+    required this.expired,
     required this.selected,
     required this.fmtFn,
     required this.onTap,
@@ -910,6 +1076,14 @@ class _CompanyCard extends StatelessWidget {
               value: '-${fmtFn(redeemed)}',
               color: const Color(0xFFFCA5A5),
             ),
+            if (expired > 0) ...[
+              const SizedBox(height: 3),
+              _StatRow(
+                label: 'Expiring',
+                value: fmtFn(expired),
+                color: const Color(0xFFF97316),
+              ),
+            ],
           ],
         ),
       ),
