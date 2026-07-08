@@ -1317,19 +1317,15 @@ class _HistoryTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  tx.isEarned && (tx.expiringBalance ?? 0) > 0
-                      ? '${tx.expiringBalance} pts'
-                      : tx.displayPoints,
+                  tx.displayPoints,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: isExpired
                         ? AppColors.textSecondary.withValues(alpha: 0.45)
-                        : tx.isEarned && (tx.expiringBalance ?? 0) > 0
-                            ? const Color(0xFFFBBF24)
-                            : tx.isEarned
-                                ? AppColors.success
-                                : AppColors.error,
+                        : tx.isEarned
+                            ? AppColors.success
+                            : AppColors.error,
                     decoration: isExpired
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
