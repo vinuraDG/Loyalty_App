@@ -693,18 +693,23 @@ class _TxTile extends StatelessWidget {
   }
 
   String _txTypeLabel() {
-    if (tx.isEarned) return 'Earned';
-    if (tx.isRedeemed) return 'Redeemed';
+    if (tx.isEarned) return 'Earn';
+    if (tx.isRedeemed) return 'Redeem';
     return 'Expiring';
   }
 
   String _fmtDate(DateTime d) {
+    final local = d.toLocal();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
+    return '${local.day} ${months[local.month - 1]} ${local.year}';
   }
 
-  String _fmtTime(DateTime d) =>
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  String _fmtTime(DateTime d) {
+    final local = d.toLocal();
+    final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final m = local.minute.toString().padLeft(2, '0');
+    return '$h:$m ${local.hour >= 12 ? 'PM' : 'AM'}';
+  }
 
   void _showDetail(BuildContext context) {
     final color = _txColor();
@@ -820,38 +825,85 @@ class _TxTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: () => _showDetail(context),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.bgCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(children: [
-            BusinessIcon(business: tx.business, size: 42),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tx.businessFullName?.isNotEmpty == true ? tx.businessFullName! : tx.business, style: AppTextStyles.labelMedium),
-                  const SizedBox(height: 2),
-                  Text(_txTypeLabel(), style: AppTextStyles.caption),
-                ],
-              ),
-            ),
-            Row(children: [
-              Text(tx.displayPoints,
-                  style: AppTextStyles.labelMedium.copyWith(color: _txColor())),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded,
-                  size: 14, color: AppColors.textSecondary),
-            ]),
-          ]),
+  Widget build(BuildContext context) {
+    final color = _txColor();
+    final name = tx.businessFullName?.isNotEmpty == true
+        ? tx.businessFullName!
+        : tx.business;
+    final local = tx.date.toLocal();
+    final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final timeStr = '$h:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
+
+    return GestureDetector(
+      onTap: () => _showDetail(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
         ),
-      );
+        child: Row(children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+            ),
+            child: Center(child: BusinessIcon(business: tx.business, size: 44)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: AppTextStyles.labelMedium, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(_txIcon(), size: 9, color: color),
+                      const SizedBox(width: 3),
+                      Text(_txTypeLabel(),
+                          style: TextStyle(
+                              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+                    ]),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(timeStr,
+                      style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                ]),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(tx.displayPoints,
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700, color: color)),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('pts',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary.withValues(alpha: 0.45))),
+                const SizedBox(width: 2),
+                const Icon(Icons.chevron_right_rounded,
+                    size: 12, color: AppColors.textSecondary),
+              ]),
+            ],
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 // ── Popup helpers (home) ──────────────────────────────────────────────────────
