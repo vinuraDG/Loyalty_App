@@ -834,7 +834,7 @@ class _TxTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(tx.business, style: AppTextStyles.labelMedium),
+                  Text(tx.businessFullName?.isNotEmpty == true ? tx.businessFullName! : tx.business, style: AppTextStyles.labelMedium),
                   const SizedBox(height: 2),
                   Text(_txTypeLabel(), style: AppTextStyles.caption),
                 ],
