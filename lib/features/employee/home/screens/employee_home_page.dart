@@ -584,6 +584,11 @@ class _TodayScanTile extends StatelessWidget {
                     valueColor: const Color(0xFFFFD700)),
                 _ScanDivider(),
                 _ScanDetailRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Date',
+                    value: scan.date),
+                _ScanDivider(),
+                _ScanDetailRow(
                     icon: Icons.access_time_rounded,
                     label: 'Time',
                     value: scan.time),
@@ -661,7 +666,7 @@ class _TodayScanTile extends StatelessWidget {
                   const SizedBox(width: 3),
                   Flexible(
                     child: Text(
-                      scan.time,
+                      '${scan.date}  ${scan.time}',
                       style: AppTextStyles.caption
                           .copyWith(color: AppColors.textMuted),
                       overflow: TextOverflow.ellipsis,

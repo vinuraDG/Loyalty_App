@@ -24,6 +24,7 @@ class ScanEntry {
   final int points;
   final double commission;
   final String time;
+  final String date;
 
   const ScanEntry({
     required this.memberName,
@@ -31,7 +32,13 @@ class ScanEntry {
     required this.points,
     required this.commission,
     required this.time,
+    required this.date,
   });
+
+  static const _months = [
+    'Jan','Feb','Mar','Apr','May','Jun',
+    'Jul','Aug','Sep','Oct','Nov','Dec',
+  ];
 
   factory ScanEntry.fromJson(Map<String, dynamic> j) {
     final rawDate =
@@ -46,6 +53,7 @@ class ScanEntry {
     final h = txDate.hour % 12 == 0 ? 12 : txDate.hour % 12;
     final m = txDate.minute.toString().padLeft(2, '0');
     final timeStr = '$h:$m ${txDate.hour >= 12 ? 'PM' : 'AM'}';
+    final dateStr = '${txDate.day} ${_months[txDate.month - 1]} ${txDate.year}';
 
     final saleAmount = double.tryParse(
             (j['Value'] ?? j['SaleAmount'] ?? j['Amount'] ?? j['ValueFrom'] ?? 0)
@@ -69,6 +77,7 @@ class ScanEntry {
           0,
       commission: commission,
       time: timeStr,
+      date: dateStr,
     );
   }
 }

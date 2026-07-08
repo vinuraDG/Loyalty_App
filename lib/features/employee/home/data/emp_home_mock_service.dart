@@ -48,6 +48,7 @@ class EmpHomeMockService implements IEmpHomeService {
         points: pointsAwarded,
         commission: saleAmount * 0.02,
         time: _timeNow(),
+        date: _dateNow(),
       ),
     );
     return pointsAwarded;
@@ -141,5 +142,15 @@ class EmpHomeMockService implements IEmpHomeService {
     final h = now.hour % 12 == 0 ? 12 : now.hour % 12;
     final m = now.minute.toString().padLeft(2, '0');
     return '$h:$m ${now.hour >= 12 ? 'PM' : 'AM'}';
+  }
+
+  static const _months = [
+    'Jan','Feb','Mar','Apr','May','Jun',
+    'Jul','Aug','Sep','Oct','Nov','Dec',
+  ];
+
+  String _dateNow() {
+    final now = DateTime.now();
+    return '${now.day} ${_months[now.month - 1]} ${now.year}';
   }
 }
