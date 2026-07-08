@@ -48,7 +48,7 @@ class ScanEntry {
     final timeStr = '$h:$m ${txDate.hour >= 12 ? 'PM' : 'AM'}';
 
     final saleAmount = double.tryParse(
-            (j['ValueFrom'] ?? j['saleAmount'] ?? j['Amount'] ?? 0)
+            (j['Value'] ?? j['SaleAmount'] ?? j['Amount'] ?? j['ValueFrom'] ?? 0)
                 .toString()) ??
         0;
     final commissionRaw = j['Commission'] ?? j['commission'] ?? j['CommissionAmount'];

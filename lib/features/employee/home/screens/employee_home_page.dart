@@ -492,75 +492,264 @@ class _TodayScanTile extends StatelessWidget {
   final ScanEntry scan;
   const _TodayScanTile({required this.scan});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+  void _showDetail(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgCard,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: Row(children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 28,
           ),
-          child: const Icon(Icons.local_gas_station_rounded,
-              color: AppColors.primaryLight, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                scan.memberName.isNotEmpty ? scan.memberName : 'Customer',
-                style: AppTextStyles.labelMedium,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Handle
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
               ),
-              const SizedBox(height: 4),
-              Row(children: [
-                const Icon(Icons.access_time_rounded,
-                    size: 12, color: AppColors.textMuted),
-                const SizedBox(width: 3),
-                Flexible(
-                  child: Text(
-                    scan.time,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textMuted),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            ),
+            const SizedBox(height: 20),
+
+            // Icon
+            Container(
+              width: 60, height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.local_gas_station_rounded,
+                  color: AppColors.primaryLight, size: 30),
+            ),
+            const SizedBox(height: 12),
+
+            // Commission amount
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '+LKR ${formatAmount(scan.commission)}',
+                style: AppTextStyles.display
+                    .copyWith(fontSize: 34, color: Colors.greenAccent),
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            // Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Commission Earned',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.primaryLight,
+                  fontWeight: FontWeight.w600,
                 ),
-              ]),
-              const SizedBox(height: 3),
-              Text(
-                'Sale: LKR ${formatAmount(scan.saleAmount)}',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+
+            // Detail rows
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.bgDark,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(children: [
+                if (scan.memberName.isNotEmpty) ...[
+                  _ScanDetailRow(
+                      icon: Icons.person_rounded,
+                      label: 'Customer',
+                      value: scan.memberName),
+                  _ScanDivider(),
+                ],
+                _ScanDetailRow(
+                    icon: Icons.payments_outlined,
+                    label: 'Sale amount',
+                    value: 'LKR ${formatAmount(scan.saleAmount)}'),
+                _ScanDivider(),
+                _ScanDetailRow(
+                    icon: Icons.stars_rounded,
+                    label: 'Points earned',
+                    value: '${scan.points} pts',
+                    valueColor: const Color(0xFFFFD700)),
+                _ScanDivider(),
+                _ScanDetailRow(
+                    icon: Icons.access_time_rounded,
+                    label: 'Time',
+                    value: scan.time),
+                _ScanDivider(),
+                _ScanDetailRow(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Commission',
+                    value: 'LKR ${formatAmount(scan.commission)}',
+                    valueColor: Colors.greenAccent),
+              ]),
+            ),
+            const SizedBox(height: 16),
+
+            // Close button
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: AppColors.buttonGradient),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('Close',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: Colors.white)),
+                ),
+              ),
+            ),
+          ]),
         ),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '+LKR ${formatAmount(scan.commission)}',
-              style: AppTextStyles.caption.copyWith(
-                  color: Colors.greenAccent, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ]),
-      ]),
+      ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showDetail(context),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.local_gas_station_rounded,
+                color: AppColors.primaryLight, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  scan.memberName.isNotEmpty ? scan.memberName : 'Customer',
+                  style: AppTextStyles.labelMedium,
+                ),
+                const SizedBox(height: 4),
+                Row(children: [
+                  const Icon(Icons.access_time_rounded,
+                      size: 12, color: AppColors.textMuted),
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text(
+                      scan.time,
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textMuted),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 3),
+                Text(
+                  'Sale: LKR ${formatAmount(scan.saleAmount)}',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '+LKR ${formatAmount(scan.commission)}',
+                style: AppTextStyles.caption.copyWith(
+                    color: Colors.greenAccent, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Scan detail popup helpers ─────────────────────────────────────────────────
+
+class _ScanDetailRow extends StatelessWidget {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  final Color?   valueColor;
+
+  const _ScanDetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 110,
+              child: Text(label,
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary)),
+            ),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: valueColor ?? AppColors.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _ScanDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: AppColors.border,
+      );
 }
 
 // ── Employee Quick Action card ────────────────────────────────────────────────

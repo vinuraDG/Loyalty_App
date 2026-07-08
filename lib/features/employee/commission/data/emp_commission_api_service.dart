@@ -144,7 +144,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
       return list.map((entry) {
         final m = entry as Map<String, dynamic>;
         final amount = double.tryParse(
-                (m['ValueFrom'] ?? m['Amount'] ?? m['saleAmount'] ?? 0).toString()) ??
+                (m['Value'] ?? m['SaleAmount'] ?? m['Amount'] ?? m['ValueFrom'] ?? 0).toString()) ??
             0;
         // Prefer backend's Commission field; fall back to 2% calculation.
         final commissionRaw =

@@ -39,6 +39,10 @@ class EmployeeDashboardScreenState
   /// Called from EmployeeHomePage via findAncestorStateOfType.
   void switchToCommission() => setState(() => _currentIndex = 1);
 
+  /// Switches the bottom nav back to the Home tab.
+  /// Called from EmployeeCommissionPage via findAncestorStateOfType.
+  void switchToHome() => setState(() => _currentIndex = 0);
+
   Future<void> _signOut() async {
     await ref.read(authProvider.notifier).signOut();
     if (!mounted) return;

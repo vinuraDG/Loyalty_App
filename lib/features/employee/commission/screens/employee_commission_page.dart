@@ -5,6 +5,7 @@ import 'package:loyalty_app/features/employee/commission/data/emp_commission_api
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/user_model.dart';
+import '../../../employee/home/screens/employee_dashboard_screen.dart';
 
 // ── Helper: full date with year, derived from SaleEntry.month ────────────────
 extension _SaleDate on SaleEntry {
@@ -195,9 +196,24 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Title ──────────────────────────────────────────────────
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
-              child: Text('Commission', style: AppTextStyles.h3),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 16, 24, 0),
+              child: Row(children: [
+                IconButton(
+                  onPressed: () {
+                    final dashboard = context
+                        .findAncestorStateOfType<EmployeeDashboardScreenState>();
+                    if (dashboard != null) {
+                      dashboard.switchToHome();
+                    } else {
+                      Navigator.maybePop(context);
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.textPrimary, size: 20),
+                ),
+                const Text('Commission', style: AppTextStyles.h3),
+              ]),
             ),
 
             // ── Subtitle + summary card + month picker ─────────────────
