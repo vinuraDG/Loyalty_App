@@ -40,21 +40,11 @@ class PointsApiService implements IPointsService {
     final companies = results[0] as List<CompanyModel>;
     final rawList   = results[1] as List<dynamic>? ?? <dynamic>[];
 
-    // Build  PointsOwnCompanyId / PointsRedeemCompanyId → CompanyModel  map.
-    // GetAllCompanies order: [Laundry(idx0), Gold House(idx1), Fuel(idx2)].
-    // Backend IDs confirmed from live ledger data (NOT the list order):
-    //   Gold House = 1  (PointsRedeemCompanyId in redeem entries)
-    //   Fuel       = 3  (PointsOwnCompanyId in earn entries = transactionCompanyId)
-    //   Laundry    = 2  (assumed — only remaining company between IDs 1 and 3)
+    // Build Id → CompanyModel map directly from backend data.
+    // GetAllCompanies returns each company with its real Id field.
     final companyMap = <int, CompanyModel>{};
-    if (companies.length == 3) {
-      companyMap[AppConstants.companyIdGoldHouse]   = companies[1];
-      companyMap[AppConstants.companyIdLaundry]     = companies[0];
-      companyMap[AppConstants.transactionCompanyId] = companies[2];
-    } else {
-      for (int i = 0; i < companies.length; i++) {
-        companyMap[i + 1] = companies[i];
-      }
+    for (final c in companies) {
+      if (c.Id > 0) companyMap[c.Id] = c;
     }
 
     final txs = rawList
@@ -126,23 +116,18 @@ class PointsApiService implements IPointsService {
   final ownId    = int.tryParse((m['PointsOwnCompanyId']    ?? 0).toString()) ?? 0;
   final redeemId = int.tryParse((m['PointsRedeemCompanyId'] ?? 0).toString()) ?? 0;
 
-  // Business always shows the EARN company (where points were originally earned).
-  final ownCompany = companyMap[ownId];
-  String businessName = ownCompany?.displayName ?? '';
-  if (businessName.isEmpty && companies.isNotEmpty) {
-    businessName = companies.last.displayName; // fallback to earn company (last = Fuel)
-  }
-  if (businessName.isEmpty && ownId > 0) {
-    businessName = 'Company $ownId';
-  }
-  final businessFullName = ownCompany?.name.isNotEmpty == true ? ownCompany!.name : null;
-
-  // Redeem company: only present on Redeem transactions; shown as extra row in UI.
+  // Resolve company names purely from backend data (companyMap built from GetAllCompanies).
+  // The earn company (PointsOwnCompanyId) may not be in GetAllCompanies — show empty if so.
+  // The redeem company (PointsRedeemCompanyId) is always in GetAllCompanies.
+  final ownCompany    = companyMap[ownId];
   final redeemCompany = (type == TransactionType.redeemed && redeemId > 0)
       ? companyMap[redeemId]
       : null;
-  final redeemCompanyName = redeemCompany?.displayName ??
-      (type == TransactionType.redeemed && redeemId > 0 ? 'Company $redeemId' : null);
+
+  final businessName     = ownCompany?.displayName    ?? '';
+  final businessFullName = ownCompany?.name.isNotEmpty == true ? ownCompany!.name : null;
+
+  final redeemCompanyName     = redeemCompany?.displayName;
   final redeemCompanyFullName = redeemCompany?.name.isNotEmpty == true ? redeemCompany!.name : null;
 
   // ── Always use DateCreated — it is the actual transaction timestamp ──────

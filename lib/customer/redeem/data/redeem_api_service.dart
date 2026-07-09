@@ -23,26 +23,15 @@ class RedeemApiService implements IRedeemService {
 
   final Dio _dio = ApiClient.instance.dio;
 
-  static const _fallbackOffer = OfferModel(
-    id: 'gold-house-redeem',
-    title: 'Gold House',
-    description: 'Redeem at Gold House',
-    business: 'Gold House',
-    pointsCost: 0,
-    companyPhoneNo: '0112948777',
-  );
-
   @override
   Future<List<OfferModel>> getOffers() async {
     try {
       final companies = await CompaniesApiService.instance.getCompanies();
-      final redeemable = companies
-          .where((c) => c.id != AppConstants.transactionCompanyId)
-          .toList();
-      if (redeemable.isEmpty) return [_fallbackOffer];
-      return redeemable
+      // GetAllCompanies returns partner (redeemable) companies only.
+      if (companies.isEmpty) return [];
+      return companies
           .map((c) => OfferModel(
-                id: 'redeem-${c.id}',
+                id: 'redeem-${c.Id}',
                 title: c.displayName,
                 description: 'Redeem at ${c.name}',
                 business: c.displayName,
@@ -51,7 +40,7 @@ class RedeemApiService implements IRedeemService {
               ))
           .toList();
     } catch (_) {
-      return [_fallbackOffer];
+      return [];
     }
   }
 

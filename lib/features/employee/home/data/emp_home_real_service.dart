@@ -282,24 +282,18 @@ class EmpHomeRealService implements IEmpHomeService {
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
     try {
       final companies = await CompaniesApiService.instance.getCompanies();
-      // Only laundry companies are redeemable at the fuel station —
-      // identified by name containing "laundry" (case-insensitive).
-      // Falls back to all non-fuel companies if none match the name filter.
-      final laundry = companies.where(
-        (c) => c.name.toLowerCase().contains('laundry') ||
-               c.displayName.toLowerCase().contains('laundry'),
-      ).toList();
-      final redeemable = laundry.isNotEmpty
-          ? laundry
-          : companies.where((c) => c.id != AppConstants.transactionCompanyId).toList();
+      // All companies returned by GetAllCompanies are redeemable partners.
+      // The earn company (transactionCompanyId) is NOT in GetAllCompanies,
+      // so no filtering needed — use the full list as-is.
+      final redeemable = companies;
 
       if (redeemable.isEmpty) return [_fallbackOffer];
 
       final offers = <RedeemableOffer>[];
       for (final c in redeemable) {
-        final pts = await _fetchCustomerPoints(customerId, c.id);
+        final pts = await _fetchCustomerPoints(customerId, c.Id);
         offers.add(RedeemableOffer(
-          id: 'redeem-${c.id}',
+          id: 'redeem-${c.Id}',
           title: c.name,
           description: 'Redeem at ${c.name}',
           business: c.name,
@@ -329,26 +323,19 @@ class EmpHomeRealService implements IEmpHomeService {
       );
       final list = _asList(res.data);
       if (list.isEmpty) return 0;
-      // Walk entries newest-to-oldest; return the first PointBalance that is ≥ 0.
-      for (final raw in list.reversed) {
-        if (raw is! Map) continue;
-        final j = Map<String, dynamic>.from(raw);
-        final pb = j['PointBalance'] ?? j['pointBalance'];
-        if (pb != null) {
-          final v = int.tryParse(pb.toString()) ?? -1;
-          if (v >= 0) return v;
-        }
-      }
-      // Fallback: sum earn - redeem from PointsValue
-      int earned = 0, redeemed = 0;
+      // Each Earn entry's PointBalance = remaining points in that batch after
+      // redeems have been applied. Sum all Earn PointBalances = current balance.
+      // (Redeem entries always have PointBalance=0 — ignore them.)
+      int balance = 0;
       for (final raw in list) {
         if (raw is! Map) continue;
-        final j = Map<String, dynamic>.from(raw);
-        final pts = int.tryParse((j['PointsValue'] ?? 0).toString()) ?? 0;
+        final j    = Map<String, dynamic>.from(raw);
         final type = (j['PointsTransactionType'] ?? '').toString().toLowerCase();
-        if (type == 'earn') earned += pts; else redeemed += pts;
+        if (type != 'earn') continue;
+        final pb = int.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0;
+        balance += pb;
       }
-      return (earned - redeemed).clamp(0, 999999);
+      return balance;
     } catch (_) {
       return 0;
     }

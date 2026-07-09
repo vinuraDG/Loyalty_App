@@ -19,9 +19,7 @@ class AppConstants {
   static const goldPoints    = 200;
 
   static const baseUrl              = 'http://124.43.27.57:8080/';
-  static const transactionCompanyId = 3; // Fuel (City Oil) — confirmed via EarnPoints + ledger
-  static const companyIdGoldHouse   = 1; // Gold House — confirmed via PointsRedeemCompanyId in ledger
-  static const companyIdLaundry     = 2; // Laundry — assumed (only remaining ID between 1 and 3)
+  static const transactionCompanyId = 3; // Active earn company ID — used in all API calls
 
   // Runtime-resolved company ID. Set at employee login from the backend's
   // TransactionCompanyId field; falls back to transactionCompanyId (=3) when
