@@ -616,33 +616,20 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(children: [
-                                        Icon(Icons.calendar_month_rounded,
-                                            size: 12,
-                                            color: Colors.white.withValues(alpha: 0.55)),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          sel['label'] as String,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.white.withValues(alpha: 0.55),
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                        ),
-                                      ]),
-                                      Text(
-                                        'Current balance',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white.withValues(alpha: 0.40),
-                                          fontWeight: FontWeight.w400,
-                                        ),
+                                  Row(children: [
+                                    Icon(Icons.calendar_month_rounded,
+                                        size: 12,
+                                        color: Colors.white.withValues(alpha: 0.55)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      sel['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white.withValues(alpha: 0.55),
+                                        fontWeight: FontWeight.w400,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ]),
                                   const SizedBox(height: 8),
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -672,6 +659,15 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Current balance',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white.withValues(alpha: 0.40),
+                                      fontWeight: FontWeight.w400,
+                                    ),
                                   ),
                                 ],
                               ),
