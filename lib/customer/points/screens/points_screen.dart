@@ -1136,7 +1136,7 @@ class _BizDetailRow extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Flexible(
+          Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
