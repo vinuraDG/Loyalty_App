@@ -175,6 +175,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     textColor: AppColors.error,
                     onTap: () => _signOut(context, ref),
                   ),
+                  _MenuItem(
+                    icon: Icons.delete_forever_rounded,
+                    label: 'Delete Account',
+                    color: AppColors.error,
+                    textColor: AppColors.error,
+                    onTap: () => _deleteAccount(context, ref),
+                  ),
                 ]),
                 const SizedBox(height: 24),
               ]),
@@ -205,6 +212,202 @@ Future<void> _signOut(BuildContext context, WidgetRef ref) async {
     MaterialPageRoute(builder: (_) => const LoginScreen()),
     (_) => false,
   );
+}
+
+Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
+  // Step 1 — warning
+  final proceed = await showDialog<bool>(
+    context: context,
+    barrierColor: Colors.black54,
+    barrierDismissible: false,
+    builder: (ctx) => Dialog(
+      backgroundColor: AppColors.bgCard,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 60, height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.delete_forever_rounded,
+                color: AppColors.error, size: 28),
+          ),
+          const SizedBox(height: 16),
+          const Text('Delete Account?',
+              style: AppTextStyles.h4, textAlign: TextAlign.center),
+          const SizedBox(height: 6),
+          const Text(
+            'This will permanently delete your account, all your loyalty points, and transaction history. This cannot be undone.',
+            style: AppTextStyles.caption,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Continue',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                side: const BorderSide(color: AppColors.border),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            ),
+          ),
+        ]),
+      ),
+    ),
+  ) ?? false;
+  if (!proceed || !context.mounted) return;
+
+  // Step 2 — type DELETE to confirm
+  final confirmCtrl = TextEditingController();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    barrierColor: Colors.black54,
+    barrierDismissible: false,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setS) => Dialog(
+        backgroundColor: AppColors.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Confirm deletion', style: AppTextStyles.h4),
+            const SizedBox(height: 10),
+            Text(
+              'Type DELETE to permanently remove your account:',
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: confirmCtrl,
+              autofocus: true,
+              onChanged: (_) => setS(() {}),
+              textCapitalization: TextCapitalization.characters,
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'DELETE',
+                hintStyle:
+                    AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                filled: true,
+                fillColor: AppColors.bgDark,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide:
+                      const BorderSide(color: AppColors.error, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: confirmCtrl.text.trim() == 'DELETE'
+                      ? AppColors.error
+                      : AppColors.bgDark,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                onPressed: confirmCtrl.text.trim() == 'DELETE'
+                    ? () => Navigator.pop(ctx, true)
+                    : null,
+                child: const Text('Delete my account',
+                    style:
+                        TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel',
+                    style:
+                        TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    ),
+  ) ?? false;
+  confirmCtrl.dispose();
+  if (!confirmed || !context.mounted) return;
+
+  // Step 3 — call API and navigate out
+  try {
+    await ref.read(authProvider.notifier).deleteAccount();
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+    final msg = e.toString().replaceFirst('Exception: ', '');
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.error_outline_rounded,
+                color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(child: Text(msg)),
+          ]),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
 }
 
 Future<bool> _showSignOutDialog(BuildContext context) async {

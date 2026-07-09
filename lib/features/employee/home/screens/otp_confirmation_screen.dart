@@ -14,9 +14,9 @@ class OtpConfirmationScreen extends StatefulWidget {
   final RedeemableOffer offer;
   final String employeeId;
   final IEmpHomeService svc;
-  final String devOtp;
   final UserModel employee;
   final int pointsToRedeem;
+  final String initialOtp;
 
   const OtpConfirmationScreen({
     super.key,
@@ -25,8 +25,8 @@ class OtpConfirmationScreen extends StatefulWidget {
     required this.employeeId,
     required this.svc,
     required this.employee,
-    this.devOtp = '',
     this.pointsToRedeem = 0,
+    this.initialOtp = '',
   });
 
   @override
@@ -42,20 +42,20 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
   bool _resending  = false;
   String? _error;
   RedemptionResult? _result;
+  String _displayedOtp = '';
 
   // Countdown
   static const _totalSeconds = 90;
   int _secondsLeft = _totalSeconds;
   bool _expired    = false;
   Timer? _timer;
-  String _currentOtp = '';
 
   String get _otp => _controllers.map((c) => c.text).join();
 
   @override
   void initState() {
     super.initState();
-    _currentOtp = widget.devOtp;
+    _displayedOtp = widget.initialOtp;
     _startTimer();
   }
 
@@ -91,14 +91,16 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
     setState(() { _resending = true; _error = null; });
     for (final c in _controllers) c.clear();
     try {
-      final otp = await widget.svc.sendRedemptionOtp(
-        customerId: widget.member.userId,
-        offerId:    widget.offer.id,
+      final newOtp = await widget.svc.sendRedemptionOtp(
+        customerId:     widget.member.userId,
+        offerId:        widget.offer.id,
+        pointsToRedeem: widget.pointsToRedeem,
+        companyPhoneNo: widget.offer.companyPhoneNo,
       );
       if (!mounted) return;
       setState(() {
-        _currentOtp = otp;
-        _resending  = false;
+        _resending = false;
+        if (newOtp.isNotEmpty) _displayedOtp = newOtp;
       });
       _startTimer();
       _focusNodes[0].requestFocus();
@@ -124,7 +126,8 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
       _focusNodes[index + 1].requestFocus();
     }
     setState(() => _error = null);
-    if (_otp.length == 4) _confirm();
+    // Do NOT auto-confirm on 4 digits — employee must press the button.
+    // Auto-confirm races with the backend's OTP registration and always fails.
   }
 
   void _onKeyEvent(int index, KeyEvent event) {
@@ -144,14 +147,22 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
       _error = null;
     });
     try {
-      final result = await widget.svc.confirmRedemption(
+      var result = await widget.svc.confirmRedemption(
         customerId: widget.member.userId,
-        offerId: widget.offer.id,
-        otp: _otp,
+        offerId:    widget.offer.id,
+        otp:        _otp,
         employeeId: widget.employeeId,
-        pointsToRedeem: widget.pointsToRedeem,
-        companyPhoneNo: widget.offer.companyPhoneNo,
       );
+      // Backend returns empty body on success — fill in values we already know.
+      if (result.pointsDeducted == 0 && widget.pointsToRedeem > 0) {
+        final remaining =
+            (widget.offer.customerPoints - widget.pointsToRedeem).clamp(0, 999999);
+        result = RedemptionResult(
+          pointsDeducted:   widget.pointsToRedeem,
+          remainingPoints:  remaining,
+          confirmationCode: result.confirmationCode,
+        );
+      }
       if (mounted) setState(() => _result = result);
     } on InvalidOtpException catch (e) {
       if (mounted) {
@@ -225,11 +236,11 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
                         color: AppColors.primaryLight, size: 36),
                   ),
                   const SizedBox(height: 16),
-                  const Text('OTP Sent to Customer',
+                  const Text('Enter Customer OTP',
                       style: AppTextStyles.h4, textAlign: TextAlign.center),
                   const SizedBox(height: 8),
                   Text(
-                    'A 4-digit code was sent to the customer\'s phone.\nAsk them to read it aloud and enter it below.',
+                    'Ask the customer for the OTP sent to their phone, then type it below.',
                     style: AppTextStyles.bodySmall
                         .copyWith(color: AppColors.textMuted),
                     textAlign: TextAlign.center,
@@ -242,38 +253,39 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
                           .copyWith(color: AppColors.primaryLight),
                     ),
 
-                  // ── OTP code banner ────────────────────────────────
-                  if (_currentOtp.isNotEmpty) ...[
-                    const SizedBox(height: 16),
+                  // ── OTP display for employee ───────────────────────
+                  if (_displayedOtp.isNotEmpty) ...[
+                    const SizedBox(height: 20),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                          horizontal: 24, vertical: 16),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryLight.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFF1A2744),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                             color: AppColors.primaryLight.withValues(alpha: 0.3)),
                       ),
-                      child: Row(children: [
-                        const Icon(Icons.info_outline_rounded,
-                            color: AppColors.primaryLight, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text.rich(TextSpan(children: [
-                            TextSpan(
-                              text: 'OTP Code: ',
-                              style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.textMuted),
-                            ),
-                            TextSpan(
-                              text: _currentOtp,
-                              style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.primaryLight,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 16,
-                                  letterSpacing: 4),
-                            ),
-                          ])),
+                      child: Column(children: [
+                        Text(
+                          'OTP Code',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _displayedOtp,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryLight,
+                            letterSpacing: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Customer also received this via SMS',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textMuted),
                         ),
                       ]),
                     ),
@@ -522,7 +534,7 @@ class _RedemptionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final remaining = member.currentPoints - pointsToRedeem;
+    final remaining = offer.customerPoints - pointsToRedeem;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),

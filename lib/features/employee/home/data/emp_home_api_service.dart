@@ -25,6 +25,7 @@ class ScanEntry {
   final double commission;
   final String time;
   final String date;
+  final String documentNumber;
 
   const ScanEntry({
     required this.memberName,
@@ -33,6 +34,7 @@ class ScanEntry {
     required this.commission,
     required this.time,
     required this.date,
+    this.documentNumber = '',
   });
 
   static const _months = [
@@ -56,13 +58,13 @@ class ScanEntry {
     final dateStr = '${txDate.day} ${_months[txDate.month - 1]} ${txDate.year}';
 
     final saleAmount = double.tryParse(
-            (j['Value'] ?? j['SaleAmount'] ?? j['Amount'] ?? j['ValueFrom'] ?? 0)
+            (j['Amount'] ?? j['ValueFrom'] ?? 0)
                 .toString()) ??
-        0;
+        0.0;
     final commissionRaw = j['Commission'] ?? j['commission'] ?? j['CommissionAmount'];
     final commission = commissionRaw != null
-        ? (double.tryParse(commissionRaw.toString()) ?? saleAmount * 0.02)
-        : saleAmount * 0.02;
+        ? (double.tryParse(commissionRaw.toString()) ?? 0.0)
+        : 0.0;
 
     return ScanEntry(
       memberName: (j['CustomerName'] ??
@@ -78,6 +80,9 @@ class ScanEntry {
       commission: commission,
       time: timeStr,
       date: dateStr,
+      documentNumber: (j['DocumentNo'] ?? j['documentNo'] ??
+              j['DocumentNumber'] ?? '')
+          .toString(),
     );
   }
 }
@@ -90,6 +95,7 @@ class RedeemableOffer {
   final int pointsCost;
   final bool isExpired;
   final String companyPhoneNo;
+  final int customerPoints; // customer's current balance for this company
 
   const RedeemableOffer({
     required this.id,
@@ -99,6 +105,7 @@ class RedeemableOffer {
     required this.pointsCost,
     this.isExpired = false,
     this.companyPhoneNo = '',
+    this.customerPoints = 0,
   });
 
   factory RedeemableOffer.fromJson(Map<String, dynamic> j) => RedeemableOffer(
@@ -157,13 +164,20 @@ abstract interface class IEmpHomeService {
   Future<String> sendRedemptionOtp({
     required String customerId,
     required String offerId,
-  });
+    required int pointsToRedeem,
+    required String companyPhoneNo,
+  }); // returns the OTP from the response body
   Future<RedemptionResult> confirmRedemption({
     required String customerId,
     required String offerId,
     required String otp,
     required String employeeId,
-    int pointsToRedeem = 0,
-    String companyPhoneNo = '',
+  });
+  Future<RedemptionResult> redeemPoints({
+    required String customerId,
+    required String offerId,
+    required int pointsToRedeem,
+    required String companyPhoneNo,
+    required String employeeId,
   });
 }

@@ -291,6 +291,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
+  Future<void> deleteAccount() async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.deleteAccount();
+      await _clearSession();
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    } catch (e) {
+      _setError(e.toString(), preserveAuthenticated: true);
+      rethrow;
+    }
+  }
+
   void clearError() =>
       state = state.copyWith(status: state.status, errorMessage: null);
 

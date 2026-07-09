@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/core/utils/formatters.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
@@ -18,7 +19,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   final PageController _adController = PageController(viewportFraction: 0.82);
   int _adIndex = 0;
 
@@ -34,8 +36,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Defer first load until the widget tree is fully built so that
-    // ref.read is safe to call.
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = ref.read(currentUserProvider);
       if (user != null && mounted) {
@@ -43,6 +44,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _fetchHomeData(user.id);
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final user = ref.read(currentUserProvider);
+      if (user != null && mounted) _fetchHomeData(user.id);
+    }
   }
 
   @override
@@ -100,6 +109,7 @@ Future<void> _loadPoints(String userId) async {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _adController.dispose();
     super.dispose();
   }
@@ -463,7 +473,7 @@ class _WeeklyBarChart extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2.5),
                 child: Tooltip(
-                  message: '${data[i]} pts',
+                  message: '${formatPoints(data[i])} pts',
                   child: FractionallySizedBox(
                     alignment: Alignment.bottomCenter,
                     heightFactor: ratio,
@@ -610,7 +620,7 @@ class _AdCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                             ad['points'] != null
-                                ? '${ad['points']} pts'
+                                ? '${formatPoints((ad['points'] as num).toInt())} pts'
                                 : '2× pts',
                             style: TextStyle(
                                 fontSize: 11,
@@ -777,15 +787,23 @@ class _TxTile extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(children: [
-                _HomeTxDetailRow(icon: Icons.store_rounded, label: 'Business', value: tx.business),
+                _HomeTxDetailRow(
+                  icon: Icons.store_rounded,
+                  label: 'Earn Company',
+                  value: tx.businessFullName?.isNotEmpty == true
+                      ? tx.businessFullName!
+                      : tx.business,
+                ),
                 if (tx.isRedeemed) ...[
                   _HomeTxDivider(),
                   _HomeTxDetailRow(
                     icon: Icons.storefront_rounded,
                     label: 'Redeem Company',
-                    value: (tx.redeemCompanyName != null && tx.redeemCompanyName!.isNotEmpty)
-                        ? tx.redeemCompanyName!
-                        : tx.business,
+                    value: tx.redeemCompanyFullName?.isNotEmpty == true
+                        ? tx.redeemCompanyFullName!
+                        : (tx.redeemCompanyName?.isNotEmpty == true
+                            ? tx.redeemCompanyName!
+                            : tx.business),
                   ),
                 ],
                 _HomeTxDivider(),
@@ -802,7 +820,7 @@ class _TxTile extends StatelessWidget {
                 _HomeTxDetailRow(icon: Icons.access_time_rounded, label: 'Time', value: _fmtTime(tx.date)),
                 if (tx.billNo != null && tx.billNo!.isNotEmpty && tx.billNo != '-') ...[
                   _HomeTxDivider(),
-                  _HomeTxDetailRow(icon: Icons.receipt_outlined, label: 'Bill No', value: tx.billNo!),
+                  _HomeTxDetailRow(icon: Icons.receipt_long_rounded, label: 'Document No', value: tx.billNo!),
                 ],
                 if (tx.note != null && tx.note!.isNotEmpty) ...[
                   _HomeTxDivider(),

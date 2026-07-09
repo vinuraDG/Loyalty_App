@@ -285,6 +285,15 @@ class AuthMockService implements IAuthService {
     throw AuthException('No employee found for phone number $trimmed.');
   }
 
+  @override
+  Future<void> deleteAccount() async {
+    await _delay(ms: 800);
+    // In mock mode, simply remove the in-memory user record.
+    final prefs = await SharedPreferences.getInstance();
+    final id = prefs.getString(AppConstants.prefUserId) ?? '';
+    _users.removeWhere((u) => u.id == id);
+  }
+
   Future<void> _delay({int ms = 1200}) =>
       Future.delayed(Duration(milliseconds: ms));
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
+import 'package:loyalty_app/core/utils/formatters.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/data/companies_api_service.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
@@ -244,7 +245,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      '$netPoints',
+                      formatPoints(netPoints),
                       style: AppTextStyles.display.copyWith(
                         fontSize: 44,
                         color: color,
@@ -272,7 +273,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     icon: Icons.add_circle_outline_rounded,
                     iconColor: AppColors.success,
                     label: 'Total earn',
-                    value: '+$totalEarned pts',
+                    value: '+${formatPoints(totalEarned)} pts',
                     valueColor: AppColors.success,
                   ),
                   _BizDetailDivider(),
@@ -280,7 +281,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     icon: Icons.remove_circle_outline_rounded,
                     iconColor: AppColors.error,
                     label: 'Total redeem',
-                    value: '-$totalRedeemed pts',
+                    value: '-${formatPoints(totalRedeemed)} pts',
                     valueColor: AppColors.error,
                   ),
                   if (totalExpired > 0) ...[
@@ -289,7 +290,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       icon: Icons.timer_off_rounded,
                       iconColor: const Color(0xFFFBBF24),
                       label: 'Expiring points',
-                      value: '$totalExpired pts',
+                      value: '${formatPoints(totalExpired)} pts',
                       valueColor: const Color(0xFFFBBF24),
                     ),
                   ],
@@ -298,7 +299,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     icon: Icons.account_balance_wallet_rounded,
                     iconColor: color,
                     label: 'Net available',
-                    value: '$netPoints pts',
+                    value: '${formatPoints(netPoints)} pts',
                     valueColor: color,
                     bold: true,
                   ),
@@ -326,7 +327,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$totalExpired pts • Expiring soon',
+                        '${formatPoints(totalExpired)} pts • Expiring soon',
                         style: AppTextStyles.caption.copyWith(
                           color: const Color(0xFFFBBF24),
                         ),
@@ -546,6 +547,21 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   // Expiring is informational only — not subtracted from net.
                 };
 
+                // ── Per-business expiring within the next 7 days
+                final _expiryThreshold = DateTime.now().add(const Duration(days: 7));
+                final byBizExpiring = <String, int>{};
+                for (final t in allTxs) {
+                  if (t.isEarned &&
+                      t.expiryDate != null &&
+                      t.expiryDate!.isBefore(_expiryThreshold) &&
+                      (t.expiringBalance ?? 0) > 0) {
+                    byBizExpiring[t.business] =
+                        (byBizExpiring[t.business] ?? 0) + t.expiringBalance!;
+                  }
+                }
+                final totalExpiring = byBizExpiring.values
+                    .fold<int>(0, (s, v) => s + v);
+
                 // ── Filtered transaction list (selected month + company) ───
                 final txs = monthTxs
                     .where((t) => !t.isExpired)
@@ -611,7 +627,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                           fit: BoxFit.scaleDown,
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '$totalBalance',
+                                            formatPoints(totalBalance),
                                             style: AppTextStyles.display
                                                 .copyWith(fontSize: 46),
                                           ),
@@ -680,13 +696,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                         : '-0',
                                     valueColor: AppColors.error,
                                   ),
-                                  if (monthExpired > 0) ...[
+                                  if (totalExpiring > 0) ...[
                                     const SizedBox(height: 14),
                                     _CardStatRow(
                                       icon: Icons.timer_off_rounded,
                                       iconColor: const Color(0xFFFBBF24),
                                       label: 'Expiring',
-                                      value: '$monthExpired',
+                                      value: '+${formatPoints(totalExpiring)}',
                                       valueColor: const Color(0xFFFBBF24),
                                     ),
                                   ],
@@ -706,13 +722,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           byBizNet: byBizNet,
                           byBizEarned: byBizEarned,
                           byBizRedeemed: byBizRedeemed,
-                          byBizExpired: const {},
+                          byBizExpired: byBizExpiring,
                           onTap: (biz, idx) => _showBizDetail(
                             context,
                             business: fullNameOf[biz] ?? biz,
                             totalEarned:   byBizEarned[biz]   ?? 0,
                             totalRedeemed: byBizRedeemed[biz] ?? 0,
-                            totalExpired:  0,
+                            totalExpired:  byBizExpiring[biz] ?? 0,
                             color: _colorForCompany(biz, idx),
                           ),
                         ),
@@ -1047,7 +1063,7 @@ class _BizCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 6),
-            Text('$pts', style: AppTextStyles.h4),
+            Text(formatPoints(pts), style: AppTextStyles.h4),
             const Text('pts', style: AppTextStyles.caption),
             if (expiredPts > 0) ...[
               const SizedBox(height: 4),
@@ -1060,7 +1076,7 @@ class _BizCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '-$expiredPts exp',
+                  '-${formatPoints(expiredPts)} exp',
                   style: AppTextStyles.caption.copyWith(
                     color: const Color(0xFFFBBF24),
                     fontSize: 9,
@@ -1442,8 +1458,8 @@ class _TxCard extends StatelessWidget {
                     tx.billNo != '-') ...[
                   _TxDivider(),
                   _DetailRow(
-                    icon: Icons.receipt_outlined,
-                    label: 'Bill No',
+                    icon: Icons.receipt_long_rounded,
+                    label: 'Document No',
                     value: tx.billNo!,
                   ),
                 ],

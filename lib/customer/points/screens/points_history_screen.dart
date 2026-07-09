@@ -211,7 +211,10 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
             final tabMatch = switch (_activeTab) {
               _Tab.earned => t.isEarned,
               _Tab.redeemed => t.isRedeemed,
-              _Tab.expired => false,
+              _Tab.expired => t.isEarned &&
+                  t.expiryDate != null &&
+                  t.expiryDate!.isBefore(DateTime.now().add(const Duration(days: 7))) &&
+                  (t.expiringBalance ?? 0) > 0,
               _Tab.all => true,
             };
             return bizMatch && tabMatch;
@@ -280,7 +283,12 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                           (_selectedBusiness == null ||
                               t.business == _selectedBusiness))
                       .length,
-                  expiredCount: 0,
+                  expiredCount: allTxs.where((t) =>
+                      t.isEarned &&
+                      t.expiryDate != null &&
+                      t.expiryDate!.isBefore(DateTime.now().add(const Duration(days: 7))) &&
+                      (t.expiringBalance ?? 0) > 0 &&
+                      (_selectedBusiness == null || t.business == _selectedBusiness)).length,
                   onTabChanged: (t) => setState(() => _activeTab = t),
                 ),
               ),
@@ -1215,8 +1223,8 @@ class _HistoryTile extends StatelessWidget {
                     tx.billNo != '-') ...[
                   _HistDivider(),
                   _HistDetailRow(
-                      icon: Icons.receipt_outlined,
-                      label: 'Bill No',
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Document No',
                       value: tx.billNo!),
                 ],
                 if (tx.note != null && tx.note!.isNotEmpty) ...[

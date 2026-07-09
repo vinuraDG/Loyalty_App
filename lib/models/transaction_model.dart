@@ -1,5 +1,7 @@
 // transaction_model.dart
 
+import 'package:loyalty_app/core/utils/formatters.dart';
+
 enum TransactionType { earned, redeemed, expired }
 
 class TransactionModel {
@@ -45,10 +47,11 @@ class TransactionModel {
   bool get isExpired  => type == TransactionType.expired;
 
   String get displayPoints {
+    final fmt = formatPoints(points);
     switch (type) {
-      case TransactionType.earned:   return '+$points pts';
-      case TransactionType.redeemed: return '-$points pts';
-      case TransactionType.expired:  return '$points pts';
+      case TransactionType.earned:   return '+$fmt pts';
+      case TransactionType.redeemed: return '-$fmt pts';
+      case TransactionType.expired:  return '$fmt pts';
     }
   }
 }

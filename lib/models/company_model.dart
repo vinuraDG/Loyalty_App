@@ -15,8 +15,10 @@ class CompanyModel {
     final name = (m['Name'] ?? m['CompanyName'] ?? m['name'] ?? '').toString().trim();
     final raw  = (m['DisplayName'] ?? m['displayName'] ?? '').toString().trim();
     final fallback = name.isNotEmpty ? name : 'Company ${fallbackIndex + 1}';
+    final rawId = m['CompanyId'] ?? m['Id'] ?? m['id'] ?? m['companyId'];
+    final id = rawId != null ? (int.tryParse(rawId.toString()) ?? fallbackIndex) : fallbackIndex;
     return CompanyModel(
-      id:          fallbackIndex,
+      id:          id,
       name:        fallback,
       displayName: raw.isNotEmpty ? raw : fallback,
       phoneNo:     (m['PhoneNo'] ?? m['Phone'] ?? m['phoneNo'] ?? '').toString().trim(),

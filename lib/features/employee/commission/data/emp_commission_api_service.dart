@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/core/errors/app_exception.dart';
-import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/employee/commission/data/emp_commission_mock_service.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
@@ -22,6 +21,7 @@ class SaleEntry {
   final String time;
   final String date;
   final String month;
+  final String documentNumber;
 
   const SaleEntry({
     required this.id,
@@ -34,23 +34,23 @@ class SaleEntry {
     required this.time,
     required this.date,
     required this.month,
+    this.documentNumber = '',
   });
 
-  factory SaleEntry.fromJson(
-    Map<String, dynamic> json, {
-    double commissionRate = kCommissionRate,
-  }) {
+  factory SaleEntry.fromJson(Map<String, dynamic> json) {
     final amount = (json['saleAmount'] as num).toDouble();
     return SaleEntry(
-      id:           json['id']           as String,
-      business:     json['business']     as String,
-      customerName: json['customerName'] as String,
-      litres:       (json['litres']      as num).toDouble(),
-      saleAmount:   amount,
-      commission:   amount * commissionRate,
-      time:         json['time']         as String,
-      date:         json['date']         as String,
-      month:        json['month']        as String,
+      id:             json['id']           as String,
+      business:       json['business']     as String,
+      customerName:   json['customerName'] as String,
+      litres:         (json['litres']      as num).toDouble(),
+      saleAmount:     amount,
+      commission:     double.tryParse(
+          (json['commission'] ?? json['Commission'] ?? 0).toString()) ?? 0.0,
+      time:           json['time']         as String,
+      date:           json['date']         as String,
+      month:          json['month']        as String,
+      documentNumber: (json['documentNumber'] ?? json['DocumentNo'] ?? '').toString(),
     );
   }
 }
@@ -144,32 +144,35 @@ class EmpCommissionApiService implements IEmpCommissionService {
       return list.map((entry) {
         final m = entry as Map<String, dynamic>;
         final amount = double.tryParse(
-                (m['Value'] ?? m['SaleAmount'] ?? m['Amount'] ?? m['ValueFrom'] ?? 0).toString()) ??
-            0;
-        // Prefer backend's Commission field; fall back to 2% calculation.
+                (m['Amount'] ?? m['ValueFrom'] ?? 0.0).toString()) ??
+            0.0;
         final commissionRaw =
             m['Commission'] ?? m['commission'] ?? m['CommissionAmount'];
         final commission = commissionRaw != null
-            ? (double.tryParse(commissionRaw.toString()) ?? amount * kCommissionRate)
-            : amount * kCommissionRate;
+            ? (commissionRaw is num
+                ? commissionRaw.toDouble()
+                : double.tryParse(commissionRaw.toString()) ?? 0.0)
+            : 0.0;
         final dateStr =
             (m['DateCreated'] ?? m['Date'] ?? m['date'] ?? '').toString();
         final parsed = DateTime.tryParse(dateStr);
         final safeDate = (parsed == null || parsed.year < 2000) ? null : _txDate(parsed);
         return SaleEntry(
-          id:           (m['Id']           ?? m['id']           ?? '').toString(),
-          business:     (m['CompanyName']   ?? m['MerchantName'] ?? '').toString(),
-          customerName: (m['CustomerName']  ?? m['MemberName']   ??
-                         m['customerName']  ?? m['FullName']     ??
-                         m['Name']          ?? '').toString(),
-          customerId:   (m['CustomerPhoneNo'] ?? m['customerPhoneNo'] ??
-                         m['PhoneNo']         ?? '').toString(),
-          litres:       0.0,
-          saleAmount:   amount,
-          commission:   commission,
-          time:         safeDate != null ? _timeFromDate(safeDate) : '',
-          date:         safeDate != null ? _dateLabelFromDate(safeDate) : '',
-          month:        month,
+          id:             (m['Id']           ?? m['id']           ?? '').toString(),
+          business:       (m['CompanyName']   ?? m['MerchantName'] ?? '').toString(),
+          customerName:   (m['CustomerName']  ?? m['MemberName']   ??
+                           m['customerName']  ?? m['FullName']     ??
+                           m['Name']          ?? '').toString(),
+          customerId:     (m['CustomerPhoneNo'] ?? m['customerPhoneNo'] ??
+                           m['PhoneNo']         ?? '').toString(),
+          litres:         0.0,
+          saleAmount:     amount,
+          commission:     commission,
+          time:           safeDate != null ? _timeFromDate(safeDate) : '',
+          date:           safeDate != null ? _dateLabelFromDate(safeDate) : '',
+          month:          month,
+          documentNumber: (m['DocumentNo'] ?? m['documentNo'] ??
+                           m['DocumentNumber'] ?? '').toString(),
         );
       }).toList();
     } on DioException catch (e) {

@@ -70,7 +70,10 @@ class EmpHomeRealService implements IEmpHomeService {
     try {
       final res = await _dio.get(
         'Common/GetCustomerByPhoneNo',
-        queryParameters: {'CustomerPhoneNo': userId},
+        queryParameters: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': userId,
+        },
       );
       if (res.data == null || res.data is! Map) {
         throw Exception('Member not found.');
@@ -145,7 +148,6 @@ class EmpHomeRealService implements IEmpHomeService {
           'TransactionCompanyId': AppConstants.activeCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
-          'DocumentNo': '',
           'Amount': saleAmount,
         },
       );
@@ -250,15 +252,10 @@ class EmpHomeRealService implements IEmpHomeService {
 
         final commissionRaw =
             j['Commission'] ?? j['commission'] ?? j['CommissionAmount'];
-        double commissionAmt;
-        if (commissionRaw != null) {
-          commissionAmt = double.tryParse(commissionRaw.toString()) ?? 0.0;
-        } else {
-          final amountRaw = j['ValueFrom'] ?? j['Amount'] ?? 0;
-          commissionAmt =
-              (double.tryParse(amountRaw.toString()) ?? 0.0) * 0.02;
-        }
-        result[dayIndex] += commissionAmt.round();
+        final commissionAmt = commissionRaw != null
+            ? (double.tryParse(commissionRaw.toString()) ?? 0.0).round()
+            : 0;
+        result[dayIndex] += commissionAmt;
       }
     } on DioException catch (e) {
       _logBackendFailure('GetAllEmployeeLedgers (getWeeklyCommission)', e);
@@ -272,92 +269,103 @@ class EmpHomeRealService implements IEmpHomeService {
   // as PointsRedeemCompanyPhoneNo in confirmRedemption.
 
   static const _fallbackOffer = RedeemableOffer(
-    id: 'gold-house-redeem',
-    title: 'Gold House',
-    description: 'Redeem at Gold House',
-    business: 'Gold House',
+    id: 'laundry-redeem',
+    title: 'Sunshine Laundry',
+    description: 'Redeem Sunshine Laundry points',
+    business: 'Sunshine Laundry',
     pointsCost: 0,
     companyPhoneNo: '0112948777',
+    customerPoints: 0,
   );
 
   @override
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
     try {
       final companies = await CompaniesApiService.instance.getCompanies();
-      final redeemable = companies
-          .where((c) => c.id != AppConstants.transactionCompanyId)
-          .toList();
+      // Only laundry companies are redeemable at the fuel station —
+      // identified by name containing "laundry" (case-insensitive).
+      // Falls back to all non-fuel companies if none match the name filter.
+      final laundry = companies.where(
+        (c) => c.name.toLowerCase().contains('laundry') ||
+               c.displayName.toLowerCase().contains('laundry'),
+      ).toList();
+      final redeemable = laundry.isNotEmpty
+          ? laundry
+          : companies.where((c) => c.id != AppConstants.transactionCompanyId).toList();
+
       if (redeemable.isEmpty) return [_fallbackOffer];
-      return redeemable
-          .map((c) => RedeemableOffer(
-                id: 'redeem-${c.id}',
-                title: c.displayName,
-                description: 'Redeem at ${c.name}',
-                business: c.displayName,
-                pointsCost: 0,
-                companyPhoneNo: c.phoneNo,
-              ))
-          .toList();
+
+      final offers = <RedeemableOffer>[];
+      for (final c in redeemable) {
+        final pts = await _fetchCustomerPoints(customerId, c.id);
+        offers.add(RedeemableOffer(
+          id: 'redeem-${c.id}',
+          title: c.name,
+          description: 'Redeem at ${c.name}',
+          business: c.name,
+          pointsCost: 0,
+          companyPhoneNo: c.phoneNo,
+          customerPoints: pts,
+        ));
+      }
+      return offers;
     } catch (_) {
       return [_fallbackOffer];
     }
   }
 
-  // ── sendRedemptionOtp — POST /Common/ForgotPassword (OTP channel) ─────────
+  // Fetch the customer's current point balance by summing their ledger.
+  // GetCustomerByPhoneNo doesn't always return TotalPoints for non-earn companies,
+  // so we use GetAllCustomerLedgers (TransactionCompanyId=3 = fuel, all entries)
+  // and take the PointBalance from the most recent ledger entry as the current balance.
+  Future<int> _fetchCustomerPoints(String customerId, int companyId) async {
+    try {
+      final res = await _dio.get(
+        'Mobile/GetAllCustomerLedgers',
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': customerId,
+        },
+      );
+      final list = _asList(res.data);
+      if (list.isEmpty) return 0;
+      // Walk entries newest-to-oldest; return the first PointBalance that is ≥ 0.
+      for (final raw in list.reversed) {
+        if (raw is! Map) continue;
+        final j = Map<String, dynamic>.from(raw);
+        final pb = j['PointBalance'] ?? j['pointBalance'];
+        if (pb != null) {
+          final v = int.tryParse(pb.toString()) ?? -1;
+          if (v >= 0) return v;
+        }
+      }
+      // Fallback: sum earn - redeem from PointsValue
+      int earned = 0, redeemed = 0;
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final j = Map<String, dynamic>.from(raw);
+        final pts = int.tryParse((j['PointsValue'] ?? 0).toString()) ?? 0;
+        final type = (j['PointsTransactionType'] ?? '').toString().toLowerCase();
+        if (type == 'earn') earned += pts; else redeemed += pts;
+      }
+      return (earned - redeemed).clamp(0, 999999);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  // ── sendRedemptionOtp — POST /Common/RedeemPoints ────────────────────────
+  // Initiates the redemption AND sends OTP to the customer's phone via SMS.
 
   @override
   Future<String> sendRedemptionOtp({
     required String customerId,
     required String offerId,
-  }) async {
-    try {
-      final res = await _dio.post(
-        'Common/ForgotPassword',
-        options: Options(responseType: ResponseType.plain),
-        data: {'UserName': customerId, 'Password': ''},
-      );
-      // Backend returns the OTP value in the response body.
-      final body = (res.data as String? ?? '').trim();
-      return body;
-    } on DioException catch (e) {
-      throw Exception(_msg(e) ?? 'Failed to send OTP.');
-    }
-  }
-
-  // ── confirmRedemption — RedeemConfirmation (OTP) → RedeemPoints ──────────
-  // Step 1: POST /Common/RedeemConfirmation validates the OTP.
-  // Step 2: POST /Common/RedeemPoints deducts the points (no OTP field).
-
-  @override
-  Future<RedemptionResult> confirmRedemption({
-    required String customerId,
-    required String offerId,
-    required String otp,
-    required String employeeId,
-    int pointsToRedeem = 0,
-    String companyPhoneNo = '',
+    required int pointsToRedeem,
+    required String companyPhoneNo,
   }) async {
     final phone = await _empPhone;
-    final redeemPhone =
-        companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
-
-    // Step 1 — validate OTP (400 here = wrong OTP)
-    try {
-      await _dio.post(
-        'Common/RedeemConfirmation',
-        options: Options(responseType: ResponseType.plain),
-        queryParameters: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CustomerPhoneNo': customerId,
-          'OTP': otp,
-        },
-      );
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 400) throw const InvalidOtpException();
-      throw Exception(_msg(e) ?? 'OTP verification failed. Please try again.');
-    }
-
-    // Step 2 — deduct points (400 here = redemption error, not OTP issue)
+    final redeemPhone = companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
     try {
       final res = await _dio.post(
         'Common/RedeemPoints',
@@ -370,8 +378,82 @@ class EmpHomeRealService implements IEmpHomeService {
           'PointsRedeemCompanyPhoneNo': redeemPhone,
         },
       );
+      final body = (res.data as String? ?? '').trim();
+      if (body.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(body);
+          if (parsed is Map) {
+            final otp = (parsed['otp'] ?? parsed['OTP'] ?? parsed['Otp'] ?? '').toString();
+            if (otp.isNotEmpty) return otp;
+          }
+        } catch (_) {}
+      }
+      return '';
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 422) throw const InsufficientPointsException();
+      throw Exception(_msg(e) ?? 'Failed to initiate redemption.');
+    }
+  }
 
-      // Parse plain-text response as JSON if non-empty, otherwise use defaults.
+  // ── redeemPoints — POST RedeemPoints then auto-confirm with returned OTP ──
+  // RedeemPoints returns {"otp":"XXXX",...} in the response body.
+  // We auto-call RedeemConfirmation with that OTP so no SMS/manual entry needed.
+
+  @override
+  Future<RedemptionResult> redeemPoints({
+    required String customerId,
+    required String offerId,
+    required int pointsToRedeem,
+    required String companyPhoneNo,
+    required String employeeId,
+  }) async {
+    final phone = await _empPhone;
+    final redeemPhone = companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
+
+    // Step 1: Initiate redemption — backend returns OTP in response body.
+    String otp = '';
+    try {
+      final res = await _dio.post(
+        'Common/RedeemPoints',
+        options: Options(responseType: ResponseType.plain),
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': customerId,
+          'EmployeePhoneNo': phone,
+          'Points': pointsToRedeem,
+          'PointsRedeemCompanyPhoneNo': redeemPhone,
+        },
+      );
+      final body = (res.data as String? ?? '').trim();
+      if (body.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(body);
+          if (parsed is Map) {
+            otp = (parsed['otp'] ?? parsed['OTP'] ?? parsed['Otp'] ?? '').toString();
+          }
+        } catch (_) {}
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 422) throw const InsufficientPointsException();
+      throw Exception(_msg(e) ?? 'Redemption failed. Please try again.');
+    }
+
+    if (otp.isEmpty) {
+      throw Exception('Redemption could not be confirmed. Please try again.');
+    }
+
+    // Step 2: Confirm with the OTP returned in Step 1.
+    try {
+      final res = await _dio.post(
+        'Common/RedeemConfirmation',
+        options: Options(responseType: ResponseType.plain),
+        queryParameters: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': customerId,
+          'OTP': otp,
+        },
+      );
+
       Map<String, dynamic> data = {};
       final body = (res.data as String? ?? '').trim();
       if (body.isNotEmpty) {
@@ -385,22 +467,74 @@ class EmpHomeRealService implements IEmpHomeService {
               (data['PointsDeducted'] ?? data['points'] ?? pointsToRedeem).toString()) ??
           pointsToRedeem;
       final remaining = int.tryParse(
-              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ??
-          0;
-      final code = (data['ConfirmationCode'] ??
-              data['code'] ??
+              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ?? 0;
+      final code = (data['ConfirmationCode'] ?? data['code'] ??
               'RDM-${DateTime.now().millisecondsSinceEpoch % 100000}')
           .toString();
+
       return RedemptionResult(
         pointsDeducted: deducted,
         remainingPoints: remaining,
         confirmationCode: code,
       );
     } on DioException catch (e) {
-      final status = e.response?.statusCode;
-      final msg = _msg(e);
-      if (status == 422) throw const InsufficientPointsException();
-      throw Exception(msg ?? 'Redemption failed. Please try again.');
+      if (e.response?.statusCode == 400) throw const InvalidOtpException();
+      throw Exception(_msg(e) ?? 'Redemption confirmation failed. Please try again.');
+    }
+  }
+
+  // ── confirmRedemption — POST /Common/RedeemConfirmation ──────────────────
+  // Validates the OTP and completes the redemption.
+  // NOTE: The backend keys the OTP under the REDEEM company's TransactionCompanyId
+  // (laundry = 1, as seen in PointsRedeemCompanyId from ledger entries), NOT the
+  // fuel company's TransactionCompanyId (3). Using 3 always returns 400.
+
+  @override
+  Future<RedemptionResult> confirmRedemption({
+    required String customerId,
+    required String offerId,
+    required String otp,
+    required String employeeId,
+  }) async {
+    // The laundry company's TransactionCompanyId is 1 (from PointsRedeemCompanyId
+    // in GetAllCustomerLedgers). RedeemPoints registers the OTP under this ID.
+    const redeemCompanyId = 1;
+    try {
+      final res = await _dio.post(
+        'Common/RedeemConfirmation',
+        options: Options(responseType: ResponseType.plain),
+        queryParameters: {
+          'TransactionCompanyId': redeemCompanyId,
+          'CustomerPhoneNo': customerId,
+          'OTP': otp,
+        },
+      );
+
+      Map<String, dynamic> data = {};
+      final body = (res.data as String? ?? '').trim();
+      if (body.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(body);
+          if (parsed is Map<String, dynamic>) data = parsed;
+        } catch (_) {}
+      }
+
+      final deducted = int.tryParse(
+              (data['PointsDeducted'] ?? data['points'] ?? 0).toString()) ?? 0;
+      final remaining = int.tryParse(
+              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ?? 0;
+      final code = (data['ConfirmationCode'] ?? data['code'] ??
+              'RDM-${DateTime.now().millisecondsSinceEpoch % 100000}')
+          .toString();
+
+      return RedemptionResult(
+        pointsDeducted: deducted,
+        remainingPoints: remaining,
+        confirmationCode: code,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) throw const InvalidOtpException();
+      throw Exception(_msg(e) ?? 'OTP confirmation failed. Please try again.');
     }
   }
 

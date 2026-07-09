@@ -64,6 +64,9 @@ abstract class IAuthService {
   /// Looks up an employee record by phone number. Throws [AuthException]
   /// if no employee exists for that number or the response is malformed.
   Future<UserModel> getEmployeeByPhone(String phone);
+
+  /// Permanently deletes the current customer account and clears the session.
+  Future<void> deleteAccount();
 }
 
 class AuthApiService implements IAuthService {
@@ -748,6 +751,29 @@ class AuthApiService implements IAuthService {
       return _userFromResponse(res.data as Map<String, dynamic>);
     } on DioException catch (_) {
       return null;
+    }
+  }
+
+  // ── Delete account ───────────────────────────────────────────────────────
+
+  @override
+  Future<void> deleteAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    final userId = prefs.getString(AppConstants.prefUserId) ?? '';
+    try {
+      await _dio.delete(
+        'Account/DeleteUser',
+        queryParameters: {
+          if (userId.isNotEmpty) 'userId': userId,
+          if (phone.isNotEmpty) 'phoneNo': phone,
+        },
+        options: Options(responseType: ResponseType.plain),
+      );
+    } on DioException catch (e) {
+      // 404 = already deleted; treat as success
+      if (e.response?.statusCode == 404) return;
+      throw _handleDioError(e);
     }
   }
 

@@ -114,36 +114,43 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
             child: Text('Select Month', style: AppTextStyles.h4),
           ),
           const SizedBox(height: 8),
-          ...List.generate(_months.length, (i) {
-            final m   = _months[i];
-            final sel = _monthIdx == i;
-            return ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-              leading: Icon(
-                Icons.calendar_today_rounded,
-                size: 18,
-                color: sel ? AppColors.primary : AppColors.textSecondary,
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(_months.length, (i) {
+                  final m   = _months[i];
+                  final sel = _monthIdx == i;
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                    leading: Icon(
+                      Icons.calendar_today_rounded,
+                      size: 18,
+                      color: sel ? AppColors.primary : AppColors.textSecondary,
+                    ),
+                    title: Text(
+                      m,
+                      style: AppTextStyles.labelMedium.copyWith(
+                        color: sel ? AppColors.primary : AppColors.textPrimary,
+                      ),
+                    ),
+                    trailing: sel
+                        ? const Icon(Icons.check_rounded,
+                            color: AppColors.primary, size: 20)
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _monthIdx      = i;
+                        _selectedMonth = m;
+                      });
+                      Navigator.pop(context);
+                      _loadMonth(m);
+                    },
+                  );
+                }),
               ),
-              title: Text(
-                m,
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: sel ? AppColors.primary : AppColors.textPrimary,
-                ),
-              ),
-              trailing: sel
-                  ? const Icon(Icons.check_rounded,
-                      color: AppColors.primary, size: 20)
-                  : null,
-              onTap: () {
-                setState(() {
-                  _monthIdx      = i;
-                  _selectedMonth = m;
-                });
-                Navigator.pop(context);
-                _loadMonth(m);
-              },
-            );
-          }),
+            ),
+          ),
           const SizedBox(height: 8),
         ]),
       ),
@@ -549,6 +556,13 @@ class _SaleTile extends StatelessWidget {
                     label: 'Commission',
                     value: 'LKR ${formatAmount(sale.commission)}',
                     valueColor: Colors.greenAccent),
+                if (sale.documentNumber.isNotEmpty) ...[
+                  _TxDivider(),
+                  _DetailRow(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Document No',
+                      value: sale.documentNumber),
+                ],
               ]),
             ),
             const SizedBox(height: 16),

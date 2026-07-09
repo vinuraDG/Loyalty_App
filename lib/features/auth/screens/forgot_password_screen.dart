@@ -1,13 +1,3 @@
-// lib/features/auth/screens/forgot_password_screen.dart
-//
-// Three-step forgot-password flow (mock only — backend TODO markers included):
-//   Step 1 — Enter phone number
-//   Step 2 — Verify OTP
-//   Step 3 — Set new password
-//
-// All network calls are handled through AuthNotifier; swap
-// MockAuthService → real API when the backend is ready.
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,8 +5,6 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
-
-// ── Step enum ─────────────────────────────────────────────────────────────────
 
 enum _Step { phone, otp, newPassword }
 
@@ -30,49 +18,44 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
     with SingleTickerProviderStateMixin {
-  // ── State ─────────────────────────────────────────────────────────────────
-  _Step _step = _Step.phone;
-  bool  _isLoading = false;
+
+  _Step   _step      = _Step.phone;
+  bool    _isLoading = false;
   String? _errorText;
 
-  // ── Controllers ───────────────────────────────────────────────────────────
   final _phoneCtrl   = TextEditingController();
   final _newPassCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _phoneFormKey   = GlobalKey<FormState>();
-  final _passFormKey    = GlobalKey<FormState>();
+  final _phoneFormKey = GlobalKey<FormState>();
+  final _passFormKey  = GlobalKey<FormState>();
 
-  // OTP — 4 individual boxes
   final List<TextEditingController> _otpCtrl =
       List.generate(4, (_) => TextEditingController());
   final List<FocusNode> _otpFocus =
       List.generate(4, (_) => FocusNode());
 
-  bool _newPassVisible    = false;
+  bool _newPassVisible     = false;
   bool _confirmPassVisible = false;
-
-  // Resend cooldown
-  int _resendCooldown = 0;
+  int  _resendCooldown     = 0;
   bool get _canResend => _resendCooldown == 0;
 
-  // Animation
+  // Password strength
+  int _strength = 0;
+
   late final AnimationController _animCtrl;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
+  late final Animation<double>   _fadeAnim;
+  late final Animation<Offset>   _slideAnim;
 
   @override
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0.06, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+      vsync: this, duration: const Duration(milliseconds: 320));
+    _fadeAnim  = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
+    _newPassCtrl.addListener(_calcStrength);
   }
 
   @override
@@ -86,18 +69,48 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
     super.dispose();
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  void _goToStep(_Step step) {
-    setState(() {
-      _step = step;
-      _errorText = null;
-    });
-    _animCtrl.forward(from: 0);
+  String? _validatePassword(String? v) {
+    if (v == null || v.isEmpty) return 'Password is required';
+    if (v.length < 12) return 'Minimum 12 characters required';
+    if (!RegExp(r'[A-Z]').hasMatch(v)) return 'Must include an uppercase letter';
+    if (!RegExp(r'[a-z]').hasMatch(v)) return 'Must include a lowercase letter';
+    if (!RegExp(r'[0-9]').hasMatch(v)) return 'Must include a number';
+    if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(v)) {
+      return 'Must include a special character (!@#\$%^&* etc.)';
+    }
+    return null;
   }
 
-  void _setError(String msg) => setState(() => _errorText = msg);
-  void _clearError()         => setState(() => _errorText = null);
+  void _calcStrength() {
+    final v = _newPassCtrl.text;
+    int s = 0;
+    if (v.length >= 12)                                        s++;
+    if (v.length >= 16)                                        s++;
+    if (RegExp(r'[A-Z]').hasMatch(v) && RegExp(r'[a-z]').hasMatch(v)) s++;
+    if (RegExp(r'[0-9]').hasMatch(v))                          s++;
+    if (RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(v))        s++;
+    setState(() => _strength = s.clamp(0, 4));
+  }
+
+  Color get _strengthColor {
+    if (_strength <= 1) return AppColors.error;
+    if (_strength == 2) return const Color(0xFFFF9800);
+    if (_strength == 3) return const Color(0xFFFFD700);
+    return AppColors.success;
+  }
+
+  String get _strengthLabel {
+    if (_newPassCtrl.text.isEmpty) return '';
+    if (_strength <= 1) return 'Weak';
+    if (_strength == 2) return 'Fair';
+    if (_strength == 3) return 'Good';
+    return 'Strong';
+  }
+
+  void _goToStep(_Step step) {
+    setState(() { _step = step; _errorText = null; });
+    _animCtrl.forward(from: 0);
+  }
 
   Future<void> _startCooldown() async {
     setState(() => _resendCooldown = 30);
@@ -110,110 +123,76 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
 
   String get _otpValue => _otpCtrl.map((c) => c.text).join();
 
-  // ── Step 1 — Send OTP ─────────────────────────────────────────────────────
+  // ── Step 1 — Send OTP via Common/ForgotPassword ───────────────────────────
 
   Future<void> _sendOtp({bool resend = false}) async {
     if (!resend && !_phoneFormKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    _clearError();
-    setState(() => _isLoading = true);
+    setState(() { _isLoading = true; _errorText = null; });
 
-    // TODO: replace with real API call — POST /auth/forgot-password/send-otp
-    // Backend should:
-    //   1. Verify phone exists in the system
-    //   2. Generate + SMS a 4-digit OTP
-    //   3. Return 200 OK or 404 if phone not found
     try {
       await ref.read(authProvider.notifier).sendOtpForReset(
-            _phoneCtrl.text.trim(),
-          );
+            _phoneCtrl.text.trim());
       if (!mounted) return;
       if (!resend) {
         _goToStep(_Step.otp);
       } else {
-        // Clear existing OTP boxes on resend
         for (final c in _otpCtrl) c.clear();
         _otpFocus[0].requestFocus();
       }
       _startCooldown();
     } catch (e) {
-      _setError(e.toString());
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      setState(() => _errorText = msg);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ── Step 2 — Verify OTP ───────────────────────────────────────────────────
+  // ── Step 2 — OTP entered; advance to step 3 ──────────────────────────────
+  // There is no dedicated OTP-verify endpoint. The OTP is validated by the
+  // backend when Common/ResetPassword is called in step 3. If the OTP is
+  // wrong, the backend returns 400 and we return the user to step 2.
 
-  Future<void> _verifyOtp() async {
+  void _advanceFromOtp() {
     if (_otpValue.length < 4) {
-      _setError('Please enter the full 4-digit code.');
+      setState(() => _errorText = 'Please enter the full 4-digit code.');
       return;
     }
     FocusScope.of(context).unfocus();
-    _clearError();
-    setState(() => _isLoading = true);
-
-    // TODO: replace with real API call — POST /auth/forgot-password/verify-otp
-    // Backend should:
-    //   1. Validate the OTP for the given phone + expiry
-    //   2. Return a short-lived reset token (e.g. JWT)
-    //   3. Return 400 if OTP is wrong / expired
-    try {
-      final ok = await ref.read(authProvider.notifier).verifyOtpForReset(
-            phone: _phoneCtrl.text.trim(),
-            otp: _otpValue,
-          );
-      if (!mounted) return;
-      if (ok) {
-        _goToStep(_Step.newPassword);
-      } else {
-        _setError('Invalid OTP. Please try again.');
-      }
-    } catch (e) {
-      _setError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    _goToStep(_Step.newPassword);
   }
 
-  // ── Step 3 — Set new password ──────────────────────────────────────────────
+  // ── Step 3 — Reset via Common/ResetPassword ───────────────────────────────
 
   Future<void> _resetPassword() async {
     if (!_passFormKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    _clearError();
-    setState(() => _isLoading = true);
+    setState(() { _isLoading = true; _errorText = null; });
 
-    // TODO: replace with real API call — POST /auth/forgot-password/reset
-    // Backend should:
-    //   1. Accept reset token + new password
-    //   2. Hash and store new password
-    //   3. Invalidate the reset token
-    //   4. Return 200 OK
     try {
       await ref.read(authProvider.notifier).resetPassword(
-            phone: _phoneCtrl.text.trim(),
-            otp: _otpValue,
+            phone:       _phoneCtrl.text.trim(),
+            otp:         _otpValue,
             newPassword: _newPassCtrl.text,
           );
       if (!mounted) return;
-      _showSuccessAndPop();
+      _showSuccess();
     } catch (e) {
       if (!mounted) return;
-      // Password validation passed locally, so a backend rejection is
-      // almost always an expired or incorrect OTP — navigate back to
-      // step 2 so the user can re-enter the code.
+      // 400 from backend = wrong / expired OTP — go back to OTP entry
       for (final c in _otpCtrl) c.clear();
       _goToStep(_Step.otp);
-      _setError('The OTP was incorrect or has expired. Please re-enter the code.');
+      setState(() =>
+          _errorText = 'The code was incorrect or expired. Please try again.');
       _otpFocus[0].requestFocus();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showSuccessAndPop() {
+  void _showSuccess() {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgCard,
@@ -223,39 +202,36 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
       ),
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_circle_outline_rounded,
-                    color: AppColors.success, size: 40),
+          padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 72, height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 18),
-              const Text('Password Updated!', style: AppTextStyles.h3),
-              const SizedBox(height: 8),
-              Text(
-                'Your password has been changed successfully.\nYou can now sign in with your new password.',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 28),
-              GradientButton(
-                label: 'Back to Sign In',
-                onPressed: () {
-                  Navigator.pop(context);           // close sheet
-                  Navigator.pop(context);           // close forgot-password
-                },
-              ),
-            ],
-          ),
+              child: const Icon(Icons.check_circle_outline_rounded,
+                  color: AppColors.success, size: 40),
+            ),
+            const SizedBox(height: 20),
+            const Text('Password Updated!', style: AppTextStyles.h3,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 10),
+            Text(
+              'Your password has been changed successfully.\nSign in with your new password.',
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            GradientButton(
+              label: 'Back to Sign In',
+              onPressed: () {
+                Navigator.pop(context); // close sheet
+                Navigator.pop(context); // close forgot-password
+              },
+            ),
+          ]),
         ),
       ),
     );
@@ -269,7 +245,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: Column(children: [
-          // ── Header ───────────────────────────────────────────────
+          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 16, 16, 0),
             child: Row(children: [
@@ -290,7 +266,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
             ]),
           ),
 
-          // ── Progress indicator ────────────────────────────────────
+          // Step indicator
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -298,7 +274,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
           ),
           const SizedBox(height: 28),
 
-          // ── Content ───────────────────────────────────────────────
+          // Content
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -318,8 +294,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
 
   Widget _buildStep() {
     switch (_step) {
-      case _Step.phone:      return _buildPhoneStep();
-      case _Step.otp:        return _buildOtpStep();
+      case _Step.phone:       return _buildPhoneStep();
+      case _Step.otp:         return _buildOtpStep();
       case _Step.newPassword: return _buildNewPasswordStep();
     }
   }
@@ -330,13 +306,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _StepHeader(
-            icon: Icons.phone_outlined,
+            icon: Icons.smartphone_rounded,
             title: 'Enter your phone number',
-            subtitle:
-                'We\'ll send a verification code to reset your password.',
+            subtitle: 'We\'ll send a 4-digit verification code via SMS.',
           ),
           const SizedBox(height: 28),
-
           Form(
             key: _phoneFormKey,
             child: AppTextField(
@@ -354,12 +328,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
               },
             ),
           ),
-
           if (_errorText != null) ...[
             const SizedBox(height: 12),
             _ErrorBanner(message: _errorText!),
           ],
-
           const SizedBox(height: 24),
           GradientButton(
             label: 'Send OTP',
@@ -379,29 +351,26 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
           _StepHeader(
             icon: Icons.lock_open_rounded,
             title: 'Enter verification code',
-            subtitle:
-                'A 4-digit OTP was sent to ${_phoneCtrl.text.trim()}',
+            subtitle: 'A 4-digit code was sent to ${_phoneCtrl.text.trim()}',
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
-          // Mock-mode hint
           if (AppConstants.useMockServices) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.accentGold.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.4)),
+                border: Border.all(
+                    color: AppColors.accentGold.withValues(alpha: 0.4)),
               ),
               child: Row(children: [
                 const Icon(Icons.info_outline_rounded,
                     size: 14, color: AppColors.accentGold),
                 const SizedBox(width: 8),
-                Text(
-                  'Demo mode — enter code: ${AppConstants.mockOtp}',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.accentGold),
-                ),
+                Text('Demo mode — enter code: ${AppConstants.mockOtp}',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.accentGold)),
               ]),
             ),
             const SizedBox(height: 16),
@@ -412,20 +381,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(4, (i) => _OtpBox(
               controller: _otpCtrl[i],
-              focusNode: _otpFocus[i],
+              focusNode:  _otpFocus[i],
               onChanged: (v) {
-                if (v.isNotEmpty && i < 3) {
-                  _otpFocus[i + 1].requestFocus();
-                }
-                if (v.isEmpty && i > 0) {
-                  _otpFocus[i - 1].requestFocus();
-                }
-                // Auto-submit when all 4 filled
+                if (v.isNotEmpty && i < 3) _otpFocus[i + 1].requestFocus();
+                if (v.isEmpty   && i > 0) _otpFocus[i - 1].requestFocus();
                 if (_otpValue.length == 4) {
                   Future.delayed(
-                    const Duration(milliseconds: 150),
-                    _verifyOtp,
-                  );
+                    const Duration(milliseconds: 150), _advanceFromOtp);
                 }
                 setState(() {});
               },
@@ -439,13 +401,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
 
           const SizedBox(height: 28),
           GradientButton(
-            label: 'Verify Code',
+            label: 'Continue',
+            icon: Icons.arrow_forward_rounded,
             isLoading: _isLoading,
-            onPressed: _otpValue.length == 4 ? _verifyOtp : null,
+            onPressed: _otpValue.length == 4 ? _advanceFromOtp : null,
           ),
           const SizedBox(height: 20),
 
-          // Resend row
+          // Resend
           Center(
             child: _canResend
                 ? GestureDetector(
@@ -468,12 +431,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
                       ),
                     ),
                   )
-                : Text(
-                    'Resend in ${_resendCooldown}s',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-                  ),
+                : Text('Resend in ${_resendCooldown}s',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textMuted)),
           ),
           const SizedBox(height: 32),
         ],
@@ -496,16 +456,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
             child: Column(children: [
               AppTextField(
                 label: 'New password',
-                hint: 'Min 6 characters',
+                hint: 'Min 12 chars, A-Z, 0-9, symbol',
                 controller: _newPassCtrl,
                 isPassword: !_newPassVisible,
                 prefixIconData: Icons.lock_outline,
                 textInputAction: TextInputAction.next,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Password is required';
-                  if (v.length < 6) return 'Min 6 characters';
-                  return null;
-                },
+                onChanged: (_) => setState(() {}),
+                validator: _validatePassword,
               ),
               Align(
                 alignment: Alignment.centerRight,
@@ -519,7 +476,30 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+
+              // Strength bar
+              if (_newPassCtrl.text.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _strength / 4,
+                        minHeight: 4,
+                        backgroundColor: AppColors.border,
+                        valueColor: AlwaysStoppedAnimation(_strengthColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(_strengthLabel,
+                      style: AppTextStyles.caption.copyWith(
+                          color: _strengthColor, fontWeight: FontWeight.w600)),
+                ]),
+              ],
+              const SizedBox(height: 16),
+
               AppTextField(
                 label: 'Confirm new password',
                 hint: 'Re-enter your password',
@@ -547,15 +527,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
               ),
             ]),
           ),
+          const SizedBox(height: 16),
 
-          // Password strength hint
+          // Requirements hint
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.2)),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,7 +545,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Use at least 6 characters with a mix of letters and numbers for a stronger password.',
+                    'Required: at least 12 characters, one uppercase (A–Z), '
+                    'one lowercase (a–z), one number (0–9), and one special character (!@#\$%^&* etc.).',
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.primaryLight),
                   ),
@@ -599,22 +580,21 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final steps = [_Step.phone, _Step.otp, _Step.newPassword];
-    final labels = ['Phone', 'Verify', 'Password'];
+    const steps  = _Step.values;
+    const labels = ['Phone', 'Verify', 'Password'];
 
     return Row(
       children: List.generate(steps.length * 2 - 1, (i) {
         if (i.isOdd) {
-          // Connector line
-          final leftDone = steps[i ~/ 2].index < current.index;
+          final done = steps[i ~/ 2].index < current.index;
           return Expanded(
             child: Container(
               height: 2,
               decoration: BoxDecoration(
-                gradient: leftDone
+                gradient: done
                     ? const LinearGradient(colors: AppColors.buttonGradient)
                     : null,
-                color: leftDone ? null : AppColors.border,
+                color: done ? null : AppColors.border,
                 borderRadius: BorderRadius.circular(1),
               ),
             ),
@@ -623,7 +603,6 @@ class _StepIndicator extends StatelessWidget {
         final step     = steps[i ~/ 2];
         final isDone   = step.index < current.index;
         final isActive = step == current;
-        final num      = (i ~/ 2) + 1;
 
         return Column(
           children: [
@@ -633,8 +612,7 @@ class _StepIndicator extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: isActive || isDone
-                    ? const LinearGradient(
-                        colors: AppColors.buttonGradient)
+                    ? const LinearGradient(colors: AppColors.buttonGradient)
                     : null,
                 color: isActive || isDone ? null : AppColors.bgCard,
                 border: Border.all(
@@ -648,7 +626,7 @@ class _StepIndicator extends StatelessWidget {
                     ? const Icon(Icons.check_rounded,
                         size: 16, color: Colors.white)
                     : Text(
-                        '$num',
+                        '${(i ~/ 2) + 1}',
                         style: AppTextStyles.caption.copyWith(
                           color: isActive
                               ? Colors.white
@@ -668,8 +646,7 @@ class _StepIndicator extends StatelessWidget {
                         ? AppColors.textSecondary
                         : AppColors.textMuted,
                 fontSize: 10,
-                fontWeight:
-                    isActive ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],
@@ -728,7 +705,7 @@ class _OtpBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 60, height: 64,
+        width: 62, height: 68,
         margin: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: AppColors.bgCard,
@@ -744,9 +721,9 @@ class _OtpBox extends StatelessWidget {
         ),
         child: TextField(
           controller: controller,
-          focusNode: focusNode,
-          onChanged: onChanged,
-          textAlign: TextAlign.center,
+          focusNode:  focusNode,
+          onChanged:  onChanged,
+          textAlign:  TextAlign.center,
           keyboardType: TextInputType.number,
           maxLength: 1,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -771,19 +748,15 @@ class _ErrorBanner extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.error.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: AppColors.error.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
         ),
         child: Row(children: [
           const Icon(Icons.error_outline_rounded,
               size: 15, color: AppColors.error),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.error),
-            ),
+            child: Text(message,
+                style: AppTextStyles.caption.copyWith(color: AppColors.error)),
           ),
         ]),
       );

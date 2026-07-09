@@ -6,22 +6,27 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 
-class QrScreen extends ConsumerWidget {
+class QrScreen extends ConsumerStatefulWidget {
   const QrScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QrScreen> createState() => _QrScreenState();
+}
+
+class _QrScreenState extends ConsumerState<QrScreen> {
+  // ── Build ─────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
 
-    // phone is the primary key used by the employee scanner to look up the member
     final qrData = jsonEncode({
       'phone': user.phone,
       'name': user.name,
       'ts': DateTime.now().millisecondsSinceEpoch,
     });
 
-    // FIX 1: Safe substring — clamp to actual string length to avoid RangeError
     final rawId = user.id.toUpperCase();
     final shortId = rawId.substring(0, rawId.length.clamp(0, 8));
 
@@ -30,11 +35,11 @@ class QrScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(children: [
 
-          // ── Header with back button ───────────────────────────────
+          // ── Header ────────────────────────────────────────────────────────
           const Padding(
             padding: EdgeInsets.fromLTRB(4, 16, 16, 0),
             child: Row(children: [
-             SizedBox(width: 15),
+              SizedBox(width: 15),
               Text('My QR Code', style: AppTextStyles.h3),
             ]),
           ),
@@ -54,8 +59,6 @@ class QrScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Text(user.name, style: AppTextStyles.h4),
                 const SizedBox(height: 4),
-
-                // FIX 1 applied: use safe shortId instead of raw substring(0, 8)
                 Text('Member ID: #$shortId', style: AppTextStyles.caption),
                 const SizedBox(height: 24),
 
@@ -88,23 +91,46 @@ class QrScreen extends ConsumerWidget {
                   ]),
                 ),
                 const SizedBox(height: 8),
-                const Text('Tap to refresh', style: AppTextStyles.caption),
+                const Text('Show to staff to earn or redeem points',
+                    style: AppTextStyles.caption),
                 const SizedBox(height: 20),
 
-                // Points summary bar
-              
-
-                // Info box
+                // ── Redemption hint ───────────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2)),
+                    color: AppColors.bgCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
                   ),
-                 
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.redeem_rounded,
+                          size: 18, color: AppColors.primaryLight),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Redeeming points?',
+                              style: AppTextStyles.labelMedium),
+                          SizedBox(height: 3),
+                          Text(
+                            'Show this QR code to staff. They will scan it and complete the redemption for you.',
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ]),
                 ),
+
                 const SizedBox(height: 24),
               ]),
             ),
@@ -115,7 +141,8 @@ class QrScreen extends ConsumerWidget {
   }
 }
 
-// ── Corner bracket overlay (FIXED — was _Corner with all sides none) ─────────
+// ── Corner bracket overlay ────────────────────────────────────────────────────
+
 class _CornerBracket extends StatelessWidget {
   final double? top, left, right, bottom;
   final bool tl, tr, bl, br;
@@ -156,4 +183,3 @@ class _CornerBracket extends StatelessWidget {
     );
   }
 }
-

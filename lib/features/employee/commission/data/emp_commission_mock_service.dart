@@ -1,6 +1,5 @@
 // lib/features/employee/commission/data/emp_commission_mock_service.dart
 
-import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'emp_commission_api_service.dart';
 
@@ -9,10 +8,7 @@ class EmpCommissionMockService implements IEmpCommissionService {
   static final EmpCommissionMockService instance = EmpCommissionMockService._();
 
   late final List<SaleEntry> _all = kMockCommissionSales
-      .map((m) => SaleEntry.fromJson(
-            Map<String, dynamic>.from(m),
-            commissionRate: kCommissionRate,
-          ))
+      .map((m) => SaleEntry.fromJson(Map<String, dynamic>.from(m)))
       .toList();
 
   @override
@@ -28,7 +24,7 @@ class EmpCommissionMockService implements IEmpCommissionService {
     final totalSales = sales.fold<double>(0, (sum, s) => sum + s.saleAmount);
     return MonthlySummary(
       month:            month,
-      totalCommission:  totalSales * kCommissionRate,
+      totalCommission:  sales.fold<double>(0, (sum, s) => sum + s.commission),
       totalSales:       totalSales,
       transactionCount: sales.length,
       uniqueCustomers:  sales.map((s) => s.customerName).toSet().length,

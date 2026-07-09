@@ -578,12 +578,6 @@ class _TodayScanTile extends StatelessWidget {
                     value: 'LKR ${formatAmount(scan.saleAmount)}'),
                 _ScanDivider(),
                 _ScanDetailRow(
-                    icon: Icons.stars_rounded,
-                    label: 'Points earned',
-                    value: '${scan.points} pts',
-                    valueColor: const Color(0xFFFFD700)),
-                _ScanDivider(),
-                _ScanDetailRow(
                     icon: Icons.calendar_today_rounded,
                     label: 'Date',
                     value: scan.date),
@@ -598,6 +592,13 @@ class _TodayScanTile extends StatelessWidget {
                     label: 'Commission',
                     value: 'LKR ${formatAmount(scan.commission)}',
                     valueColor: Colors.greenAccent),
+                if (scan.documentNumber.isNotEmpty) ...[
+                  _ScanDivider(),
+                  _ScanDetailRow(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Document No',
+                      value: scan.documentNumber),
+                ],
               ]),
             ),
             const SizedBox(height: 16),

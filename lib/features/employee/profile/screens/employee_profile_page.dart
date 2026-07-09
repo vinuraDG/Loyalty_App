@@ -2,13 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loyalty_app/customer/profile/screens/change_password_screen.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../models/user_model.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/screens/login_screen.dart';
 import '../data/emp_profile_api_service.dart';
+import 'change_password_page.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
   final UserModel employee;
@@ -143,7 +143,7 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const ChangePasswordScreen()),
+                          builder: (_) => const ChangePasswordPage()),
                     ),
                   ),
                 ]),
