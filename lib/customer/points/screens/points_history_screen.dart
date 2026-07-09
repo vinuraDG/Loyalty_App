@@ -496,7 +496,7 @@ class _Header extends StatelessWidget {
                               letterSpacing: 0.3,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const Spacer(),
                           _MiniStatLine(
                             label: 'Earn',
                             value: '+${fmtFn(totalEarned)}',
@@ -508,6 +508,7 @@ class _Header extends StatelessWidget {
                             value: '-${fmtFn(totalRedeemed)}',
                             color: const Color(0xFFFCA5A5),
                           ),
+                          const Spacer(),
                         ],
                       ),
                     ),
