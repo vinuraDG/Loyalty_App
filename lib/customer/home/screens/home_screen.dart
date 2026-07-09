@@ -348,18 +348,36 @@ Future<void> _loadPoints(String userId) async {
 
                         const SizedBox(width: 12),
 
-                        // Right — weekly bar chart
+                        // Right — this week total + bar chart
                         Expanded(
                           flex: 5,
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text('Last 7 days',
-                                  style: TextStyle(
-                                      fontSize: 10,
-                                      color:
-                                          Colors.white.withValues(alpha: 0.5),
-                                      letterSpacing: 0.3)),
+                              // "This week" label aligned with "Total points"
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.calendar_view_week_rounded,
+                                        size: 11,
+                                        color: Colors.white.withValues(alpha: 0.55)),
+                                    const SizedBox(width: 4),
+                                    Text('This week  ',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.white.withValues(alpha: 0.55))),
+                                    Text(
+                                      '${formatPoints(_weeklyPts.fold(0, (s, v) => s + v))} pts',
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                  ],
+                                ),
+                              ),
                               const SizedBox(height: 6),
                               SizedBox(
                                 height: 90,
