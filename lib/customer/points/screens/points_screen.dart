@@ -290,16 +290,18 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     value: '-${formatPoints(totalRedeemed)} pts',
                     valueColor: AppColors.error,
                   ),
-                  if (totalExpired > 0) ...[
-                    _BizDetailDivider(),
-                    _BizDetailRow(
-                      icon: Icons.timer_off_rounded,
-                      iconColor: const Color(0xFFFBBF24),
-                      label: 'Expiring points',
-                      value: '${formatPoints(totalExpired)} pts',
-                      valueColor: const Color(0xFFFBBF24),
-                    ),
-                  ],
+                  _BizDetailDivider(),
+                  _BizDetailRow(
+                    icon: Icons.timer_off_rounded,
+                    iconColor: totalExpired > 0
+                        ? const Color(0xFFFBBF24)
+                        : Colors.white38,
+                    label: 'Expiring points',
+                    value: '${formatPoints(totalExpired)} pts',
+                    valueColor: totalExpired > 0
+                        ? const Color(0xFFFBBF24)
+                        : Colors.white38,
+                  ),
                   _BizDetailDivider(),
                   _BizDetailRow(
                     icon: Icons.account_balance_wallet_rounded,
