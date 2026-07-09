@@ -426,86 +426,88 @@ class _Header extends StatelessWidget {
                   ),
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Left — balance hero
-                    Expanded(
-                      flex: 5,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            Icon(Icons.account_balance_wallet_rounded,
-                                size: 13,
-                                color: Colors.white.withValues(alpha: 0.55)),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Current Balance',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.55),
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: 0.2,
-                              ),
+                    // Top row: Current Balance (left) + Summary (right)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(children: [
+                          Icon(Icons.account_balance_wallet_rounded,
+                              size: 13,
+                              color: Colors.white.withValues(alpha: 0.55)),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Current Balance',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.55),
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 0.2,
                             ),
-                          ]),
-                          const SizedBox(height: 25),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                fmtFn(balance),
-                                style: AppTextStyles.display
-                                    .copyWith(fontSize: 42),
-                              ),
-                              const SizedBox(width: 6),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 7),
-                                child: Text(
-                                  'pts',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.white.withValues(alpha: 0.6),
-                                    fontWeight: FontWeight.w500,
+                          ),
+                        ]),
+                        Text(
+                          'Summary',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Bottom: value (left) + stats (right), vertically centered
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  fmtFn(balance),
+                                  style: AppTextStyles.display
+                                      .copyWith(fontSize: 42),
+                                ),
+                                const SizedBox(width: 6),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 7),
+                                  child: Text(
+                                    'pts',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.white.withValues(alpha: 0.6),
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // Right — compact stat lines
-                    Expanded(
-                      flex: 5,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Summary',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white.withValues(alpha: 0.5),
-                              letterSpacing: 0.3,
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          _MiniStatLine(
-                            label: 'Earn',
-                            value: '+${fmtFn(totalEarned)}',
-                            color: const Color(0xFFA7F3D0),
-                          ),
-                          const SizedBox(height: 6),
-                          _MiniStatLine(
-                            label: 'Redeem',
-                            value: '-${fmtFn(totalRedeemed)}',
-                            color: const Color(0xFFFCA5A5),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 5,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _MiniStatLine(
+                                  label: 'Earn',
+                                  value: '+${fmtFn(totalEarned)}',
+                                  color: const Color(0xFFA7F3D0),
+                                ),
+                                const SizedBox(height: 6),
+                                _MiniStatLine(
+                                  label: 'Redeem',
+                                  value: '-${fmtFn(totalRedeemed)}',
+                                  color: const Color(0xFFFCA5A5),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
