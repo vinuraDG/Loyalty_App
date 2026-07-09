@@ -150,6 +150,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           builder: (_) => const ChangePasswordScreen()),
                     ),
                   ),
+                  _MenuItem(
+                    icon: Icons.delete_forever_rounded,
+                    label: 'Delete Account',
+                    color: AppColors.error,
+                    textColor: AppColors.error,
+                    onTap: () => _deleteAccount(context, ref),
+                  ),
                 ]),
                 const SizedBox(height: 12),
                 _MenuSection(title: 'Support', items: [
@@ -174,13 +181,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     color: AppColors.error,
                     textColor: AppColors.error,
                     onTap: () => _signOut(context, ref),
-                  ),
-                  _MenuItem(
-                    icon: Icons.delete_forever_rounded,
-                    label: 'Delete Account',
-                    color: AppColors.error,
-                    textColor: AppColors.error,
-                    onTap: () => _deleteAccount(context, ref),
                   ),
                 ]),
                 const SizedBox(height: 24),
