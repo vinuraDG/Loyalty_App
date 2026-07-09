@@ -1064,37 +1064,50 @@ class _BizCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: color.withValues(alpha: 0.5)),
           ),
-          child: Column(children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             Text(
               _label,
               style: AppTextStyles.caption.copyWith(
                 color: color,
                 fontWeight: FontWeight.w600,
               ),
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.left,
               maxLines: 2,
               softWrap: true,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 6),
-            Text(formatPoints(pts), style: AppTextStyles.h4),
-            const Text('pts', style: AppTextStyles.caption),
+            const SizedBox(height: 8),
+            Text(
+              formatPoints(pts),
+              style: AppTextStyles.h4,
+              textAlign: TextAlign.right,
+            ),
+            Text(
+              'pts',
+              style: AppTextStyles.caption,
+              textAlign: TextAlign.right,
+            ),
             if (expiredPts > 0) ...[
               const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5, vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFBBF24).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '-${formatPoints(expiredPts)} exp',
-                  style: AppTextStyles.caption.copyWith(
-                    color: const Color(0xFFFBBF24),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
+              Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5, vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBBF24).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '-${formatPoints(expiredPts)} exp',
+                    style: AppTextStyles.caption.copyWith(
+                      color: const Color(0xFFFBBF24),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
