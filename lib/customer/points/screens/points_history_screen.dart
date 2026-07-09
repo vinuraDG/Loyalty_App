@@ -433,7 +433,7 @@ class _Header extends StatelessWidget {
                     Expanded(
                       flex: 5,
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(children: [
