@@ -1,11 +1,11 @@
 class CompanyModel {
-  final int    id;
+  final int    Id;
   final String name;        // full name from backend Name field
   final String displayName; // short name from backend DisplayName field
   final String phoneNo;     // company phone number from backend PhoneNo field
 
   const CompanyModel({
-    required this.id,
+    required this.Id,
     required this.name,
     required this.displayName,
     this.phoneNo = '',
@@ -15,10 +15,11 @@ class CompanyModel {
     final name = (m['Name'] ?? m['CompanyName'] ?? m['name'] ?? '').toString().trim();
     final raw  = (m['DisplayName'] ?? m['displayName'] ?? '').toString().trim();
     final fallback = name.isNotEmpty ? name : 'Company ${fallbackIndex + 1}';
-    final rawId = m['CompanyId'] ?? m['Id'] ?? m['id'] ?? m['companyId'];
-    final id = rawId != null ? (int.tryParse(rawId.toString()) ?? fallbackIndex) : fallbackIndex;
+
+    final idRaw = m['Id'] ;
+    final Id = idRaw is int ? idRaw : int.tryParse(idRaw.toString()) ?? 0;
     return CompanyModel(
-      id:          id,
+      Id:          Id,
       name:        fallback,
       displayName: raw.isNotEmpty ? raw : fallback,
       phoneNo:     (m['PhoneNo'] ?? m['Phone'] ?? m['phoneNo'] ?? '').toString().trim(),
@@ -26,5 +27,5 @@ class CompanyModel {
   }
 
   @override
-  String toString() => 'CompanyModel(id: $id, name: $name, displayName: $displayName, phoneNo: $phoneNo)';
+  String toString() => 'CompanyModel(Id: $Id, name: $name, displayName: $displayName, phoneNo: $phoneNo)';
 }
