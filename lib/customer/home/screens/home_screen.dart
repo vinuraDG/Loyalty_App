@@ -854,9 +854,13 @@ class _TxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _txColor();
-    final name = tx.businessFullName?.isNotEmpty == true
-        ? tx.businessFullName!
-        : tx.business;
+    final name = tx.isRedeemed
+        ? (tx.redeemCompanyFullName?.isNotEmpty == true
+            ? tx.redeemCompanyFullName!
+            : tx.redeemCompanyName ?? tx.business)
+        : (tx.businessFullName?.isNotEmpty == true
+            ? tx.businessFullName!
+            : tx.business);
     final local = tx.date.toLocal();
     final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
     const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
