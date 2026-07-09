@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/screens/login_screen.dart';
+import '../../../core/providers/refresh_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final IProfileService? service; // injectable for testing
@@ -37,6 +38,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _refresh() async {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId == null) return;
+    await appRefresh(ref);
     final newFuture = _svc.getProfileSummary(userId);
     setState(() => _summaryFuture = newFuture);
     await newFuture;
@@ -51,6 +53,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
+    ref.listen<int>(appRefreshKeyProvider, (_, __) => _refresh());
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,

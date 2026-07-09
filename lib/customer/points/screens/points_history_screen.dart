@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
+import 'package:loyalty_app/core/providers/refresh_provider.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
@@ -7,7 +9,7 @@ import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 // ── Tab options ───────────────────────────────────────────────────────────────
 enum _Tab { all, earned, redeemed, expired }
 
-class PointsHistoryScreen extends StatefulWidget {
+class PointsHistoryScreen extends ConsumerStatefulWidget {
   final String userId;
   final IPointsService? service;
 
@@ -18,10 +20,10 @@ class PointsHistoryScreen extends StatefulWidget {
   });
 
   @override
-  State<PointsHistoryScreen> createState() => _PointsHistoryScreenState();
+  ConsumerState<PointsHistoryScreen> createState() => _PointsHistoryScreenState();
 }
 
-class _PointsHistoryScreenState extends State<PointsHistoryScreen>
+class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
     with SingleTickerProviderStateMixin {
   _Tab _activeTab = _Tab.all;
   String? _selectedBusiness; // null = all companies
@@ -51,6 +53,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
   }
 
   Future<void> _refresh() async {
+    await appRefresh(ref);
     final newFuture = _svc.getTransactions(widget.userId);
     setState(() => _txFuture = newFuture);
     await newFuture;
@@ -134,6 +137,8 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(appRefreshKeyProvider, (_, __) => _refresh());
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: FutureBuilder<List<TransactionModel>>(

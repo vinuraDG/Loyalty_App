@@ -10,6 +10,7 @@ import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
+import 'package:loyalty_app/core/providers/refresh_provider.dart';
 import 'main_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -156,13 +157,17 @@ Future<void> _loadPoints(String userId) async {
       );
     }
 
+    ref.listen<int>(appRefreshKeyProvider, (_, __) {
+      _fetchHomeData(user.id);
+    });
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.bgCard,
-          onRefresh: () => _fetchHomeData(user.id),
+          onRefresh: () => appRefresh(ref).then((_) => _fetchHomeData(user.id)),
           child: SingleChildScrollView(
             // Ensure RefreshIndicator can trigger even when content is short.
             physics: const AlwaysScrollableScrollPhysics(),

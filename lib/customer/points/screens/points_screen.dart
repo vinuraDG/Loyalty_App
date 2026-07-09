@@ -9,6 +9,7 @@ import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/models/company_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../core/providers/refresh_provider.dart';
 import '../../home/screens/main_screen.dart';
 
 // ── Color palette cycling for dynamic companies ────────────────────────────────
@@ -106,7 +107,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   Future<void> _refresh() async {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId == null) return;
-    CompaniesApiService.instance.clearCache();
+    await appRefresh(ref);
     final newFuture = _loadAll(userId);
     setState(() => _txFuture = newFuture);
     await newFuture;
@@ -378,6 +379,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(currentUserProvider);
+    ref.listen<int>(appRefreshKeyProvider, (_, __) => _refresh());
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
