@@ -31,6 +31,12 @@ Color _colorForCompany(String name, int index) {
   return _kCompanyColors[index % _kCompanyColors.length];
 }
 
+String _fmtExpDate(DateTime d) {
+  final l = d.toLocal();
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return '${l.day} ${mo[l.month - 1]} ${l.year}';
+}
+
 // ── Screen ─────────────────────────────────────────────────────────────────────
 
 class PointsScreen extends ConsumerStatefulWidget {
@@ -549,13 +555,18 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
                 // ── Per-business expiring (all future expiry dates)
                 final byBizExpiring = <String, int>{};
+                DateTime? nearestExpiry;
                 for (final t in allTxs) {
                   if (t.isEarned &&
                       t.expiryDate != null &&
-                      t.expiryDate!.isAfter(DateTime.now()) &&
+                      t.expiryDate!.isBefore(DateTime.now()) &&
                       (t.expiringBalance ?? 0) > 0) {
                     byBizExpiring[t.business] =
                         (byBizExpiring[t.business] ?? 0) + t.expiringBalance!;
+                    if (nearestExpiry == null ||
+                        t.expiryDate!.isBefore(nearestExpiry)) {
+                      nearestExpiry = t.expiryDate;
+                    }
                   }
                 }
                 final totalExpiring = byBizExpiring.values
@@ -701,7 +712,9 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                     iconColor: totalExpiring > 0
                                         ? const Color(0xFFFBBF24)
                                         : Colors.white38,
-                                    label: 'Expiring',
+                                    label: nearestExpiry != null
+                                        ? _fmtExpDate(nearestExpiry!)
+                                        : 'Expiring',
                                     value: formatPoints(totalExpiring),
                                     valueColor: totalExpiring > 0
                                         ? const Color(0xFFFBBF24)

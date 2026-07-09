@@ -213,7 +213,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
               _Tab.redeemed => t.isRedeemed,
               _Tab.expired => t.isEarned &&
                   t.expiryDate != null &&
-                  t.expiryDate!.isAfter(DateTime.now()) &&
+                  t.expiryDate!.isBefore(DateTime.now()) &&
                   (t.expiringBalance ?? 0) > 0,
               _Tab.all => true,
             };
@@ -286,7 +286,7 @@ class _PointsHistoryScreenState extends State<PointsHistoryScreen>
                   expiredCount: allTxs.where((t) =>
                       t.isEarned &&
                       t.expiryDate != null &&
-                      t.expiryDate!.isAfter(DateTime.now()) &&
+                      t.expiryDate!.isBefore(DateTime.now()) &&
                       (t.expiringBalance ?? 0) > 0 &&
                       (_selectedBusiness == null || t.business == _selectedBusiness)).length,
                   onTabChanged: (t) => setState(() => _activeTab = t),
