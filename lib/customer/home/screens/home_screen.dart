@@ -27,6 +27,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   int _totalPoints = 0;
   List<int> _weeklyPts = List.filled(7, 0);
   List<TransactionModel> _recentTxs = [];
+  int _expiringPoints = 0;
+  DateTime? _nearestExpiry;
 
   // Track which user's data is currently loaded to avoid redundant fetches.
   String? _loadedUserId;
@@ -103,7 +105,27 @@ Future<void> _loadPoints(String userId) async {
           })
           .take(3)
           .toList();
-      if (mounted) setState(() => _recentTxs = todayTxs);
+
+      // Compute expiring points from all future expiry earn entries
+      int expiring = 0;
+      DateTime? nearest;
+      for (final t in txs) {
+        if (t.isEarned &&
+            t.expiryDate != null &&
+            t.expiryDate!.isAfter(today) &&
+            (t.expiringBalance ?? 0) > 0) {
+          expiring += t.expiringBalance!;
+          if (nearest == null || t.expiryDate!.isBefore(nearest)) {
+            nearest = t.expiryDate;
+          }
+        }
+      }
+
+      if (mounted) setState(() {
+        _recentTxs = todayTxs;
+        _expiringPoints = expiring;
+        _nearestExpiry = nearest;
+      });
     } catch (_) {}
   }
 
@@ -131,6 +153,13 @@ Future<void> _loadPoints(String userId) async {
       buffer.write(str[i]);
     }
     return pts < 0 ? '-${buffer.toString()}' : buffer.toString();
+  }
+
+  String _fmtHomeExpiry(DateTime? d) {
+    if (d == null) return '';
+    final l = d.toLocal();
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${l.day} ${m[l.month - 1]} ${l.year}';
   }
 
   void _navTo(BuildContext context, int idx) {
@@ -272,7 +301,7 @@ Future<void> _loadPoints(String userId) async {
                   ),
                   child: Container(
                     width: double.infinity,
-                    height: 160,
+                    height: 180,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
@@ -330,17 +359,40 @@ Future<void> _loadPoints(String userId) async {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 8),
                               Row(children: [
-                                const Icon(Icons.history_rounded,
-                                    size: 13, color: Color(0xFFA7F3D0)),
+                                Icon(Icons.timer_off_rounded,
+                                    size: 13,
+                                    color: _expiringPoints > 0
+                                        ? const Color(0xFFFBBF24)
+                                        : Colors.white.withValues(alpha: 0.4)),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _expiringPoints > 0
+                                        ? '${formatPoints(_expiringPoints)} pts exp ${_fmtHomeExpiry(_nearestExpiry)}'
+                                        : 'No expiring points',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: _expiringPoints > 0
+                                            ? const Color(0xFFFBBF24)
+                                            : Colors.white.withValues(alpha: 0.4),
+                                        fontWeight: _expiringPoints > 0
+                                            ? FontWeight.w600
+                                            : FontWeight.w400),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ]),
+                              const SizedBox(height: 4),
+                              Row(children: [
+                                Icon(Icons.history_rounded,
+                                    size: 11, color: Colors.white.withValues(alpha: 0.35)),
                                 const SizedBox(width: 4),
                                 Text('Tap to view history',
                                     style: TextStyle(
-                                        fontSize: 11,
-                                        color:
-                                            Colors.white.withValues(alpha: 0.5),
-                                        fontWeight: FontWeight.w400)),
+                                        fontSize: 10,
+                                        color: Colors.white.withValues(alpha: 0.35))),
                               ]),
                             ],
                           ),

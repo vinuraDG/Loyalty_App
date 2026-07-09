@@ -31,6 +31,12 @@ Color _colorForCompany(String name, int index) {
   return _kCompanyColors[index % _kCompanyColors.length];
 }
 
+String _fmtExpiry(DateTime d) {
+  final l = d.toLocal();
+  const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return '${l.day} ${m[l.month - 1]} ${l.year}';
+}
+
 // ── Screen ─────────────────────────────────────────────────────────────────────
 
 class PointsScreen extends ConsumerStatefulWidget {
@@ -547,16 +553,19 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   // Expiring is informational only — not subtracted from net.
                 };
 
-                // ── Per-business expiring within the next 7 days
-                final _expiryThreshold = DateTime.now().add(const Duration(days: 7));
+                // ── Per-business expiring (all future expiry dates)
                 final byBizExpiring = <String, int>{};
+                DateTime? nearestExpiry;
                 for (final t in allTxs) {
                   if (t.isEarned &&
                       t.expiryDate != null &&
-                      t.expiryDate!.isBefore(_expiryThreshold) &&
+                      t.expiryDate!.isAfter(DateTime.now()) &&
                       (t.expiringBalance ?? 0) > 0) {
                     byBizExpiring[t.business] =
                         (byBizExpiring[t.business] ?? 0) + t.expiringBalance!;
+                    if (nearestExpiry == null || t.expiryDate!.isBefore(nearestExpiry)) {
+                      nearestExpiry = t.expiryDate;
+                    }
                   }
                 }
                 final totalExpiring = byBizExpiring.values
@@ -696,16 +705,18 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                         : '-0',
                                     valueColor: AppColors.error,
                                   ),
-                                  if (totalExpiring > 0) ...[
-                                    const SizedBox(height: 14),
-                                    _CardStatRow(
-                                      icon: Icons.timer_off_rounded,
-                                      iconColor: const Color(0xFFFBBF24),
-                                      label: 'Expiring',
-                                      value: '+${formatPoints(totalExpiring)}',
-                                      valueColor: const Color(0xFFFBBF24),
-                                    ),
-                                  ],
+                                  const SizedBox(height: 14),
+                                  _CardStatRow(
+                                    icon: Icons.timer_off_rounded,
+                                    iconColor: const Color(0xFFFBBF24),
+                                    label: nearestExpiry != null
+                                        ? 'Exp ${_fmtExpiry(nearestExpiry)}'
+                                        : 'Expiring',
+                                    value: formatPoints(totalExpiring),
+                                    valueColor: totalExpiring > 0
+                                        ? const Color(0xFFFBBF24)
+                                        : Colors.white38,
+                                  ),
                                 ],
                               ),
                             ),
