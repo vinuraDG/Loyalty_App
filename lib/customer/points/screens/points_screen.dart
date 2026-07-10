@@ -586,7 +586,8 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 final txs = monthTxs
                     .where((t) => !t.isExpired)
                     .where((t) => _filter == 'All' || t.business == _filter)
-                    .toList();
+                    .toList()
+                  ..sort((a, b) => b.date.compareTo(a.date));
 
                 return RefreshIndicator(
                   color: AppColors.primary,
@@ -1431,6 +1432,16 @@ class _TxCard extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(children: [
+                if (tx.billNo != null &&
+                    tx.billNo!.isNotEmpty &&
+                    tx.billNo != '-') ...[
+                  _DetailRow(
+                    icon: Icons.receipt_long_rounded,
+                    label: 'Document No',
+                    value: tx.billNo!,
+                  ),
+                  _TxDivider(),
+                ],
                 _DetailRow(
                   icon: Icons.store_rounded,
                   label: 'Earn Company',
@@ -1477,16 +1488,6 @@ class _TxCard extends StatelessWidget {
                   label: 'Time',
                   value: _fmtTime(tx.date),
                 ),
-                if (tx.billNo != null &&
-                    tx.billNo!.isNotEmpty &&
-                    tx.billNo != '-') ...[
-                  _TxDivider(),
-                  _DetailRow(
-                    icon: Icons.receipt_long_rounded,
-                    label: 'Document No',
-                    value: tx.billNo!,
-                  ),
-                ],
                 if (tx.note != null && tx.note!.isNotEmpty) ...[
                   _TxDivider(),
                   _DetailRow(
