@@ -2,13 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/features/employee/home/screens/employee_dashboard_screen.dart';
-import 'package:loyalty_app/features/employee/employee_screens.dart';
 import 'package:loyalty_app/customer/home/screens/main_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
 import 'signup_screen.dart';
-import 'otp_screen.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -18,14 +16,10 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tab;
-  final _emailFormKey = GlobalKey<FormState>();
-  final _phoneFormKey = GlobalKey<FormState>();
-  final _emailCtrl    = TextEditingController();
-  final _passCtrl     = TextEditingController();
-  final _phoneCtrl    = TextEditingController();
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey   = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl  = TextEditingController();
 
   final List<String> _logoAssets = [
     'assets/images/logo 1.png',
@@ -34,17 +28,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _tab = TabController(length: 2, vsync: this);
-  }
-
-  @override
   void dispose() {
-    _tab.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
-    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -67,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _signIn() async {
-    if (!_emailFormKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
     await ref.read(authProvider.notifier).signInWithEmail(
@@ -83,24 +69,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } else if (auth.errorMessage != null) {
       _showError(auth.errorMessage!);
       ref.read(authProvider.notifier).clearError();
-    }
-  }
-
-  Future<void> _sendOtp() async {
-    if (!_phoneFormKey.currentState!.validate()) return;
-    FocusScope.of(context).unfocus();
-
-    await ref.read(authProvider.notifier).sendOtp(_phoneCtrl.text.trim());
-
-    if (!mounted) return;
-    final auth = ref.read(authProvider);
-
-    if (auth.errorMessage != null) {
-      _showError(auth.errorMessage!);
-      ref.read(authProvider.notifier).clearError();
-    } else {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const OtpScreen()));
     }
   }
 
@@ -151,162 +119,72 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               const SizedBox(height: 20),
 
               _PartnerLogosStrip(logos: _logoAssets),
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
 
-              Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.bgInput,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TabBar(
-                  controller: _tab,
-                  indicator: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: AppColors.buttonGradient),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  labelStyle: AppTextStyles.labelMedium,
-                  unselectedLabelStyle: AppTextStyles.bodyMedium
-                      .copyWith(color: AppColors.textMuted),
-                  labelColor: AppColors.textPrimary,
-                  unselectedLabelColor: AppColors.textMuted,
-                  tabs: const [
-                    Tab(text: 'Password'),
-                    Tab(text: 'OTP'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              SizedBox(
-                height: 290,
-                child: TabBarView(
-                  controller: _tab,
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                    // ── Phone / Email + Password ──────────────────────
-                    Form(
-                      key: _emailFormKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AppTextField(
-                            label: 'Phone number or Email',
-                            hint: '07X XXX XXXX or you@example.com',
-                            controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            prefixIconData: Icons.person_outline,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Phone number or email is required';
-                              }
-                              final val = v.trim();
-                              final isEmail = val.contains('@');
-                              if (isEmail) {
-                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(val)) {
-                                  return 'Enter a valid email address';
-                                }
-                              } else {
-                                if (!RegExp(r'^0[0-9]{9}$').hasMatch(val)) {
-                                  return 'Enter a valid 10-digit phone number (e.g. 07XXXXXXXX)';
-                                }
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          AppTextField(
-                            label: 'Password',
-                            hint: 'Enter your password',
-                            controller: _passCtrl,
-                            isPassword: true,
-                            textInputAction: TextInputAction.done,
-                            prefixIconData: Icons.lock_outline,
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return 'Password is required';
-                              if (v.length < 6) return 'Password must be at least 6 characters';
-                              return null;
-                            },
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const ForgotPasswordScreen()),
-                              ),
-                              child: const Text('Forgot password?'),
-                            ),
-                          ),
-                          GradientButton(
-                            label: 'Sign In',
-                            isLoading: auth.isLoading,
-                            onPressed: _signIn,
-                          ),
-                        ],
+                    AppTextField(
+                      label: 'Phone number or Email',
+                      hint: '07X XXX XXXX or you@example.com',
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIconData: Icons.person_outline,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Phone number or email is required';
+                        }
+                        final val = v.trim();
+                        final isEmail = val.contains('@');
+                        if (isEmail) {
+                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(val)) {
+                            return 'Enter a valid email address';
+                          }
+                        } else {
+                          if (!RegExp(r'^0[0-9]{9}$').hasMatch(val)) {
+                            return 'Enter a valid 10-digit phone number (e.g. 07XXXXXXXX)';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Password',
+                      hint: 'Enter your password',
+                      controller: _passCtrl,
+                      isPassword: true,
+                      textInputAction: TextInputAction.done,
+                      prefixIconData: Icons.lock_outline,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Password is required';
+                        if (v.length < 6) return 'Password must be at least 6 characters';
+                        return null;
+                      },
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordScreen()),
+                        ),
+                        child: const Text('Forgot password?'),
                       ),
                     ),
-
-                    // ── OTP tab ───────────────────────────────────────
-                    Form(
-                      key: _phoneFormKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AppTextField(
-                            label: 'Phone number',
-                            hint: '07X XXX XXXX',
-                            controller: _phoneCtrl,
-                            keyboardType: TextInputType.phone,
-                            maxLength: 10,
-                            textInputAction: TextInputAction.done,
-                            prefixIconData: Icons.phone_outlined,
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return 'Phone is required';
-                              if (v.length < 9) return 'Enter a valid phone number';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.25)),
-                            ),
-                            child: Row(children: [
-                              const Icon(Icons.info_outline,
-                                  color: AppColors.primaryLight, size: 16),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'A 4-digit OTP will be sent to your number.',
-                                  style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.primaryLight),
-                                ),
-                              ),
-                            ]),
-                          ),
-                          const SizedBox(height: 20),
-                          GradientButton(
-                            label: 'Send OTP',
-                            icon: Icons.send_rounded,
-                            isLoading: auth.isLoading,
-                            onPressed: _sendOtp,
-                          ),
-                        ],
-                      ),
+                    GradientButton(
+                      label: 'Sign In',
+                      isLoading: auth.isLoading,
+                      onPressed: _signIn,
                     ),
                   ],
                 ),
               ),
 
+              const SizedBox(height: 20),
               const DividerText(text: 'or'),
               const SizedBox(height: 14),
 
