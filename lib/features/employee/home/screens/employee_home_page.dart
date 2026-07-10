@@ -315,14 +315,13 @@ class _CommissionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Left: label + amount + tap hint ───────────────────────
           Expanded(
             flex: 5,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 Row(children: [
                   Icon(Icons.payments_outlined,
@@ -365,54 +364,39 @@ class _CommissionCard extends StatelessWidget {
           ),
           const SizedBox(width: 16),
 
-          // ── Right: "Last 7 days" label + chart + "This week" ──────
+          // ── Right: "This week" label + chart ──────────────────────
           Expanded(
             flex: 5,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Last 7 days',
-                  style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.5),
-                      letterSpacing: 0.3),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(children: [
+                    Icon(Icons.calendar_view_week_rounded,
+                        size: 11,
+                        color: Colors.white.withValues(alpha: 0.55)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'This week  ',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white.withValues(alpha: 0.55)),
+                    ),
+                    Text(
+                      'LKR ${formatAmount(weeklyTotal)}',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ]),
                 ),
                 const SizedBox(height: 4),
                 SizedBox(
                   height: 72,
                   child: _WeeklyCommissionChart(data: weeklyCommission),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 1,
-                  color: Colors.white.withValues(alpha: 0.12),
-                ),
-                const SizedBox(height: 7),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.calendar_view_week_rounded,
-                          size: 11,
-                          color: Colors.white.withValues(alpha: 0.55)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'This week  ',
-                        style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.55)),
-                      ),
-                      Text(
-                        'LKR ${formatAmount(weeklyTotal)}',
-                        style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
