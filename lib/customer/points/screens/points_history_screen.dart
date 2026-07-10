@@ -52,11 +52,15 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
     _txFuture = _svc.getTransactions(widget.userId);
   }
 
-  Future<void> _refresh() async {
-    await appRefresh(ref);
+  Future<void> _reload() async {
     final newFuture = _svc.getTransactions(widget.userId);
     setState(() => _txFuture = newFuture);
     await newFuture;
+  }
+
+  Future<void> _refresh() async {
+    await appRefresh(ref);
+    await _reload();
   }
 
   @override
@@ -137,7 +141,9 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<int>(appRefreshKeyProvider, (_, __) => _refresh());
+    ref.listen<int>(appRefreshKeyProvider, (prev, next) {
+      if (prev != null) _reload();
+    });
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,

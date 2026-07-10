@@ -157,8 +157,8 @@ Future<void> _loadPoints(String userId) async {
       );
     }
 
-    ref.listen<int>(appRefreshKeyProvider, (_, __) {
-      _fetchHomeData(user.id);
+    ref.listen<int>(appRefreshKeyProvider, (prev, next) {
+      if (prev != null) _fetchHomeData(user.id);
     });
 
     return Scaffold(
@@ -167,7 +167,10 @@ Future<void> _loadPoints(String userId) async {
         child: RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.bgCard,
-          onRefresh: () => appRefresh(ref).then((_) => _fetchHomeData(user.id)),
+          onRefresh: () async {
+            await appRefresh(ref);
+            await _fetchHomeData(user.id);
+          },
           child: SingleChildScrollView(
             // Ensure RefreshIndicator can trigger even when content is short.
             physics: const AlwaysScrollableScrollPhysics(),

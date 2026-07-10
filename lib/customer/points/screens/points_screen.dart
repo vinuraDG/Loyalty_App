@@ -104,13 +104,17 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     return _svc.getTransactions(userId);
   }
 
-  Future<void> _refresh() async {
+  Future<void> _reload() async {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId == null) return;
-    await appRefresh(ref);
     final newFuture = _loadAll(userId);
     setState(() => _txFuture = newFuture);
     await newFuture;
+  }
+
+  Future<void> _refresh() async {
+    await appRefresh(ref);
+    await _reload();
   }
 
   void _pickMonth(BuildContext context) {
@@ -379,7 +383,9 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(currentUserProvider);
-    ref.listen<int>(appRefreshKeyProvider, (_, __) => _refresh());
+    ref.listen<int>(appRefreshKeyProvider, (prev, next) {
+      if (prev != null) _reload();
+    });
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,

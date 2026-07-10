@@ -35,13 +35,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> _reload() async {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId == null) return;
-    await appRefresh(ref);
     final newFuture = _svc.getProfileSummary(userId);
     setState(() => _summaryFuture = newFuture);
     await newFuture;
+  }
+
+  Future<void> _refresh() async {
+    await appRefresh(ref);
+    await _reload();
   }
 
   // ── Sign-out: see top-level _signOut() below ─────────────────────────────
@@ -53,7 +57,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
-    ref.listen<int>(appRefreshKeyProvider, (_, __) => _refresh());
+    ref.listen<int>(appRefreshKeyProvider, (prev, next) {
+      if (prev != null) _reload();
+    });
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
