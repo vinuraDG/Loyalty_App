@@ -134,7 +134,7 @@ class PointsApiService implements IPointsService {
   final dateStr = (m['DateCreated'] ?? m['DateLastModified'] ?? '').toString();
   final parsed  = DateTime.tryParse(dateStr);
   final date    = (parsed != null && parsed.year >= 2000)
-      ? DateTime(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second)
+      ? parsed.toLocal()
       : DateTime.now();
 
   // ── Expiry info — Earn entries only ────────────────────────────────────
