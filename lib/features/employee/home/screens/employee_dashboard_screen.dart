@@ -79,8 +79,8 @@ class EmployeeDashboardScreenState
             type: BottomNavigationBarType.fixed,
             items: const [
               BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard_outlined),
-                activeIcon: Icon(Icons.dashboard_rounded),
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home_rounded),
                 label: 'Home',
               ),
               BottomNavigationBarItem(

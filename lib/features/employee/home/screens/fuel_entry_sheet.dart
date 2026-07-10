@@ -38,6 +38,7 @@ class FuelEntrySheet extends StatefulWidget {
 
 class _FuelEntrySheetState extends State<FuelEntrySheet> {
   final _amountCtrl = TextEditingController();
+  final _docNoCtrl  = TextEditingController();
   bool _confirming = false;
 
   static const double _pointsPerLkr = 0.1;
@@ -48,6 +49,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
   @override
   void dispose() {
     _amountCtrl.dispose();
+    _docNoCtrl.dispose();
     super.dispose();
   }
 
@@ -60,6 +62,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         customerId: widget.member.userId,
         saleAmount: _amount,
         pointsAwarded: _points,
+        documentNo: _docNoCtrl.text.trim(),
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -75,7 +78,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
           24,
           24,
@@ -114,11 +117,19 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         ]),
         const SizedBox(height: 20),
 
-        // Amount input + estimated points preview
+        // Document No + Amount input + estimated points preview
         StatefulBuilder(
           builder: (_, setInner) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              AppTextField(
+                label: 'Document No',
+                hint: 'e.g. INV-001',
+                controller: _docNoCtrl,
+                prefixIconData: Icons.receipt_long_rounded,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 14),
               AppTextField(
                 label: 'Sale Amount (LKR)',
                 hint: 'e.g. 7015',

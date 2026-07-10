@@ -157,6 +157,7 @@ abstract interface class IEmpHomeService {
     required String customerId,
     required double saleAmount,
     required int pointsAwarded,
+    required String documentNo,
   });
   Future<List<ScanEntry>> getTodayScans(String employeeId);
   Future<List<int>> getWeeklyCommission(String employeeId);

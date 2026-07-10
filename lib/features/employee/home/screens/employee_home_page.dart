@@ -328,7 +328,7 @@ class _CommissionCard extends StatelessWidget {
                       size: 13, color: Colors.white.withValues(alpha: 0.55)),
                   const SizedBox(width: 5),
                   Text(
-                    'commission',
+                    'Commission',
                     style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withValues(alpha: 0.55),
@@ -549,6 +549,13 @@ class _TodayScanTile extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(children: [
+                if (scan.documentNumber.isNotEmpty) ...[
+                  _ScanDetailRow(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Document No',
+                      value: scan.documentNumber),
+                  _ScanDivider(),
+                ],
                 if (scan.memberName.isNotEmpty) ...[
                   _ScanDetailRow(
                       icon: Icons.person_rounded,
@@ -576,13 +583,6 @@ class _TodayScanTile extends StatelessWidget {
                     label: 'Commission',
                     value: 'LKR ${formatAmount(scan.commission)}',
                     valueColor: Colors.greenAccent),
-                if (scan.documentNumber.isNotEmpty) ...[
-                  _ScanDivider(),
-                  _ScanDetailRow(
-                      icon: Icons.receipt_long_rounded,
-                      label: 'Document No',
-                      value: scan.documentNumber),
-                ],
               ]),
             ),
             const SizedBox(height: 16),

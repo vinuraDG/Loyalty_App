@@ -529,6 +529,13 @@ class _SaleTile extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(children: [
+                if (sale.documentNumber.isNotEmpty) ...[
+                  _DetailRow(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Document No',
+                      value: sale.documentNumber),
+                  _TxDivider(),
+                ],
                 if (sale.customerName.isNotEmpty) ...[
                   _DetailRow(
                       icon: Icons.person_rounded,
@@ -556,13 +563,6 @@ class _SaleTile extends StatelessWidget {
                     label: 'Commission',
                     value: 'LKR ${formatAmount(sale.commission)}',
                     valueColor: Colors.greenAccent),
-                if (sale.documentNumber.isNotEmpty) ...[
-                  _TxDivider(),
-                  _DetailRow(
-                      icon: Icons.receipt_long_rounded,
-                      label: 'Document No',
-                      value: sale.documentNumber),
-                ],
               ]),
             ),
             const SizedBox(height: 16),

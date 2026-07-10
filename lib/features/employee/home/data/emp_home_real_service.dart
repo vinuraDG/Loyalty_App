@@ -139,6 +139,7 @@ class EmpHomeRealService implements IEmpHomeService {
     required String customerId,
     required double saleAmount,
     required int pointsAwarded,
+    required String documentNo,
   }) async {
     final phone = await _empPhone;
     try {
@@ -149,6 +150,7 @@ class EmpHomeRealService implements IEmpHomeService {
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
           'Amount': saleAmount,
+          'DocumentNo': documentNo,
         },
       );
       // Use server's calculated points; fall back to client estimate if absent.

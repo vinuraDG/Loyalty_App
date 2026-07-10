@@ -34,6 +34,7 @@ class EmpHomeMockService implements IEmpHomeService {
     required String customerId,
     required double saleAmount,
     required int pointsAwarded,
+    required String documentNo,
   }) async {
     await _delay(ms: 500);
     _ensureSeedLoaded();
