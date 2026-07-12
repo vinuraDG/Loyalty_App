@@ -130,11 +130,13 @@ class PointsApiService implements IPointsService {
   final redeemCompanyName     = redeemCompany?.displayName;
   final redeemCompanyFullName = redeemCompany?.name.isNotEmpty == true ? redeemCompany!.name : null;
 
-  // ── Always use DateCreated — it is the actual transaction timestamp ──────
+  // ── Always use DateCreated — backend stores local time with Z suffix ──────
+  // The backend records local (Sri Lanka) time but appends Z, so we must NOT
+  // convert via toLocal() — instead strip the timezone and use components as-is.
   final dateStr = (m['DateCreated'] ?? m['DateLastModified'] ?? '').toString();
   final parsed  = DateTime.tryParse(dateStr);
   final date    = (parsed != null && parsed.year >= 2000)
-      ? parsed.toLocal()
+      ? DateTime(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second)
       : DateTime.now();
 
   // ── Expiry info — Earn entries only ────────────────────────────────────
