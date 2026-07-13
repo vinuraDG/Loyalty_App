@@ -133,8 +133,8 @@ class EmpCommissionApiService implements IEmpCommissionService {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CompanyId':            AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
+          'CompanyId':            AppConstants.earnCompanyId,
           'EmployeePhoneNo':      phone,
           'DateFrom':             _fmt(range[0]),
           'DateTo':               _fmt(range[1]),

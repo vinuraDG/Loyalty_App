@@ -19,7 +19,8 @@ class AppConstants {
   static const goldPoints    = 200;
 
   static const baseUrl              = 'http://124.43.27.57:8080/';
-  static const transactionCompanyId = 3; // Active earn company ID — used in all API calls
+  static const transactionCompanyId = 0; // Pass 0 to customer ledger calls to get all companies
+  static const earnCompanyId        = 3; // Fuel earn company ID — for employee ledger, EarnPoints, RedeemPoints
 
   // Runtime-resolved company ID. Set at employee login from the backend's
   // TransactionCompanyId field; falls back to transactionCompanyId (=3) when

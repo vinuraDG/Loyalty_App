@@ -33,6 +33,7 @@ class CompaniesApiService implements ICompaniesService {
     _cache = null;
     _pending = _doGetCompanies();
     _pending!.then((list) { _cache = list; _cacheTime = DateTime.now(); })
+             .catchError((_) {})
              .whenComplete(() => _pending = null);
     return _pending!;
   }

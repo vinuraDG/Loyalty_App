@@ -71,7 +71,7 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Common/GetCustomerByPhoneNo',
         queryParameters: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
           'CustomerPhoneNo': userId,
         },
       );
@@ -95,7 +95,7 @@ class EmpHomeRealService implements IEmpHomeService {
           final ledgerRes = await _dio.get(
             'Mobile/GetAllCustomerLedgers',
             data: {
-              'TransactionCompanyId': AppConstants.activeCompanyId,
+              'TransactionCompanyId': AppConstants.earnCompanyId,
               'CustomerPhoneNo': phone,
             },
           );
@@ -146,7 +146,7 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.post(
         'Common/EarnPoints',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
           'Amount': saleAmount,
@@ -184,8 +184,8 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CompanyId':            AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
+          'CompanyId':            AppConstants.earnCompanyId,
           'EmployeePhoneNo':      phone,
           'DateFrom':             _fmt(monthStart),
           'DateTo':               _fmt(monthEnd),
@@ -231,8 +231,8 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CompanyId':            AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
+          'CompanyId':            AppConstants.earnCompanyId,
           'EmployeePhoneNo':      phone,
           'DateFrom':             _fmt(monthStart),
           'DateTo':               _fmt(monthEnd),
@@ -319,7 +319,7 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
           'CustomerPhoneNo': customerId,
         },
       );
@@ -360,7 +360,7 @@ class EmpHomeRealService implements IEmpHomeService {
         'Common/RedeemPoints',
         options: Options(responseType: ResponseType.plain),
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
           'Points': pointsToRedeem,
@@ -406,7 +406,7 @@ class EmpHomeRealService implements IEmpHomeService {
         'Common/RedeemPoints',
         options: Options(responseType: ResponseType.plain),
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
           'CustomerPhoneNo': customerId,
           'EmployeePhoneNo': phone,
           'Points': pointsToRedeem,
@@ -437,7 +437,7 @@ class EmpHomeRealService implements IEmpHomeService {
         'Common/RedeemConfirmation',
         options: Options(responseType: ResponseType.plain),
         queryParameters: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
           'CustomerPhoneNo': customerId,
           'OTP': otp,
         },

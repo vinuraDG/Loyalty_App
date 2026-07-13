@@ -58,7 +58,7 @@ class RedeemApiService implements IRedeemService {
         'Common/RedeemPoints',
         options: Options(responseType: ResponseType.plain),
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.earnCompanyId,
           'CustomerPhoneNo': phone,
           'EmployeePhoneNo': '',
           'Points': pointsToSend,

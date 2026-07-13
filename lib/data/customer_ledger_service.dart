@@ -30,7 +30,8 @@ class CustomerLedgerService {
     _ledgerFuture!.then((list) {
       _ledgerCache = list;
       _ledgerCacheTime = DateTime.now();
-    }).whenComplete(() => _ledgerFuture = null);
+    }).catchError((_) {})
+      .whenComplete(() => _ledgerFuture = null);
     return _ledgerFuture!;
   }
 
@@ -40,14 +41,18 @@ class CustomerLedgerService {
   }
 
   Future<List<dynamic>> _doFetch(String phone) async {
-    final res = await _dio.get(
-      'Mobile/GetAllCustomerLedgers',
-      data: {
-        'TransactionCompanyId': AppConstants.activeCompanyId,
-        'CustomerPhoneNo': phone,
-      },
-    );
-    return _asList(res.data);
+    try {
+      final res = await _dio.get(
+        'Mobile/GetAllCustomerLedgers',
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CustomerPhoneNo': phone,
+        },
+      );
+      return _asList(res.data);
+    } catch (_) {
+      return [];
+    }
   }
 }
 
