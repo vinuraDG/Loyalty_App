@@ -306,24 +306,35 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _StepHeader(
-            icon: Icons.smartphone_rounded,
-            title: 'Enter your phone number',
-            subtitle: 'We\'ll send a 4-digit verification code via SMS.',
+            icon: Icons.person_outline_rounded,
+            title: 'Enter your phone or email',
+            subtitle: 'We\'ll send a 4-digit verification code to reset your password.',
           ),
           const SizedBox(height: 28),
           Form(
             key: _phoneFormKey,
             child: AppTextField(
-              label: 'Phone number',
-              hint: '07X XXX XXXX',
+              label: 'Phone number or Email',
+              hint: '07X XXX XXXX or you@example.com',
               controller: _phoneCtrl,
-              keyboardType: TextInputType.phone,
-              maxLength: 10,
-              prefixIconData: Icons.phone_outlined,
+              keyboardType: TextInputType.emailAddress,
+              prefixIconData: Icons.person_outline,
               textInputAction: TextInputAction.done,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Phone is required';
-                if (v.trim().length < 9) return 'Enter a valid phone number';
+                if (v == null || v.trim().isEmpty) {
+                  return 'Phone number or email is required';
+                }
+                final val = v.trim();
+                final isEmail = val.contains('@');
+                if (isEmail) {
+                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(val)) {
+                    return 'Enter a valid email address';
+                  }
+                } else {
+                  if (!RegExp(r'^0[0-9]{9}$').hasMatch(val)) {
+                    return 'Enter a valid 10-digit phone number (e.g. 07XXXXXXXX)';
+                  }
+                }
                 return null;
               },
             ),
@@ -351,7 +362,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
           _StepHeader(
             icon: Icons.lock_open_rounded,
             title: 'Enter verification code',
-            subtitle: 'A 4-digit code was sent to ${_phoneCtrl.text.trim()}',
+            subtitle: 'A 4-digit code was sent to ${_phoneCtrl.text.trim()}. Check your SMS or email.',
           ),
           const SizedBox(height: 28),
 
