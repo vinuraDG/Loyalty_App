@@ -384,7 +384,11 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   Widget build(BuildContext context) {
     ref.watch(currentUserProvider);
     ref.listen<int>(appRefreshKeyProvider, (prev, next) {
-      if (prev != null) _reload();
+      if (prev != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _reload();
+        });
+      }
     });
 
     return Scaffold(

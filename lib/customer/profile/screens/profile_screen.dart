@@ -58,7 +58,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
     ref.listen<int>(appRefreshKeyProvider, (prev, next) {
-      if (prev != null) _reload();
+      if (prev != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _reload();
+        });
+      }
     });
 
     return Scaffold(

@@ -158,7 +158,11 @@ Future<void> _loadPoints(String userId) async {
     }
 
     ref.listen<int>(appRefreshKeyProvider, (prev, next) {
-      if (prev != null) _fetchHomeData(user.id);
+      if (prev != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _fetchHomeData(user.id);
+        });
+      }
     });
 
     return Scaffold(

@@ -142,7 +142,11 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(appRefreshKeyProvider, (prev, next) {
-      if (prev != null) _reload();
+      if (prev != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _reload();
+        });
+      }
     });
 
     return Scaffold(
