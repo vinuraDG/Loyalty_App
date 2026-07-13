@@ -91,13 +91,13 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
     }
   }
 
-  static const _months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  static const _monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   DateTime? _parseSaleDate(SaleEntry s) {
     try {
       final parts = s.fullDate.split(' ');
       final day   = int.tryParse(parts[0]) ?? 1;
-      final mon   = _months.indexOf(parts[1]);
+      final mon   = _monthNames.indexOf(parts[1]);
       final year  = int.tryParse(parts[2]) ?? DateTime.now().year;
       if (mon <= 0) return null;
       return DateTime(year, mon, day);
@@ -113,7 +113,7 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
     final diff  = today.difference(day).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
-    return '${_months[d.month]} ${d.day}, ${d.year}';
+    return '${_monthNames[d.month]} ${d.day}, ${d.year}';
   }
 
   List<Widget> _buildGroupedSales(List<SaleEntry> sales) {
