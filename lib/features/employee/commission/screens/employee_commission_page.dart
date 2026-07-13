@@ -91,6 +91,51 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
     }
   }
 
+  static const _months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  DateTime? _parseSaleDate(SaleEntry s) {
+    try {
+      final parts = s.fullDate.split(' ');
+      final day   = int.tryParse(parts[0]) ?? 1;
+      final mon   = _months.indexOf(parts[1]);
+      final year  = int.tryParse(parts[2]) ?? DateTime.now().year;
+      if (mon <= 0) return null;
+      return DateTime(year, mon, day);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _dateLabel(DateTime d) {
+    final now   = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day   = DateTime(d.year, d.month, d.day);
+    final diff  = today.difference(day).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return '${_months[d.month]} ${d.day}, ${d.year}';
+  }
+
+  List<Widget> _buildGroupedSales(List<SaleEntry> sales) {
+    final grouped = <String, List<SaleEntry>>{};
+    for (final s in sales) {
+      final d     = _parseSaleDate(s);
+      final label = d != null ? _dateLabel(d) : s.date;
+      grouped.putIfAbsent(label, () => []).add(s);
+    }
+    final widgets = <Widget>[];
+    for (final entry in grouped.entries) {
+      widgets.add(_DateHeader(label: entry.key));
+      for (final s in entry.value) {
+        widgets
+          ..add(_SaleTile(sale: s))
+          ..add(const SizedBox(height: 10));
+      }
+      widgets.add(const SizedBox(height: 4));
+    }
+    return widgets;
+  }
+
   void _pickMonth(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -295,14 +340,9 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
                           onRefresh: () => _selectedMonth != null
                               ? _loadMonth(_selectedMonth!)
                               : _loadMonths(),
-                          child: ListView.separated(
-                            padding:
-                                const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                            itemCount: _sales.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (_, i) =>
-                                _SaleTile(sale: _sales[i]),
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                            children: _buildGroupedSales(_sales),
                           ),
                         ),
             ),
@@ -646,5 +686,25 @@ class _TxDivider extends StatelessWidget {
         height: 1,
         margin: const EdgeInsets.symmetric(horizontal: 16),
         color: AppColors.border,
+      );
+}
+
+// ── Date group header ─────────────────────────────────────────────────────────
+
+class _DateHeader extends StatelessWidget {
+  final String label;
+  const _DateHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
       );
 }

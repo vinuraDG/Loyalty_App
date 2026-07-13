@@ -76,6 +76,50 @@ class _EmployeeTotalCommissionPageState
     );
   }
 
+  static const _mons = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  DateTime? _parseDate(SaleEntry s) {
+    try {
+      final parts = s.fullDate.split(' ');
+      final day  = int.tryParse(parts[0]) ?? 1;
+      final mon  = _mons.indexOf(parts[1]);
+      final year = int.tryParse(parts[2]) ?? DateTime.now().year;
+      if (mon <= 0) return null;
+      return DateTime(year, mon, day);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _dateLabel(DateTime d) {
+    final now   = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff  = today.difference(DateTime(d.year, d.month, d.day)).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return '${_mons[d.month]} ${d.day}, ${d.year}';
+  }
+
+  List<Widget> _buildGrouped(List<SaleEntry> sales) {
+    final grouped = <String, List<SaleEntry>>{};
+    for (final s in sales) {
+      final d     = _parseDate(s);
+      final label = d != null ? _dateLabel(d) : s.date;
+      grouped.putIfAbsent(label, () => []).add(s);
+    }
+    final widgets = <Widget>[];
+    for (final entry in grouped.entries) {
+      widgets.add(_DateHeader(label: entry.key));
+      for (final s in entry.value) {
+        widgets
+          ..add(_FuelSaleTile(sale: s))
+          ..add(const SizedBox(height: 10));
+      }
+      widgets.add(const SizedBox(height: 4));
+    }
+    return widgets;
+  }
+
   Widget _buildContent() {
     final totalCommission =
         _fuelSales.fold<double>(0.0, (a, t) => a + t.commission);
@@ -186,10 +230,7 @@ class _EmployeeTotalCommissionPageState
             ),
           )
         else
-          ..._fuelSales.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _FuelSaleTile(sale: s),
-              )),
+          ..._buildGrouped(_fuelSales),
 
         const SizedBox(height: 20),
       ]),
@@ -461,5 +502,25 @@ class _TxDivider extends StatelessWidget {
         height: 1,
         margin: const EdgeInsets.symmetric(horizontal: 16),
         color: AppColors.border,
+      );
+}
+
+// ── Date group header ─────────────────────────────────────────────────────────
+
+class _DateHeader extends StatelessWidget {
+  final String label;
+  const _DateHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
       );
 }
