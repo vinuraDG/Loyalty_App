@@ -108,7 +108,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId == null) return;
     final newFuture = _loadAll(userId);
-    setState(() => _txFuture = newFuture);
+    setState(() { _txFuture = newFuture; });
     await newFuture;
   }
 

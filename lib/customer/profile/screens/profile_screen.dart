@@ -39,7 +39,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId == null) return;
     final newFuture = _svc.getProfileSummary(userId);
-    setState(() => _summaryFuture = newFuture);
+    setState(() { _summaryFuture = newFuture; });
     await newFuture;
   }
 
