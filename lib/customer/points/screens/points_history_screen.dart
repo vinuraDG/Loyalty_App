@@ -1286,7 +1286,8 @@ class _HistoryTile extends StatelessWidget {
     final _local = tx.date.toLocal();
     final _hh = _local.hour % 12 == 0 ? 12 : _local.hour % 12;
     const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final time = '${_local.day} ${_sm[_local.month - 1]} ${_local.year}  ·  $_hh:${_local.minute.toString().padLeft(2, '0')} ${_local.hour >= 12 ? 'PM' : 'AM'}';
+    final dateStr = '${_local.day} ${_sm[_local.month - 1]} ${_local.year}';
+    final timeStr = '$_hh:${_local.minute.toString().padLeft(2, '0')} ${_local.hour >= 12 ? 'PM' : 'AM'}';
 
     return GestureDetector(
       onTap: () => _showDetail(context),
@@ -1339,7 +1340,15 @@ class _HistoryTile extends StatelessWidget {
                   Row(children: [
                     _TxBadge(type: tx.type),
                     const SizedBox(width: 6),
-                    Text(time,
+                    Text(dateStr,
+                        style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                  ]),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    const Icon(Icons.access_time_rounded,
+                        size: 10, color: AppColors.textMuted),
+                    const SizedBox(width: 3),
+                    Text(timeStr,
                         style: AppTextStyles.caption.copyWith(fontSize: 10)),
                   ]),
                   if (tx.note != null && tx.note!.isNotEmpty) ...[
