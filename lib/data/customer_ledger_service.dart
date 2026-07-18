@@ -45,7 +45,7 @@ class CustomerLedgerService {
       final res = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CustomerPhoneNo': phone,
         },
       );

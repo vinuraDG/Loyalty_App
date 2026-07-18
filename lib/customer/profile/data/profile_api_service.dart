@@ -46,7 +46,7 @@ class ProfileApiService implements IProfileService {
       final ledgerRes = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CustomerPhoneNo': phone,
         },
       );

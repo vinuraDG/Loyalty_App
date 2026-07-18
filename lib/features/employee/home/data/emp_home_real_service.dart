@@ -95,7 +95,7 @@ class EmpHomeRealService implements IEmpHomeService {
           final ledgerRes = await _dio.get(
             'Mobile/GetAllCustomerLedgers',
             data: {
-              'TransactionCompanyId': AppConstants.earnCompanyId,
+              'TransactionCompanyId': AppConstants.transactionCompanyId,
               'CustomerPhoneNo': phone,
             },
           );
@@ -437,7 +437,7 @@ class EmpHomeRealService implements IEmpHomeService {
         'Common/RedeemConfirmation',
         options: Options(responseType: ResponseType.plain),
         queryParameters: {
-          'TransactionCompanyId': AppConstants.earnCompanyId,
+          'TransactionCompanyId': AppConstants.redeemCompanyId,
           'CustomerPhoneNo': customerId,
           'OTP': otp,
         },
