@@ -1,5 +1,6 @@
 // lib/features/employee/profile/data/emp_profile_api_service.dart
 
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/network/api_client.dart';
@@ -80,16 +81,16 @@ class EmpProfileApiService implements IEmpProfileService {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
     try {
-      await _dio.post(
-        'Common/ResetPassword',
+      final res = await _dio.post(
+        'Mobile/ResetPassword',
         options: Options(responseType: ResponseType.plain),
         data: {
-          'UserName':        phone,
-          'Password':        currentPassword,
-          'NewPassword':     newPassword,
-          'ConfirmPassword': newPassword,
+          'PhoneNumber': phone,
+          'Token':       currentPassword,
+          'NewPassword': newPassword,
         },
       );
+      _throwIfErrorBody(res.data);
     } on DioException catch (e) {
       final data = e.response?.data;
       String? msg;
@@ -100,6 +101,29 @@ class EmpProfileApiService implements IEmpProfileService {
       }
       throw Exception(msg ?? 'Failed to change password. Please try again.');
     }
+  }
+
+  void _throwIfErrorBody(dynamic body) {
+    if (body is! String || body.isEmpty) return;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is List && decoded.isNotEmpty) {
+        final first = decoded.first;
+        if (first is Map) {
+          final desc = (first['Description'] ?? first['description'] ?? '').toString();
+          if (desc.isNotEmpty) throw Exception(desc);
+          final code = (first['Code'] ?? first['code'] ?? '').toString();
+          if (code.isNotEmpty) throw Exception(code);
+        }
+      }
+      if (decoded is Map) {
+        final desc = (decoded['Description'] ?? decoded['description'] ??
+            decoded['message'] ?? decoded['Message'] ?? '').toString();
+        if (desc.isNotEmpty) throw Exception(desc);
+      }
+    } on Exception {
+      rethrow;
+    } catch (_) {}
   }
 }
 

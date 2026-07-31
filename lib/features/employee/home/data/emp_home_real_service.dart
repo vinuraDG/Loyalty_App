@@ -293,7 +293,7 @@ class EmpHomeRealService implements IEmpHomeService {
 
       final offers = <RedeemableOffer>[];
       for (final c in redeemable) {
-        final pts = await _fetchCustomerPoints(customerId, c.Id);
+        final pts = await _fetchCustomerPoints(customerId);
         offers.add(RedeemableOffer(
           id: 'redeem-${c.Id}',
           title: c.name,
@@ -311,10 +311,9 @@ class EmpHomeRealService implements IEmpHomeService {
   }
 
   // Fetch the customer's current point balance by summing their ledger.
-  // GetCustomerByPhoneNo doesn't always return TotalPoints for non-earn companies,
-  // so we use GetAllCustomerLedgers (TransactionCompanyId=3 = fuel, all entries)
-  // and take the PointBalance from the most recent ledger entry as the current balance.
-  Future<int> _fetchCustomerPoints(String customerId, int companyId) async {
+  // All offers draw from the same fuel-points balance, so earnCompanyId is
+  // always used regardless of which partner company is being displayed.
+  Future<int> _fetchCustomerPoints(String customerId) async {
     try {
       final res = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
@@ -485,15 +484,12 @@ class EmpHomeRealService implements IEmpHomeService {
     required String otp,
     required String employeeId,
   }) async {
-    // The laundry company's TransactionCompanyId is 1 (from PointsRedeemCompanyId
-    // in GetAllCustomerLedgers). RedeemPoints registers the OTP under this ID.
-    const redeemCompanyId = 1;
     try {
       final res = await _dio.post(
         'Common/RedeemConfirmation',
         options: Options(responseType: ResponseType.plain),
         queryParameters: {
-          'TransactionCompanyId': redeemCompanyId,
+          'TransactionCompanyId': AppConstants.redeemCompanyId,
           'CustomerPhoneNo': customerId,
           'OTP': otp,
         },

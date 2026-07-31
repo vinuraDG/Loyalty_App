@@ -647,20 +647,32 @@ class AuthApiService implements IAuthService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+
+    // Mobile/ResetPassword is in _publicPaths so the interceptor won't attach
+    // the Bearer token. changePassword is always called while logged in, so we
+    // read the token and attach it manually to satisfy [Authorize] on the endpoint.
+    String bearerToken = ApiClient.instance.token;
+    if (bearerToken.isEmpty) {
+      bearerToken = prefs.getString(AppConstants.prefAuthToken) ?? '';
+    }
+
     try {
-      // Use ResponseType.plain so Dio doesn't try to JSON-decode the empty
-      // body this endpoint returns on success (200 + ""). DioException is
-      // still thrown automatically for 4xx/5xx status codes.
-      await _dio.post(
-        'Common/ResetPassword',
-        options: Options(responseType: ResponseType.plain),
+      final res = await _dio.post(
+        'Mobile/ResetPassword',
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: bearerToken.isNotEmpty
+              ? {'Authorization': 'Bearer $bearerToken'}
+              : null,
+        ),
         data: {
-          'UserName': phone,
-          'Password': currentPassword,
+          'PhoneNumber': phone,
+          'Token':       currentPassword,
           'NewPassword': newPassword,
-          'ConfirmPassword': newPassword,
         },
       );
+      // Backend returns 200 even on failure — check the body for error objects.
+      _throwIfErrorBody(res.data);
       await _persistPassword(newPassword);
     } on AuthException {
       rethrow;
@@ -671,15 +683,42 @@ class AuthApiService implements IAuthService {
     }
   }
 
+  void _throwIfErrorBody(dynamic body) {
+    if (body is! String || body.isEmpty) return;
+    try {
+      final decoded = jsonDecode(body);
+      // Array of {Code, Description} error objects
+      if (decoded is List && decoded.isNotEmpty) {
+        final first = decoded.first;
+        if (first is Map) {
+          final desc = (first['Description'] ?? first['description'] ?? '').toString();
+          final code = (first['Code'] ?? first['code'] ?? '').toString();
+          if (desc.isNotEmpty) throw AuthException(desc);
+          if (code.isNotEmpty) throw AuthException(code);
+        }
+      }
+      // Single error object
+      if (decoded is Map) {
+        final desc = (decoded['Description'] ?? decoded['description'] ??
+            decoded['message'] ?? decoded['Message'] ?? '').toString();
+        if (desc.isNotEmpty) throw AuthException(desc);
+      }
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      // Not parseable JSON — ignore
+    }
+  }
+
   // ── Forgot password ───────────────────────────────────────────────────────
 
   @override
   Future<void> sendOtpForReset(String phone) async {
     try {
       await _dio.post(
-        'Common/ForgotPassword',
+        'Mobile/ForgotPassword',
         options: Options(responseType: ResponseType.plain),
-        data: {'UserName': phone.trim(), 'Password': ''},
+        data: {'PhoneNumber': phone.trim()},
       );
     } on AuthException {
       rethrow;
@@ -703,16 +742,16 @@ class AuthApiService implements IAuthService {
     required String newPassword,
   }) async {
     try {
-      await _dio.post(
-        'Common/ResetPassword',
+      final res = await _dio.post(
+        'Mobile/ResetPassword',
         options: Options(responseType: ResponseType.plain),
         data: {
-          'UserName': phone.trim(),
-          'OTP': otp.trim(),
+          'PhoneNumber': phone.trim(),
+          'Token':       otp.trim(),
           'NewPassword': newPassword,
-          'ConfirmPassword': newPassword,
         },
       );
+      _throwIfErrorBody(res.data);
     } on AuthException {
       rethrow;
     } on DioException catch (e) {

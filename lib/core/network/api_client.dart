@@ -10,6 +10,7 @@ class ApiClient {
   // don't wait for a SharedPreferences round-trip.
   String _cachedToken = '';
 
+  String get token => _cachedToken;
   void setToken(String token) => _cachedToken = token;
   void clearToken() => _cachedToken = '';
 
@@ -46,6 +47,10 @@ class _AuthInterceptor extends Interceptor {
   static const _publicPaths = [
     'Account/Login',
     'Account/Register',
+    'Mobile/ForgotPassword',
+    'Mobile/ResetPassword',
+    'Common/ForgotPassword',
+    'Common/ResetPassword',
   ];
 
   @override

@@ -76,6 +76,36 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
   final _months = _buildMonths();
 
+  String _dateLabel(DateTime date) {
+    final local = date.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(local.year, local.month, local.day);
+    final diff = today.difference(d).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    const m = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${m[local.month]} ${local.day}, ${local.year}';
+  }
+
+  List<Widget> _buildGroupedTxs(List<TransactionModel> txs) {
+    final grouped = <String, List<TransactionModel>>{};
+    for (final tx in txs) {
+      grouped.putIfAbsent(_dateLabel(tx.date), () => []).add(tx);
+    }
+    final widgets = <Widget>[];
+    for (final entry in grouped.entries) {
+      widgets.add(_TxDateHeader(label: entry.key));
+      for (final tx in entry.value) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _TxCard(tx: tx),
+        ));
+      }
+    }
+    return widgets;
+  }
+
   Future<List<TransactionModel>>? _txFuture;
   String? _loadedUserId;
 
@@ -573,7 +603,9 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 for (final t in allTxs) {
                   if (t.isEarned &&
                       t.expiryDate != null &&
-                      t.expiryDate!.isBefore(DateTime.now()) &&
+                      t.expiryDate!.isAfter(DateTime.now()) &&
+                      t.expiryDate!.isBefore(
+                          DateTime.now().add(const Duration(days: 30))) &&
                       (t.expiringBalance ?? 0) > 0) {
                     byBizExpiring[t.business] =
                         (byBizExpiring[t.business] ?? 0) + t.expiringBalance!;
@@ -844,10 +876,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           ),
                         )
                       else
-                        ...txs.map((tx) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _TxCard(tx: tx),
-                            )),
+                        ..._buildGroupedTxs(txs),
 
                       const SizedBox(height: 20),
                     ],
@@ -1176,6 +1205,25 @@ class _BizDetailDivider extends StatelessWidget {
       );
 }
 
+class _TxDateHeader extends StatelessWidget {
+  final String label;
+  const _TxDateHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 10, bottom: 4, left: 4),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary.withValues(alpha: 0.55),
+            letterSpacing: 0.3,
+          ),
+        ),
+      );
+}
+
 // ── Transaction card ──────────────────────────────────────────────────────────
 
 class _TxCard extends StatelessWidget {
@@ -1184,21 +1232,33 @@ class _TxCard extends StatelessWidget {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
+  bool _isExpiringSoon(TransactionModel t) {
+    if (!t.isEarned || t.expiryDate == null || (t.expiringBalance ?? 0) <= 0) {
+      return false;
+    }
+    final now = DateTime.now();
+    return t.expiryDate!.isAfter(now) &&
+        t.expiryDate!.isBefore(now.add(const Duration(days: 30)));
+  }
+
   String _txTypeLabel(TransactionModel t) {
-    if (t.isEarned)   return 'Earn';
     if (t.isRedeemed) return 'Redeem';
+    if (_isExpiringSoon(t) || t.isExpired) return 'Expiring';
+    if (t.isEarned) return 'Earn';
     return 'Expiring';
   }
 
   Color _txColor(TransactionModel t) {
+    if (_isExpiringSoon(t) || t.isExpired) return const Color(0xFFF97316);
     if (t.isEarned)   return AppColors.success;
     if (t.isRedeemed) return AppColors.error;
     return const Color(0xFFF97316);
   }
 
   IconData _txIcon(TransactionModel t) {
-    if (t.isEarned)   return Icons.arrow_upward_rounded;
     if (t.isRedeemed) return Icons.arrow_downward_rounded;
+    if (_isExpiringSoon(t) || t.isExpired) return Icons.timer_off_rounded;
+    if (t.isEarned)   return Icons.arrow_upward_rounded;
     return Icons.timer_off_rounded;
   }
 
@@ -1254,7 +1314,9 @@ class _TxCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
-              child: BusinessIcon(business: tx.business, size: 28),
+              child: _isExpiringSoon(tx)
+                  ? Icon(Icons.timer_off_rounded, size: 22, color: color)
+                  : BusinessIcon(business: tx.business, size: 28),
             ),
           ),
           const SizedBox(width: 12),
@@ -1304,11 +1366,15 @@ class _TxCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   // Date · Time
-                  Text(
-                    _fmtDateAndTime(tx.date),
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
+                  Flexible(
+                    child: Text(
+                      _fmtDateAndTime(tx.date),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ]),
@@ -1321,7 +1387,9 @@ class _TxCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                tx.displayPoints,
+                _isExpiringSoon(tx)
+                    ? '${tx.expiringBalance}'
+                    : tx.displayPoints,
                 style: AppTextStyles.labelMedium.copyWith(
                   color: color,
                   fontSize: 15,
@@ -1333,9 +1401,11 @@ class _TxCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'pts',
+                    _isExpiringSoon(tx) ? 'expiring' : 'pts',
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                      color: _isExpiringSoon(tx)
+                          ? const Color(0xFFF97316).withValues(alpha: 0.7)
+                          : AppColors.textSecondary,
                       fontSize: 10,
                     ),
                   ),
@@ -1391,7 +1461,7 @@ class _TxCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: tx.isExpired
+                child: (_isExpiringSoon(tx) || tx.isExpired)
                     ? Icon(Icons.timer_off_rounded, size: 30, color: color)
                     : BusinessIcon(business: tx.business, size: 34),
               ),
@@ -1401,7 +1471,9 @@ class _TxCard extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
-                tx.displayPoints,
+                _isExpiringSoon(tx)
+                    ? '${tx.expiringBalance} pts'
+                    : tx.displayPoints,
                 style: AppTextStyles.display.copyWith(fontSize: 38, color: color),
               ),
             ),
@@ -1476,7 +1548,9 @@ class _TxCard extends StatelessWidget {
                 _DetailRow(
                   icon: Icons.toll_rounded,
                   label: 'Points',
-                  value: tx.displayPoints,
+                  value: _isExpiringSoon(tx)
+                      ? '${tx.expiringBalance} pts'
+                      : tx.displayPoints,
                   valueColor: color,
                   bold: true,
                 ),
@@ -1492,6 +1566,15 @@ class _TxCard extends StatelessWidget {
                   label: 'Time',
                   value: _fmtTime(tx.date),
                 ),
+                if (_isExpiringSoon(tx) && tx.expiryDate != null) ...[
+                  _TxDivider(),
+                  _DetailRow(
+                    icon: Icons.event_busy_rounded,
+                    label: 'Expires On',
+                    value: _fmtDate(tx.expiryDate!),
+                    valueColor: const Color(0xFFF97316),
+                  ),
+                ],
                 if (tx.note != null && tx.note!.isNotEmpty) ...[
                   _TxDivider(),
                   _DetailRow(

@@ -228,7 +228,9 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
               _Tab.redeemed => t.isRedeemed,
               _Tab.expired => t.isEarned &&
                   t.expiryDate != null &&
-                  t.expiryDate!.isBefore(DateTime.now()) &&
+                  t.expiryDate!.isAfter(DateTime.now()) &&
+                  t.expiryDate!.isBefore(
+                      DateTime.now().add(const Duration(days: 30))) &&
                   (t.expiringBalance ?? 0) > 0,
               _Tab.all => true,
             };
@@ -301,7 +303,9 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
                   expiredCount: allTxs.where((t) =>
                       t.isEarned &&
                       t.expiryDate != null &&
-                      t.expiryDate!.isBefore(DateTime.now()) &&
+                      t.expiryDate!.isAfter(DateTime.now()) &&
+                      t.expiryDate!.isBefore(
+                          DateTime.now().add(const Duration(days: 30))) &&
                       (t.expiringBalance ?? 0) > 0 &&
                       (_selectedBusiness == null || t.business == _selectedBusiness)).length,
                   onTabChanged: (t) => setState(() => _activeTab = t),
@@ -467,27 +471,31 @@ class _Header extends StatelessWidget {
                             ),
                           ]),
                           const Spacer(),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                fmtFn(balance),
-                                style: AppTextStyles.display
-                                    .copyWith(fontSize: 42),
-                              ),
-                              const SizedBox(width: 6),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 7),
-                                child: Text(
-                                  'pts',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.white.withValues(alpha: 0.6),
-                                    fontWeight: FontWeight.w500,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  fmtFn(balance),
+                                  style: AppTextStyles.display
+                                      .copyWith(fontSize: 42),
+                                ),
+                                const SizedBox(width: 6),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 7),
+                                  child: Text(
+                                    'pts',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.white.withValues(alpha: 0.6),
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const Spacer(),
                         ],
@@ -1109,20 +1117,27 @@ class _HistoryTile extends StatelessWidget {
     return '$h:$minute $period';
   }
 
+  bool _isExpiringSoon() {
+    if (!tx.isEarned || tx.expiryDate == null || (tx.expiringBalance ?? 0) <= 0) return false;
+    final now = DateTime.now();
+    return tx.expiryDate!.isAfter(now) &&
+        tx.expiryDate!.isBefore(now.add(const Duration(days: 30)));
+  }
+
   String _txTypeLabel() {
-    if (tx.isEarned) return 'Earn';
     if (tx.isRedeemed) return 'Redeem';
-    return 'Expiring';
+    if (_isExpiringSoon() || tx.isExpired) return 'Expiring';
+    return 'Earn';
   }
 
   IconData _txIcon() {
-    if (tx.isEarned) return Icons.arrow_upward_rounded;
     if (tx.isRedeemed) return Icons.arrow_downward_rounded;
-    return Icons.timer_off_rounded;
+    if (_isExpiringSoon() || tx.isExpired) return Icons.timer_off_rounded;
+    return Icons.arrow_upward_rounded;
   }
 
   Color _txColor() {
-    if (tx.isExpired) return const Color(0xFFF97316);
+    if (_isExpiringSoon() || tx.isExpired) return const Color(0xFFF97316);
     if (tx.isEarned) return AppColors.success;
     return AppColors.error;
   }
@@ -1159,15 +1174,18 @@ class _HistoryTile extends StatelessWidget {
               decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
               child: Center(
-                child: tx.isExpired
+                child: (_isExpiringSoon() || tx.isExpired)
                     ? Icon(Icons.timer_off_rounded, size: 30, color: color)
                     : BusinessIcon(business: tx.business, size: 34),
               ),
             ),
             const SizedBox(height: 12),
-            Text(tx.displayPoints,
-                style:
-                    AppTextStyles.display.copyWith(fontSize: 38, color: color)),
+            Text(
+              _isExpiringSoon()
+                  ? '${tx.expiringBalance} pts'
+                  : tx.displayPoints,
+              style: AppTextStyles.display.copyWith(fontSize: 38, color: color),
+            ),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -1222,7 +1240,9 @@ class _HistoryTile extends StatelessWidget {
                 _HistDetailRow(
                     icon: Icons.toll_rounded,
                     label: 'Points',
-                    value: tx.displayPoints,
+                    value: _isExpiringSoon()
+                        ? '${tx.expiringBalance} pts'
+                        : tx.displayPoints,
                     valueColor: color,
                     bold: true),
                 _HistDivider(),
@@ -1235,6 +1255,14 @@ class _HistoryTile extends StatelessWidget {
                     icon: Icons.access_time_rounded,
                     label: 'Time',
                     value: _fmtTime(tx.date)),
+                if (_isExpiringSoon() && tx.expiryDate != null) ...[
+                  _HistDivider(),
+                  _HistDetailRow(
+                      icon: Icons.event_busy_rounded,
+                      label: 'Expires On',
+                      value: _fmtDate(tx.expiryDate!),
+                      valueColor: const Color(0xFFF97316)),
+                ],
                 if (tx.billNo != null &&
                     tx.billNo!.isNotEmpty &&
                     tx.billNo != '-') ...[
@@ -1281,8 +1309,14 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isExpired = tx.isExpired;
-    final tileAccent =
-        isExpired ? AppColors.textSecondary.withValues(alpha: 0.4) : accent;
+    final isExpiringSoon = _isExpiringSoon();
+    final isWarning = isExpiringSoon || isExpired;
+    const warningColor = Color(0xFFF97316);
+    final tileAccent = isExpired
+        ? AppColors.textSecondary.withValues(alpha: 0.4)
+        : isExpiringSoon
+            ? warningColor
+            : accent;
     final _local = tx.date.toLocal();
     final _hh = _local.hour % 12 == 0 ? 12 : _local.hour % 12;
     const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1305,7 +1339,7 @@ class _HistoryTile extends StatelessWidget {
                     color: tileAccent.withValues(alpha: 0.2), width: 1),
               ),
               child: Center(
-                child: isExpired
+                child: isWarning
                     ? Icon(Icons.timer_off_rounded, size: 20, color: tileAccent)
                     : BusinessIcon(business: tx.business, size: 44),
               ),
@@ -1337,7 +1371,10 @@ class _HistoryTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Row(children: [
-                    _TxBadge(type: tx.type),
+                    _TxBadge(
+                        type: isExpiringSoon
+                            ? TransactionType.expired
+                            : tx.type),
                     const SizedBox(width: 6),
                     Text(time,
                         style: AppTextStyles.caption.copyWith(fontSize: 10)),
@@ -1348,8 +1385,8 @@ class _HistoryTile extends StatelessWidget {
                       tx.note!,
                       style: TextStyle(
                         fontSize: 10,
-                        color: isExpired
-                            ? const Color(0xFFF97316).withValues(alpha: 0.55)
+                        color: isWarning
+                            ? warningColor.withValues(alpha: 0.55)
                             : AppColors.textSecondary.withValues(alpha: 0.5),
                         fontStyle: FontStyle.italic,
                       ),
@@ -1363,15 +1400,19 @@ class _HistoryTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  tx.displayPoints,
+                  isExpiringSoon
+                      ? '${tx.expiringBalance}'
+                      : tx.displayPoints,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: isExpired
                         ? AppColors.textSecondary.withValues(alpha: 0.45)
-                        : tx.isEarned
-                            ? AppColors.success
-                            : AppColors.error,
+                        : isExpiringSoon
+                            ? warningColor
+                            : tx.isEarned
+                                ? AppColors.success
+                                : AppColors.error,
                     decoration: isExpired
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
@@ -1381,11 +1422,11 @@ class _HistoryTile extends StatelessWidget {
                 ),
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(
-                    isExpired ? 'expiring' : 'pts',
+                    isWarning ? 'expiring' : 'pts',
                     style: TextStyle(
                       fontSize: 10,
-                      color: isExpired
-                          ? const Color(0xFFF97316).withValues(alpha: 0.55)
+                      color: isWarning
+                          ? warningColor.withValues(alpha: 0.55)
                           : AppColors.textSecondary.withValues(alpha: 0.45),
                     ),
                   ),
