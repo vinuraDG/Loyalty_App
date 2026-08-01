@@ -647,24 +647,10 @@ class AuthApiService implements IAuthService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
-
-    // Mobile/ResetPassword is in _publicPaths so the interceptor won't attach
-    // the Bearer token. changePassword is always called while logged in, so we
-    // read the token and attach it manually to satisfy [Authorize] on the endpoint.
-    String bearerToken = ApiClient.instance.token;
-    if (bearerToken.isEmpty) {
-      bearerToken = prefs.getString(AppConstants.prefAuthToken) ?? '';
-    }
-
     try {
       final res = await _dio.post(
         'Mobile/ResetPassword',
-        options: Options(
-          responseType: ResponseType.plain,
-          headers: bearerToken.isNotEmpty
-              ? {'Authorization': 'Bearer $bearerToken'}
-              : null,
-        ),
+        options: Options(responseType: ResponseType.plain),
         data: {
           'PhoneNumber': phone,
           'Token':       currentPassword,
