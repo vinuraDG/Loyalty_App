@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../auth/screens/login_screen.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
@@ -129,10 +130,16 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
             ),
             const SizedBox(height: 28),
             GradientButton(
-              label: 'Done',
-              onPressed: () {
-                Navigator.pop(context); // close sheet
-                Navigator.pop(context); // close change-password
+              label: 'Sign In Again',
+              onPressed: () async {
+                Navigator.pop(context);
+                await ref.read(authProvider.notifier).signOut();
+                if (!context.mounted) return;
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (_) => false,
+                );
               },
             ),
           ]),
