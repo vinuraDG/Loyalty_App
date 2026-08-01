@@ -388,7 +388,6 @@ Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
       ),
     ),
   ) ?? false;
-  confirmCtrl.dispose();
   if (!confirmed || !context.mounted) return;
 
   // Step 3 — call API and navigate out

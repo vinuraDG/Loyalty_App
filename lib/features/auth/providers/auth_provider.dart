@@ -292,7 +292,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> deleteAccount() async {
-    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       await _auth.deleteAccount();
       await _clearSession();
