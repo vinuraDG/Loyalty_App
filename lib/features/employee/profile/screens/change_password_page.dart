@@ -134,7 +134,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               onPressed: () async {
                 Navigator.pop(context);
                 await ref.read(authProvider.notifier).signOut();
-                if (!context.mounted) return;
+                if (!mounted) return;
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
