@@ -667,7 +667,7 @@ class AuthApiService implements IAuthService {
         ),
         data: {
           'PhoneNumber': phone,
-          'Token':       null,
+          'Token':  "",
           'NewPassword': newPassword,
         },
       );
@@ -799,13 +799,11 @@ class AuthApiService implements IAuthService {
   Future<void> deleteAccount() async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
-    final userId = prefs.getString(AppConstants.prefUserId) ?? '';
     try {
-      await _dio.delete(
-        'Account/DeleteUser',
+      await _dio.post(
+        'Mobile/DeleteCustomer',
         queryParameters: {
-          if (userId.isNotEmpty) 'userId': userId,
-          if (phone.isNotEmpty) 'phoneNo': phone,
+          if (phone.isNotEmpty) 'PhoneNo': phone,
         },
         options: Options(responseType: ResponseType.plain),
       );
