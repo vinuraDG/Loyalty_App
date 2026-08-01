@@ -76,7 +76,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     FocusScope.of(context).unfocus();
 
     final phone = _phoneCtrl.text.trim();
-    await ref.read(authProvider.notifier).sendOtpForReset(phone);
+    await ref.read(authProvider.notifier).sendPhoneConfirmation(phone);
 
     if (!mounted) return;
     final auth = ref.read(authProvider);

@@ -286,6 +286,21 @@ class AuthMockService implements IAuthService {
   }
 
   @override
+  Future<void> sendPhoneConfirmation(String phone) async {
+    await _delay(ms: 800);
+    _otpStore[phone.trim()] = AppConstants.mockOtp;
+  }
+
+  @override
+  Future<void> confirmPhone({required String phone, required String otp}) async {
+    await _delay(ms: 600);
+    final expected = _otpStore[phone.trim()];
+    if (expected == null || otp.trim() != expected) {
+      throw const AuthException('Invalid OTP. Please try again.');
+    }
+  }
+
+  @override
   Future<void> deleteAccount() async {
     await _delay(ms: 800);
     // In mock mode, simply remove the in-memory user record.

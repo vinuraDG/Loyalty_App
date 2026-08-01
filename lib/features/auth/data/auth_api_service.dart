@@ -54,6 +54,8 @@ abstract class IAuthService {
   });
   Future<void> sendOtpForReset(String phone);
   Future<bool> verifyOtpForReset({required String phone, required String otp});
+  Future<void> sendPhoneConfirmation(String phone);
+  Future<void> confirmPhone({required String phone, required String otp});
   Future<void> resetPassword({
     required String phone,
     required String otp,
@@ -707,6 +709,40 @@ class AuthApiService implements IAuthService {
       rethrow;
     } catch (_) {
       // Not parseable JSON — ignore
+    }
+  }
+
+  // ── Phone confirmation (registration OTP) ────────────────────────────────
+
+  @override
+  Future<void> sendPhoneConfirmation(String phone) async {
+    try {
+      await _dio.post(
+        'Mobile/SendPhoneConfirmation',
+        queryParameters: {'PhoneNumber': phone.trim()},
+        options: Options(responseType: ResponseType.plain),
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> confirmPhone({required String phone, required String otp}) async {
+    try {
+      final res = await _dio.post(
+        'Mobile/ConfirmPhone',
+        queryParameters: {
+          'PhoneNumber': phone.trim(),
+          'Token':       otp.trim(),
+        },
+        options: Options(responseType: ResponseType.plain),
+      );
+      _throwIfErrorBody(res.data);
+    } on AuthException {
+      rethrow;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
     }
   }
 

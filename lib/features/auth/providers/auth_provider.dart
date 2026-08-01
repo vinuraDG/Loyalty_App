@@ -242,6 +242,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // ── Forgot password ───────────────────────────────────────────────────────
 
+  Future<void> sendPhoneConfirmation(String phone) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.sendPhoneConfirmation(phone);
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
+  Future<void> confirmPhone({required String phone, required String otp}) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.confirmPhone(phone: phone, otp: otp);
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
   Future<void> sendOtpForReset(String phone) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {

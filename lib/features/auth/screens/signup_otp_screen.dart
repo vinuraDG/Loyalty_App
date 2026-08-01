@@ -29,8 +29,10 @@ class SignupOtpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
-  final _ctrls = List.generate(4, (_) => TextEditingController());
-  final _focus = List.generate(4, (_) => FocusNode());
+  static const _otpLength = 6;
+
+  final _ctrls = List.generate(_otpLength, (_) => TextEditingController());
+  final _focus  = List.generate(_otpLength, (_) => FocusNode());
   bool _hasError = false;
   String? _errorText;
   int _seconds = 60;
@@ -47,8 +49,12 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _ctrls) c.dispose();
-    for (final f in _focus) f.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    for (final f in _focus) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -56,7 +62,10 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
     _timer?.cancel();
     setState(() => _seconds = 60);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_seconds == 0) { t.cancel(); return; }
+      if (_seconds == 0) {
+        t.cancel();
+        return;
+      }
       setState(() => _seconds--);
     });
   }
@@ -64,18 +73,42 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
   String get _otp => _ctrls.map((c) => c.text).join();
 
   void _clearBoxes() {
-    for (final c in _ctrls) c.clear();
+    for (final c in _ctrls) {
+      c.clear();
+    }
     _focus[0].requestFocus();
   }
 
   Future<void> _verify() async {
-    if (_otp.length < 4) {
-      setState(() { _hasError = true; _errorText = 'Please enter the 4-digit OTP.'; });
+    if (_otp.length < _otpLength) {
+      setState(() {
+        _hasError = true;
+        _errorText = 'Please enter the 6-digit OTP.';
+      });
       return;
     }
     setState(() { _hasError = false; _errorText = null; });
     FocusScope.of(context).unfocus();
 
+    // Step 1: verify the OTP
+    await ref.read(authProvider.notifier).confirmPhone(
+      phone: widget.phone,
+      otp:   _otp,
+    );
+
+    if (!mounted) return;
+    final authAfterVerify = ref.read(authProvider);
+    if (authAfterVerify.errorMessage != null) {
+      setState(() {
+        _hasError  = true;
+        _errorText = authAfterVerify.errorMessage;
+      });
+      ref.read(authProvider.notifier).clearError();
+      _clearBoxes();
+      return;
+    }
+
+    // Step 2: create the account
     await ref.read(authProvider.notifier).registerAccount(
       firstName: widget.firstName,
       lastName:  widget.lastName,
@@ -86,44 +119,40 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
     );
 
     if (!mounted) return;
-    final auth = ref.read(authProvider);
-
-    if (auth.errorMessage != null) {
+    final authAfterCreate = ref.read(authProvider);
+    if (authAfterCreate.errorMessage != null) {
       setState(() {
-        _hasError = true;
-        _errorText = auth.errorMessage;
+        _hasError  = true;
+        _errorText = authAfterCreate.errorMessage;
       });
       ref.read(authProvider.notifier).clearError();
       _clearBoxes();
       return;
     }
 
-    // Account created — navigate to login for fresh sign-in
+    // Success — navigate to login for fresh sign-in
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
     );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Expanded(child: Text('Account created! Please sign in.')),
-          ]),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(children: [
+          Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+          SizedBox(width: 10),
+          Expanded(child: Text('Account created! Please sign in.')),
+        ]),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Future<void> _resend() async {
-    await ref.read(authProvider.notifier).sendOtpForReset(widget.phone);
+    await ref.read(authProvider.notifier).sendPhoneConfirmation(widget.phone);
     if (!mounted) return;
     final auth = ref.read(authProvider);
     if (auth.errorMessage != null) {
@@ -180,21 +209,21 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
 
               const Text('Enter OTP', style: AppTextStyles.h2),
               const SizedBox(height: 10),
-              const Text('We sent a 4-digit code to',
+              const Text('We sent a 6-digit code to',
                   style: AppTextStyles.bodySmall),
               const SizedBox(height: 4),
               Text(widget.phone, style: AppTextStyles.h4),
               const SizedBox(height: 32),
 
-              // OTP boxes
+              // 6 OTP boxes
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(4, (i) => Padding(
-                  padding: EdgeInsets.only(right: i < 3 ? 14 : 0),
+                children: List.generate(_otpLength, (i) => Padding(
+                  padding: EdgeInsets.only(right: i < _otpLength - 1 ? 10 : 0),
                   child: OtpBox(
                     controller: _ctrls[i],
                     focusNode: _focus[i],
-                    nextFocus: i < 3 ? _focus[i + 1] : null,
+                    nextFocus: i < _otpLength - 1 ? _focus[i + 1] : null,
                     hasError: _hasError,
                   ),
                 )),
@@ -243,7 +272,6 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Resend timer / button
               _seconds > 0
                   ? Text(
                       'Resend OTP in $_seconds seconds',
