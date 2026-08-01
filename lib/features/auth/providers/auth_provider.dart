@@ -154,6 +154,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Creates the account but does NOT authenticate — caller navigates to login.
+  Future<void> registerAccount({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+    required String address,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.signUpWithEmail(
+        firstName: firstName,
+        lastName:  lastName,
+        email:     email,
+        phone:     phone,
+        password:  password,
+        address:   address,
+      );
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        registrationSuccess: true,
+      );
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
   // ── Phone / OTP ───────────────────────────────────────────────────────────
 
   Future<void> sendOtp(String phone) async {
@@ -213,7 +243,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // ── Forgot password ───────────────────────────────────────────────────────
 
   Future<void> sendOtpForReset(String phone) async {
-    await _auth.sendOtpForReset(phone);
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.sendOtpForReset(phone);
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
   }
 
   Future<bool> verifyOtpForReset({

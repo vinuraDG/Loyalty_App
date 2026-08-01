@@ -1,10 +1,10 @@
 // signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loyalty_app/customer/home/screens/main_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
+import 'signup_otp_screen.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -75,14 +75,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
     FocusScope.of(context).unfocus();
 
-    await ref.read(authProvider.notifier).signUpWithEmail(
-      firstName: _firstNameCtrl.text.trim(),
-      lastName:  _lastNameCtrl.text.trim(),
-      email:     _emailCtrl.text.trim(),
-      phone:     _phoneCtrl.text.trim(),
-      address:   _addressCtrl.text.trim(),
-      password:  _passCtrl.text,
-    );
+    final phone = _phoneCtrl.text.trim();
+    await ref.read(authProvider.notifier).sendOtpForReset(phone);
 
     if (!mounted) return;
     final auth = ref.read(authProvider);
@@ -93,13 +87,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
 
-    if (auth.isAuthenticated) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-        (_) => false,
-      );
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SignupOtpScreen(
+          firstName: _firstNameCtrl.text.trim(),
+          lastName:  _lastNameCtrl.text.trim(),
+          email:     _emailCtrl.text.trim(),
+          phone:     phone,
+          password:  _passCtrl.text,
+          address:   _addressCtrl.text.trim(),
+        ),
+      ),
+    );
   }
 
   @override
