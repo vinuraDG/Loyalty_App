@@ -7,21 +7,21 @@ import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 
 class SignupOtpScreen extends ConsumerStatefulWidget {
+  final String phone;
   final String firstName;
   final String lastName;
   final String email;
-  final String phone;
-  final String password;
   final String address;
+  final String password;
 
   const SignupOtpScreen({
     super.key,
+    required this.phone,
     required this.firstName,
     required this.lastName,
     required this.email,
-    required this.phone,
-    required this.password,
     required this.address,
+    required this.password,
   });
 
   @override
@@ -29,13 +29,14 @@ class SignupOtpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
-  static const _otpLength = 6;
+  static const _otpLength   = 6;
+  static const _otpDuration = 90; // matches backend OTP expiry
 
   final _ctrls = List.generate(_otpLength, (_) => TextEditingController());
   final _focus  = List.generate(_otpLength, (_) => FocusNode());
-  bool _hasError = false;
+  bool _hasError  = false;
   String? _errorText;
-  int _seconds = 60;
+  int _seconds = _otpDuration;
   Timer? _timer;
 
   @override
@@ -49,40 +50,38 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _ctrls) {
-      c.dispose();
-    }
-    for (final f in _focus) {
-      f.dispose();
-    }
+    for (final c in _ctrls) { c.dispose(); }
+    for (final f in _focus) { f.dispose(); }
     super.dispose();
   }
 
   void _startTimer() {
     _timer?.cancel();
-    setState(() => _seconds = 60);
+    setState(() => _seconds = _otpDuration);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_seconds == 0) {
-        t.cancel();
-        return;
-      }
+      if (_seconds == 0) { t.cancel(); return; }
       setState(() => _seconds--);
     });
+  }
+
+  // Formats remaining seconds as M:SS (e.g. 1:30, 0:09)
+  String get _timerLabel {
+    final m = _seconds ~/ 60;
+    final s = _seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   String get _otp => _ctrls.map((c) => c.text).join();
 
   void _clearBoxes() {
-    for (final c in _ctrls) {
-      c.clear();
-    }
+    for (final c in _ctrls) { c.clear(); }
     _focus[0].requestFocus();
   }
 
   Future<void> _verify() async {
     if (_otp.length < _otpLength) {
       setState(() {
-        _hasError = true;
+        _hasError  = true;
         _errorText = 'Please enter the 6-digit OTP.';
       });
       return;
@@ -108,8 +107,8 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
       return;
     }
 
-    // Step 2: create the account
-    await ref.read(authProvider.notifier).registerAccount(
+    // Step 2: OTP verified — now create the customer loyalty profile
+    await ref.read(authProvider.notifier).completeRegistration(
       firstName: widget.firstName,
       lastName:  widget.lastName,
       email:     widget.email,
@@ -119,18 +118,17 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
     );
 
     if (!mounted) return;
-    final authAfterCreate = ref.read(authProvider);
-    if (authAfterCreate.errorMessage != null) {
+    final authAfterComplete = ref.read(authProvider);
+    if (authAfterComplete.errorMessage != null) {
       setState(() {
         _hasError  = true;
-        _errorText = authAfterCreate.errorMessage;
+        _errorText = authAfterComplete.errorMessage;
       });
       ref.read(authProvider.notifier).clearError();
-      _clearBoxes();
       return;
     }
 
-    // Success — navigate to login for fresh sign-in
+    // Account fully created and verified — go to login
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -216,17 +214,19 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
               const SizedBox(height: 32),
 
               // 6 OTP boxes
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_otpLength, (i) => Padding(
-                  padding: EdgeInsets.only(right: i < _otpLength - 1 ? 10 : 0),
-                  child: OtpBox(
-                    controller: _ctrls[i],
-                    focusNode: _focus[i],
-                    nextFocus: i < _otpLength - 1 ? _focus[i + 1] : null,
-                    hasError: _hasError,
-                  ),
-                )),
+              FittedBox(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_otpLength, (i) => Padding(
+                    padding: EdgeInsets.only(right: i < _otpLength - 1 ? 10 : 0),
+                    child: OtpBox(
+                      controller: _ctrls[i],
+                      focusNode: _focus[i],
+                      nextFocus: i < _otpLength - 1 ? _focus[i + 1] : null,
+                      hasError: _hasError,
+                    ),
+                  )),
+                ),
               ),
 
               // Error message
@@ -265,18 +265,35 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
               const SizedBox(height: 32),
 
               GradientButton(
-                label: 'Verify & Create Account',
-                icon: Icons.person_add_alt_1_rounded,
+                label: 'Verify & Activate',
+                icon: Icons.verified_user_rounded,
                 isLoading: auth.isLoading,
                 onPressed: auth.isLoading ? null : _verify,
               ),
               const SizedBox(height: 24),
 
+              // Countdown timer / resend button
               _seconds > 0
-                  ? Text(
-                      'Resend OTP in $_seconds seconds',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textMuted),
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.timer_outlined,
+                            size: 14, color: AppColors.textMuted),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Resend in ',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.textMuted),
+                        ),
+                        Text(
+                          _timerLabel,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.primaryLight,
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
                     )
                   : GestureDetector(
                       onTap: auth.isLoading ? null : _resend,

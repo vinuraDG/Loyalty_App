@@ -40,6 +40,27 @@ class CustomerLedgerService {
     _ledgerFuture = null;
   }
 
+  /// Fetch ledger entries for a specific date range — bypasses the shared
+  /// cache since results differ per month. Used by the transaction history
+  /// view to match the employee-side per-month fetch pattern.
+  Future<List<dynamic>> fetchLedgerForDateRange(
+      String phone, String dateFrom, String dateTo) async {
+    try {
+      final res = await _dio.get(
+        'Mobile/GetAllCustomerLedgers',
+        data: {
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
+          'CustomerPhoneNo': phone,
+          'DateFrom': dateFrom,
+          'DateTo': dateTo,
+        },
+      );
+      return _asList(res.data);
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<List<dynamic>> _doFetch(String phone) async {
     try {
       final res = await _dio.get(

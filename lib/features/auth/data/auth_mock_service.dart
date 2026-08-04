@@ -286,6 +286,51 @@ class AuthMockService implements IAuthService {
   }
 
   @override
+  Future<void> registerIdentityOnly({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+  }) async {
+    await _delay();
+    if (_users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
+      throw const AuthException('An account with this email already exists.');
+    }
+    if (_users.any((u) => u.phone.trim() == phone.trim())) {
+      throw const AuthException('This phone number is already registered.');
+    }
+    _otpStore[phone.trim()] = AppConstants.mockOtp;
+  }
+
+  @override
+  Future<UserModel> completeCustomerRegistration({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+    required String address,
+  }) async {
+    await _delay();
+    final existing = _users.where((u) => u.phone.trim() == phone.trim()).firstOrNull;
+    if (existing != null) return existing;
+    final user = UserModel(
+      id: _genId(),
+      firstName: firstName.trim(),
+      lastName:  lastName.trim(),
+      email:     email.trim().toLowerCase(),
+      phone:     phone.trim(),
+      role:      'customer',
+      totalPoints: 0,
+      address:   address.trim(),
+      createdAt: DateTime.now(),
+    );
+    _users.add(user);
+    return user;
+  }
+
+  @override
   Future<void> sendPhoneConfirmation(String phone) async {
     await _delay(ms: 800);
     _otpStore[phone.trim()] = AppConstants.mockOtp;
@@ -307,6 +352,35 @@ class AuthMockService implements IAuthService {
     final prefs = await SharedPreferences.getInstance();
     final id = prefs.getString(AppConstants.prefUserId) ?? '';
     _users.removeWhere((u) => u.id == id);
+  }
+
+  @override
+  Future<void> sendEmailVerification(String phone) async {
+    await _delay(ms: 800);
+    // In mock mode, mark the user as email-confirmed after a simulated send.
+    final i = _users.indexWhere((u) => u.phone.trim() == phone.trim());
+    if (i != -1) _users[i] = _users[i].copyWith(emailConfirmed: true);
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _delay(ms: 800);
+    // In mock mode, store a fake token keyed by email.
+    _otpStore[email.trim()] = AppConstants.mockOtp;
+  }
+
+  @override
+  Future<void> resetPasswordWithToken({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
+    await _delay();
+    final expected = _otpStore[email.trim()];
+    if (expected != null && token.trim() != expected) {
+      throw const AuthException('Invalid or expired reset link.');
+    }
+    _otpStore.remove(email.trim());
   }
 
   Future<void> _delay({int ms = 1200}) =>

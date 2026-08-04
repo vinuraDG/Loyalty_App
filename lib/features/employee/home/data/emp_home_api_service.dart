@@ -96,6 +96,7 @@ class RedeemableOffer {
   final bool isExpired;
   final String companyPhoneNo;
   final int customerPoints; // customer's current balance for this company
+  final int companyId;      // transactionCompanyId — used in RedeemConfirmation
 
   const RedeemableOffer({
     required this.id,
@@ -106,6 +107,7 @@ class RedeemableOffer {
     this.isExpired = false,
     this.companyPhoneNo = '',
     this.customerPoints = 0,
+    this.companyId = 0,
   });
 
   factory RedeemableOffer.fromJson(Map<String, dynamic> j) => RedeemableOffer(
@@ -173,6 +175,7 @@ abstract interface class IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int companyId = 0,
   });
   Future<RedemptionResult> redeemPoints({
     required String customerId,
@@ -180,5 +183,6 @@ abstract interface class IEmpHomeService {
     required int pointsToRedeem,
     required String companyPhoneNo,
     required String employeeId,
+    int companyId = 0,
   });
 }

@@ -86,7 +86,7 @@ class EmpHomeRealService implements IEmpHomeService {
       final rawProfilePts = data['TotalPoints'] ?? data['totalPoints'] ??
           data['PointBalance'] ?? data['pointBalance'];
       int points = rawProfilePts != null
-          ? (int.tryParse(rawProfilePts.toString()) ?? -1)
+          ? (double.tryParse(rawProfilePts.toString()) ?? -1.0).round()
           : -1;
 
       if (points < 0) {
@@ -100,19 +100,12 @@ class EmpHomeRealService implements IEmpHomeService {
             },
           );
           final entries = _asList(ledgerRes.data);
-          int earned = 0, redeemed = 0;
           for (final e in entries) {
             if (e is! Map<String, dynamic>) continue;
-            final pts = int.tryParse((e['PointsValue'] ?? 0).toString()) ?? 0;
-            final type =
-                (e['PointsTransactionType'] ?? '').toString().toLowerCase();
-            if (type == 'earn') {
-              earned += pts;
-            } else {
-              redeemed += pts;
-            }
+            final type = (e['PointsTransactionType'] ?? '').toString().toLowerCase();
+            if (type != 'earn') continue;
+            points += (double.tryParse((e['PointBalance'] ?? 0).toString()) ?? 0).round();
           }
-          points = earned - redeemed;
         } catch (_) {
           // Points fetch is best-effort; proceed without it
         }
@@ -156,8 +149,8 @@ class EmpHomeRealService implements IEmpHomeService {
       // Use server's calculated points; fall back to client estimate if absent.
       final data = res.data;
       if (data is Map) {
-        final pts = int.tryParse((data['Points'] ?? data['points'] ?? pointsAwarded).toString());
-        if (pts != null && pts > 0) return pts;
+        final pts = (double.tryParse((data['Points'] ?? data['points'] ?? pointsAwarded).toString()) ?? 0).round();
+        if (pts > 0) return pts;
       }
       return pointsAwarded;
     } on DioException catch (e) {
@@ -270,55 +263,43 @@ class EmpHomeRealService implements IEmpHomeService {
   // company (Fuel) as a redeemable offer. PhoneNo from the backend is used
   // as PointsRedeemCompanyPhoneNo in confirmRedemption.
 
-  static const _fallbackOffer = RedeemableOffer(
-    id: 'laundry-redeem',
-    title: 'Sunshine Laundry',
-    description: 'Redeem Sunshine Laundry points',
-    business: 'Sunshine Laundry',
-    pointsCost: 0,
-    companyPhoneNo: '0112948777',
-    customerPoints: 0,
-  );
-
   @override
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
     try {
       final companies = await CompaniesApiService.instance.getCompanies();
-      // All companies returned by GetAllCompanies are redeemable partners.
-      // The earn company (transactionCompanyId) is NOT in GetAllCompanies,
-      // so no filtering needed — use the full list as-is.
-      final redeemable = companies;
+      // Filter out earn-only companies (e.g. Fuel/Id 3) — customers only
+      // redeem at partner companies (Laundry, Gold Shop, etc.).
+      final redeemable = companies.where((c) => !c.isEarnOnly).toList();
 
-      if (redeemable.isEmpty) return [_fallbackOffer];
+      if (redeemable.isEmpty) return [];
 
-      final offers = <RedeemableOffer>[];
-      for (final c in redeemable) {
-        final pts = await _fetchCustomerPoints(customerId);
-        offers.add(RedeemableOffer(
-          id: 'redeem-${c.Id}',
-          title: c.name,
-          description: 'Redeem at ${c.name}',
-          business: c.name,
-          pointsCost: 0,
-          companyPhoneNo: c.phoneNo,
-          customerPoints: pts,
-        ));
-      }
-      return offers;
+      // Fetch the customer's total balance once — all earned points are
+      // redeemable at any partner company regardless of where they were earned.
+      final pts = await _fetchCustomerPoints(customerId);
+
+      return redeemable.map((c) => RedeemableOffer(
+        id: 'redeem-${c.Id}',
+        title: c.name,
+        description: 'Redeem at ${c.displayName}',
+        business: c.displayName,
+        pointsCost: 0,
+        companyPhoneNo: c.phoneNo,
+        customerPoints: pts,
+        companyId: c.transactionCompanyId,
+      )).toList();
     } catch (_) {
-      return [_fallbackOffer];
+      return [];
     }
   }
 
-  // Fetch the customer's current point balance by summing their ledger.
-  // All offers draw from the same fuel-points balance, so earnCompanyId is
-  // always used regardless of which partner company is being displayed.
+  // Fetch the customer's total redeemable balance by summing PointBalance
+  // across all Earn ledger entries.
   Future<int> _fetchCustomerPoints(String customerId) async {
     try {
       final res = await _dio.get(
         'Mobile/GetAllCustomerLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.earnCompanyId,
+          'TransactionCompanyId': AppConstants.transactionCompanyId,
           'CustomerPhoneNo': customerId,
         },
       );
@@ -333,7 +314,7 @@ class EmpHomeRealService implements IEmpHomeService {
         final j    = Map<String, dynamic>.from(raw);
         final type = (j['PointsTransactionType'] ?? '').toString().toLowerCase();
         if (type != 'earn') continue;
-        final pb = int.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0;
+        final pb = (double.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0).round();
         balance += pb;
       }
       return balance;
@@ -394,9 +375,11 @@ class EmpHomeRealService implements IEmpHomeService {
     required int pointsToRedeem,
     required String companyPhoneNo,
     required String employeeId,
+    int companyId = 0,
   }) async {
     final phone = await _empPhone;
     final redeemPhone = companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
+    final tcId = companyId > 0 ? companyId : AppConstants.redeemCompanyId;
 
     // Step 1: Initiate redemption — backend returns OTP in response body.
     String otp = '';
@@ -436,7 +419,7 @@ class EmpHomeRealService implements IEmpHomeService {
         'Common/RedeemConfirmation',
         options: Options(responseType: ResponseType.plain),
         queryParameters: {
-          'TransactionCompanyId': AppConstants.redeemCompanyId,
+          'TransactionCompanyId': tcId,
           'CustomerPhoneNo': customerId,
           'OTP': otp,
         },
@@ -483,13 +466,15 @@ class EmpHomeRealService implements IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int companyId = 0,
   }) async {
+    final tcId = companyId > 0 ? companyId : AppConstants.redeemCompanyId;
     try {
       final res = await _dio.post(
         'Common/RedeemConfirmation',
         options: Options(responseType: ResponseType.plain),
         queryParameters: {
-          'TransactionCompanyId': AppConstants.redeemCompanyId,
+          'TransactionCompanyId': tcId,
           'CustomerPhoneNo': customerId,
           'OTP': otp,
         },

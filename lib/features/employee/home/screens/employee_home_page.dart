@@ -10,7 +10,7 @@ import '../data/emp_home_real_service.dart';
 import '../../commission/data/emp_commission_api_service.dart';
 import 'qr_scanner_screen.dart';
 import 'customer_identified_screen.dart';
-import '../../commission/screens/employee_total_commission_page.dart';
+import '../../commission/screens/employee_commission_page.dart';
 import 'employee_dashboard_screen.dart';
 
 class EmployeeHomePage extends StatefulWidget {
@@ -79,23 +79,31 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     }
   }
 
+  // Refreshes all home-page data in parallel. Each fetch is independent —
+  // a failure in one (e.g. commission) does not block the others from updating.
   Future<void> _silentRefresh() async {
-    try {
-      final results = await Future.wait([
-        _svc.getTodayScans(widget.employee.id),
-        _svc.getWeeklyCommission(widget.employee.id),
-        _commissionSvc.getSalesForMonth(widget.employee.id, _currentMonthKey),
-      ]);
-      if (!mounted) return;
-      final scans  = results[0] as List<ScanEntry>;
-      final weekly = results[1] as List<int>;
-      final sales  = results[2] as List<SaleEntry>;
-      setState(() {
-        _todayScans        = scans.reversed.toList();
-        _weeklyCommission  = weekly;
-        _monthlyCommission = sales.fold(0.0, (a, s) => a + s.commission);
-      });
-    } catch (_) {}
+    List<ScanEntry>? newScans;
+    List<int>?       newWeekly;
+    double?          newMonthly;
+
+    await Future.wait([
+      _svc.getTodayScans(widget.employee.id)
+          .then((s) => newScans = s.reversed.toList())
+          .catchError((_) {}),
+      _svc.getWeeklyCommission(widget.employee.id)
+          .then((w) => newWeekly = w)
+          .catchError((_) {}),
+      _commissionSvc.getSalesForMonth(widget.employee.id, _currentMonthKey)
+          .then((s) => newMonthly = s.fold<double>(0.0, (a, e) => a + e.commission))
+          .catchError((_) {}),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      if (newScans   != null) _todayScans        = newScans!;
+      if (newWeekly  != null) _weeklyCommission  = newWeekly!;
+      if (newMonthly != null) _monthlyCommission = newMonthly!;
+    });
   }
 
   double get _weeklyTotal =>
@@ -129,26 +137,24 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
     await _silentRefresh();
   }
 
-  // Gradient commission card → full history detail page (no bottom nav)
+  // Both the commission card and the "My Commission" quick action open the
+  // same commission page (has month picker + full history).
   void _goToCommission(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EmployeeTotalCommissionPage(employee: widget.employee),
-      ),
-    );
-  }
-
-  // "My Commission" quick action → Commission tab in bottom nav (has month filter)
-  void _goToCommissionTab(BuildContext context) {
     final dashboard =
         context.findAncestorStateOfType<EmployeeDashboardScreenState>();
     if (dashboard != null) {
       dashboard.switchToCommission();
     } else {
-      _goToCommission(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EmployeeCommissionPage(employee: widget.employee),
+        ),
+      );
     }
   }
+
+  void _goToCommissionTab(BuildContext context) => _goToCommission(context);
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +208,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
         child: RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.bgCard,
-          onRefresh: _load,
+          onRefresh: _silentRefresh,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(24),
@@ -226,7 +232,6 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
               const SizedBox(height: 24),
 
               // ── Commission card ────────────────────────────────────────
-              // FIX: onTap calls _goToCommission (switches bottom nav tab index)
               // instead of Navigator.push (which loses the bottom nav shell).
               GestureDetector(
                 onTap: () => _goToCommission(context),
@@ -348,17 +353,21 @@ class _CommissionCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(children: [
-                  Icon(Icons.open_in_new_rounded,
-                      size: 10, color: Colors.white.withValues(alpha: 0.4)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Tap to view commission',
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.4)),
-                  ),
-                ]),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(children: [
+                    Icon(Icons.open_in_new_rounded,
+                        size: 10, color: Colors.white.withValues(alpha: 0.4)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tap to view commission',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white.withValues(alpha: 0.4)),
+                    ),
+                  ]),
+                ),
               ],
             ),
           ),

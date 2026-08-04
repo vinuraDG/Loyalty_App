@@ -12,6 +12,7 @@ import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'package:loyalty_app/core/providers/refresh_provider.dart';
 import 'main_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -51,7 +52,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       final user = ref.read(currentUserProvider);
-      if (user != null && mounted) _fetchHomeData(user.id);
+      if (user != null && mounted) {
+        _fetchHomeData(user.id);
+        ref.read(authProvider.notifier).refreshEmailStatus();
+      }
     }
   }
 
@@ -102,7 +106,6 @@ Future<void> _loadPoints(String userId) async {
                    d.month == today.month &&
                    d.day == today.day;
           })
-          .take(3)
           .toList();
 
       if (mounted) setState(() => _recentTxs = todayTxs);
@@ -193,24 +196,32 @@ Future<void> _loadPoints(String userId) async {
                       ],
                     ),
                   ),
-                  Stack(children: [
-                    const Icon(Icons.notifications_none_rounded,
-                        color: AppColors.textSecondary, size: 26),
-                    Positioned(
-                      top: 2,
-                      right: 2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: AppColors.error,
-                          shape: BoxShape.circle,
-                          border:
-                              Border.all(color: AppColors.bgDark, width: 1.5),
-                        ),
-                      ),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen()),
                     ),
-                  ]),
+                    child: Stack(children: [
+                      const Icon(Icons.notifications_none_rounded,
+                          color: AppColors.textSecondary, size: 26),
+                      if (!user.emailConfirmed)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: AppColors.bgDark, width: 1.5),
+                            ),
+                          ),
+                        ),
+                    ]),
+                  ),
                   const SizedBox(width: 12),
                   InitialsAvatar(initials: user.initials, size: 42),
                 ]),
@@ -895,7 +906,7 @@ class _TxTile extends StatelessWidget {
     final local = tx.date.toLocal();
     final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
     const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final timeStr = '${local.day} ${_sm[local.month - 1]} ${local.year}  ·  $h:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
+    final timeStr = '${local.day} ${_sm[local.month - 1]} ${local.year} · $h:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
 
     return GestureDetector(
       onTap: () => _showDetail(context),
@@ -940,8 +951,14 @@ class _TxTile extends StatelessWidget {
                     ]),
                   ),
                   const SizedBox(width: 6),
-                  Text(timeStr,
-                      style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                  Flexible(
+                    child: Text(
+                      timeStr,
+                      style: AppTextStyles.caption.copyWith(fontSize: 10),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
                 ]),
               ],
             ),

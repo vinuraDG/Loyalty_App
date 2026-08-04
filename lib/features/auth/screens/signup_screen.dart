@@ -1,5 +1,6 @@
 // signup_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -75,12 +76,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
     FocusScope.of(context).unfocus();
 
-    final phone = _phoneCtrl.text.trim();
-    await ref.read(authProvider.notifier).sendPhoneConfirmation(phone);
+    final phone     = _phoneCtrl.text.trim();
+    final firstName = _firstNameCtrl.text.trim();
+    final lastName  = _lastNameCtrl.text.trim();
+    final email     = _emailCtrl.text.trim();
+    final address   = _addressCtrl.text.trim();
+    final password  = _passCtrl.text;
+
+    // Creates the identity user — backend sends OTP to the phone automatically.
+    await ref.read(authProvider.notifier).registerIdentityOnly(
+      firstName: firstName,
+      lastName:  lastName,
+      email:     email,
+      phone:     phone,
+      password:  password,
+    );
 
     if (!mounted) return;
     final auth = ref.read(authProvider);
-
     if (auth.errorMessage != null) {
       _showError(auth.errorMessage!);
       ref.read(authProvider.notifier).clearError();
@@ -91,12 +104,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => SignupOtpScreen(
-          firstName: _firstNameCtrl.text.trim(),
-          lastName:  _lastNameCtrl.text.trim(),
-          email:     _emailCtrl.text.trim(),
           phone:     phone,
-          password:  _passCtrl.text,
-          address:   _addressCtrl.text.trim(),
+          firstName: firstName,
+          lastName:  lastName,
+          email:     email,
+          address:   address,
+          password:  password,
         ),
       ),
     );
@@ -146,6 +159,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       hint: 'Kasun',
                       controller: _firstNameCtrl,
                       keyboardType: TextInputType.name,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [_CapWordsFormatter()],
                       prefixIconData: Icons.person_outline,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Required';
@@ -161,6 +176,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       hint: 'Perera',
                       controller: _lastNameCtrl,
                       keyboardType: TextInputType.name,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [_CapWordsFormatter()],
                       prefixIconData: Icons.person_outline,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Required';
@@ -330,6 +347,26 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         ),
       ),
     );
+  }
+}
+
+// ── Name capitalizer ───────────────────────────────────────────────────────────
+
+/// Capitalizes the first letter of every whitespace-separated word in the
+/// field in real time, regardless of keyboard caps-lock state.
+class _CapWordsFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    final capitalized = newValue.text.replaceAllMapped(
+      RegExp(r'(^|\s)\S'),
+      (m) => m.group(0)!.toUpperCase(),
+    );
+    if (capitalized == newValue.text) return newValue;
+    return newValue.copyWith(text: capitalized);
   }
 }
 

@@ -27,9 +27,10 @@ class RedeemApiService implements IRedeemService {
   Future<List<OfferModel>> getOffers() async {
     try {
       final companies = await CompaniesApiService.instance.getCompanies();
-      // GetAllCompanies returns partner (redeemable) companies only.
       if (companies.isEmpty) return [];
+      // Filter out earn-only companies (e.g. Fuel/Id 3) — they are not redeem partners.
       return companies
+          .where((c) => !c.isEarnOnly)
           .map((c) => OfferModel(
                 id: 'redeem-${c.Id}',
                 title: c.displayName,

@@ -47,8 +47,11 @@ class _AuthInterceptor extends Interceptor {
   static const _publicPaths = [
     'Account/Login',
     'Account/Register',
+    'Account/ForgotPassword',
     'Mobile/ForgotPassword',
     'Mobile/ResetPassword',
+    'Mobile/SendPhoneConfirmation',
+    'Mobile/ConfirmPhone',
     'Common/ForgotPassword',
     'Common/ResetPassword',
   ];

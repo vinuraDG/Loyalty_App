@@ -32,6 +32,7 @@ dependencies:
   gap: ^3.0.1
   provider: ^6.1.5+1
   dio: ^5.9.2
+  app_links: ^6.3.2
 
 dev_dependencies:
   flutter_test:

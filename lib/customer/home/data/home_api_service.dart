@@ -73,20 +73,15 @@ class HomeApiService implements IHomeService {
 
     try {
       final list = await _fetchLedger(phone);
-      int earned = 0, redeemed = 0;
+      int balance = 0;
       for (final entry in list) {
         final m    = entry as Map<String, dynamic>;
         final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
-        final pts  = int.tryParse(
-                (m['PointsValue'] ?? m['Points'] ?? 0).toString()) ??
-            0;
-        if (type == 'earn') {
-          earned += pts;
-        } else if (type == 'redeem') {
-          redeemed += pts;
-        }
+        if (type != 'earn') continue;
+        balance += (double.tryParse(
+                (m['PointBalance'] ?? 0).toString()) ?? 0).round();
       }
-      return (earned - redeemed).clamp(0, 999999999);
+      return balance.clamp(0, 999999999);
     } catch (_) {
       return 0;
     }
@@ -111,8 +106,8 @@ Future<List<int>> getWeeklyPoints(String userId) async {
       final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
       if (type != 'earn') continue;
 
-      final points = int.tryParse(
-              (m['PointsValue'] ?? m['Points'] ?? 0).toString()) ?? 0;
+      final points = (double.tryParse(
+              (m['PointsValue'] ?? m['Points'] ?? 0).toString()) ?? 0).round();
       if (points <= 0) continue;
 
       // DateCreated is the real transaction timestamp

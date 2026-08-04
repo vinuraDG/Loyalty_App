@@ -1320,7 +1320,7 @@ class _HistoryTile extends StatelessWidget {
     final _local = tx.date.toLocal();
     final _hh = _local.hour % 12 == 0 ? 12 : _local.hour % 12;
     const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final time = '${_local.day} ${_sm[_local.month - 1]} ${_local.year}  ·  $_hh:${_local.minute.toString().padLeft(2, '0')} ${_local.hour >= 12 ? 'PM' : 'AM'}';
+    final time = '${_local.day} ${_sm[_local.month - 1]} ${_local.year} · $_hh:${_local.minute.toString().padLeft(2, '0')} ${_local.hour >= 12 ? 'PM' : 'AM'}';
 
     return GestureDetector(
       onTap: () => _showDetail(context),
@@ -1376,8 +1376,14 @@ class _HistoryTile extends StatelessWidget {
                             ? TransactionType.expired
                             : tx.type),
                     const SizedBox(width: 6),
-                    Text(time,
-                        style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                    Flexible(
+                      child: Text(
+                        time,
+                        style: AppTextStyles.caption.copyWith(fontSize: 10),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
                   ]),
                   if (tx.note != null && tx.note!.isNotEmpty) ...[
                     const SizedBox(height: 4),

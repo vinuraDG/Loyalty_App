@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 
 
@@ -81,12 +82,16 @@ class AppTextField extends StatefulWidget {
   final void Function(String)? onChanged;
   final int? maxLength;
   final TextInputAction textInputAction;
+  final TextCapitalization textCapitalization;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AppTextField({
     super.key, required this.label, this.hint, this.controller,
     this.isPassword = false, this.keyboardType = TextInputType.text,
     this.validator, this.prefixIconData, this.readOnly = false,
     this.onChanged, this.maxLength, this.textInputAction = TextInputAction.next,
+    this.textCapitalization = TextCapitalization.none,
+    this.inputFormatters,
   });
 
   @override
@@ -110,6 +115,8 @@ class _AppTextFieldState extends State<AppTextField> {
         onChanged: widget.onChanged,
         maxLength: widget.maxLength,
         textInputAction: widget.textInputAction,
+        textCapitalization: widget.textCapitalization,
+        inputFormatters: widget.inputFormatters,
         style: AppTextStyles.bodyMedium,
         validator: widget.validator,
         decoration: InputDecoration(

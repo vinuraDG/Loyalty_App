@@ -8,6 +8,7 @@ class UserModel {
   final int totalPoints;
   final String address;
   final DateTime createdAt;
+  final bool emailConfirmed;
 
   const UserModel({
     required this.id,
@@ -19,6 +20,7 @@ class UserModel {
     this.totalPoints = 0,
     this.address = '',
     required this.createdAt,
+    this.emailConfirmed = false,
   });
 
   // ── Computed ───────────────────────────────────────────────────────────────
@@ -65,6 +67,7 @@ class UserModel {
     String? phone,
     String? address,
     int? totalPoints,
+    bool? emailConfirmed,
   }) =>
       UserModel(
         id: id,
@@ -76,6 +79,7 @@ class UserModel {
         phone: phone ?? this.phone,
         address: address ?? this.address,
         totalPoints: totalPoints ?? this.totalPoints,
+        emailConfirmed: emailConfirmed ?? this.emailConfirmed,
       );
 
   // ── Serialisation ──────────────────────────────────────────────────────────
@@ -90,6 +94,7 @@ class UserModel {
     'totalPoints': totalPoints,
     'address': address,
     'createdAt': createdAt.toIso8601String(),
+    'emailConfirmed': emailConfirmed,
   };
 
   factory UserModel.fromJson(Map<String, dynamic> j) {
@@ -112,6 +117,7 @@ class UserModel {
       totalPoints: j['totalPoints'] ?? 0,
       address: j['address'] ?? '',
       createdAt: DateTime.parse(j['createdAt']),
+      emailConfirmed: j['emailConfirmed'] ?? false,
     );
   }
 }

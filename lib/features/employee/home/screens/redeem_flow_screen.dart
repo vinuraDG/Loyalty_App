@@ -137,16 +137,8 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
   // ── Send OTP → navigate to OTP entry screen ──────────────────────────────
 
   Future<void> _confirmRedemption() async {
-    if (_redeeming || _pointsToRedeem == null) return;
-    final offer = _selectedOffer ??
-        const RedeemableOffer(
-          id: 'laundry-redeem',
-          title: 'Sunshine Laundry',
-          description: '',
-          business: 'Sunshine Laundry',
-          pointsCost: 0,
-          companyPhoneNo: '0112948777',
-        );
+    if (_redeeming || _pointsToRedeem == null || _selectedOffer == null) return;
+    final offer = _selectedOffer!;
     setState(() => _redeeming = true);
     try {
       final otp = await widget.svc.sendRedemptionOtp(
@@ -230,14 +222,14 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
 
             _buildBody(),
 
-            // ── Laundry: points input + confirm ─────────────────────────────
             if (!_loading && _error == null && _isGoldSelected)
-              _LaundryRedeemPanel(
+              _RedeemPanel(
                 controller: _pointsController,
                 customerPoints: _availablePoints,
                 pointsError: _pointsError,
                 pointsToRedeem: _pointsToRedeem,
                 redeeming: _redeeming,
+                companyName: _selectedOffer?.business ?? '',
                 onPointsChanged: _onPointsChanged,
                 onConfirm: _confirmRedemption,
               ),
@@ -381,29 +373,32 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: _CustomerPointsRow(
         totalPoints: widget.member.currentPoints,
-        laundryPoints: _selectedOffer?.customerPoints ?? 0,
+        companyPoints: _selectedOffer?.customerPoints ?? 0,
+        companyName: _selectedOffer?.business ?? '',
       ),
     );
   }
 }
 
-// ── Laundry Redeem Panel ──────────────────────────────────────────────────────
+// ── Redeem Panel ─────────────────────────────────────────────────────────────
 
-class _LaundryRedeemPanel extends StatelessWidget {
+class _RedeemPanel extends StatelessWidget {
   final TextEditingController controller;
   final int customerPoints;
   final String? pointsError;
   final int? pointsToRedeem;
   final bool redeeming;
+  final String companyName;
   final ValueChanged<String> onPointsChanged;
   final VoidCallback onConfirm;
 
-  const _LaundryRedeemPanel({
+  const _RedeemPanel({
     required this.controller,
     required this.customerPoints,
     required this.pointsError,
     required this.pointsToRedeem,
     required this.redeeming,
+    required this.companyName,
     required this.onPointsChanged,
     required this.onConfirm,
   });
@@ -411,6 +406,7 @@ class _LaundryRedeemPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canSend = !redeeming && pointsToRedeem != null;
+    final theme = _BusinessTheme.of(companyName);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -419,7 +415,7 @@ class _LaundryRedeemPanel extends StatelessWidget {
         color: AppColors.bgCard,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF60A5FA).withValues(alpha: 0.22),
+          color: theme.color.withValues(alpha: 0.22),
         ),
       ),
       child: Column(
@@ -431,11 +427,10 @@ class _LaundryRedeemPanel extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF60A5FA).withValues(alpha: 0.12),
+                color: theme.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.local_laundry_service_rounded,
-                  size: 18, color: Color(0xFF60A5FA)),
+              child: Icon(theme.icon, size: 18, color: theme.color),
             ),
             const SizedBox(width: 12),
             const Expanded(
@@ -594,15 +589,18 @@ class _PointsInputField extends StatelessWidget {
 
 class _CustomerPointsRow extends StatelessWidget {
   final int totalPoints;
-  final int laundryPoints;
+  final int companyPoints;
+  final String companyName;
 
   const _CustomerPointsRow({
     required this.totalPoints,
-    required this.laundryPoints,
+    required this.companyPoints,
+    required this.companyName,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = _BusinessTheme.of(companyName);
     return Row(children: [
       Expanded(
         child: _StatCard(
@@ -616,11 +614,11 @@ class _CustomerPointsRow extends StatelessWidget {
       const SizedBox(width: 12),
       Expanded(
         child: _StatCard(
-          label: 'Laundry Points',
-          value: '$laundryPoints',
-          icon: Icons.local_laundry_service_rounded,
-          iconColor: const Color(0xFF60A5FA),
-          valueColor: const Color(0xFF60A5FA),
+          label: '$companyName Points',
+          value: '$companyPoints',
+          icon: theme.icon,
+          iconColor: theme.color,
+          valueColor: theme.color,
           highlight: true,
         ),
       ),

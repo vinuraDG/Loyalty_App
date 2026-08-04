@@ -15,6 +15,8 @@ abstract class IPointsService {
   Future<List<TransactionModel>> getTransactions(String userId);
   Future<List<TransactionModel>> getTransactionsByBusiness(
       String userId, String business);
+  Future<List<TransactionModel>> getTransactionsForMonth(
+      String userId, int month, int year);
   Future<void> awardPoints(String userId, String business, int points);
 }
 
@@ -63,6 +65,38 @@ class PointsApiService implements IPointsService {
   }
 
   @override
+  Future<List<TransactionModel>> getTransactionsForMonth(
+      String userId, int month, int year) async {
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+
+    final firstDay = DateTime(year, month, 1);
+    final lastDay  = DateTime(year, month + 1, 0);
+    String fmtDate(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    final results = await Future.wait([
+      _fetchCompanies(),
+      CustomerLedgerService.instance.fetchLedgerForDateRange(
+          phone, fmtDate(firstDay), fmtDate(lastDay)),
+    ]);
+
+    final companies = results[0] as List<CompanyModel>;
+    final rawList   = results[1] as List<dynamic>? ?? <dynamic>[];
+
+    final companyMap = <int, CompanyModel>{};
+    for (final c in companies) {
+      if (c.Id > 0) companyMap[c.Id] = c;
+    }
+
+    final txs = rawList
+        .map((m) => _txFromMap(m as Map<String, dynamic>, userId, companyMap, companies))
+        .toList();
+    txs.sort((a, b) => b.date.compareTo(a.date));
+    return txs;
+  }
+
+  @override
   Future<void> awardPoints(String userId, String business, int points) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
@@ -100,9 +134,8 @@ class PointsApiService implements IPointsService {
   Map<int, CompanyModel> companyMap,
   List<CompanyModel> companies,
 ) {
-  final points = int.tryParse(
-          (m['PointsValue'] ?? m['Points'] ?? m['points'] ?? 0).toString()) ??
-      0;
+  final points = (double.tryParse(
+          (m['PointsValue'] ?? m['Points'] ?? m['points'] ?? 0).toString()) ?? 0).round();
 
   final typeStr =
       (m['PointsTransactionType'] ?? m['transactionType'] ?? '').toString();
@@ -143,18 +176,20 @@ class PointsApiService implements IPointsService {
   // Backend never returns a separate "Expired" transaction type; instead
   // each Earn entry carries DateExpire and PointBalance (remaining points
   // from that batch after any redeems applied against it).
+  int       pointBalance    = 0;
   int?      expiringBalance;
   DateTime? expiryDate;
   if (type == TransactionType.earned) {
+    // Always read backend's remaining balance for this batch.
+    pointBalance = (double.tryParse(
+            (m['PointBalance'] ?? 0).toString()) ?? 0).round();
     final expRaw    = (m['DateExpire'] ?? '').toString();
     final expParsed = DateTime.tryParse(expRaw);
     if (expParsed != null &&
         expParsed.year > 2000 &&
         expParsed.isAfter(DateTime.now())) {
       expiryDate      = expParsed;
-      expiringBalance = int.tryParse(
-              (m['PointBalance'] ?? 0).toString()) ??
-          0;
+      expiringBalance = pointBalance;
     }
   }
 
@@ -170,6 +205,7 @@ class PointsApiService implements IPointsService {
     redeemCompanyName:     redeemCompanyName,
     businessFullName:      businessFullName,
     redeemCompanyFullName: redeemCompanyFullName,
+    pointBalance:          pointBalance,
     expiringBalance:       expiringBalance,
     expiryDate:            expiryDate,
   );

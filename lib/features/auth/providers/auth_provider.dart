@@ -240,6 +240,66 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ── Registration (split into identity + post-OTP completion) ─────────────
+
+  /// Step 1 of the new signup flow: creates the ASP.NET Identity user.
+  /// The backend sends an OTP to [phone] automatically at this point.
+  Future<void> registerIdentityOnly({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.registerIdentityOnly(
+        firstName: firstName,
+        lastName:  lastName,
+        email:     email,
+        phone:     phone,
+        password:  password,
+      );
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
+  /// Step 2 (post-OTP): creates the customer loyalty profile then logs the
+  /// user in. Call this only after [confirmPhone] succeeds.
+  Future<void> completeRegistration({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+    required String address,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final user = await _auth.completeCustomerRegistration(
+        firstName: firstName,
+        lastName:  lastName,
+        email:     email,
+        phone:     phone,
+        password:  password,
+        address:   address,
+      );
+      await _saveSession(user);
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        registrationSuccess: true,
+      );
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
   // ── Forgot password ───────────────────────────────────────────────────────
 
   Future<void> sendPhoneConfirmation(String phone) async {
@@ -270,6 +330,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       await _auth.sendOtpForReset(phone);
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.sendPasswordResetEmail(email);
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
+  Future<void> resetPasswordWithToken({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.resetPasswordWithToken(
+        email: email, token: token, newPassword: newPassword);
       state = state.copyWith(status: AuthStatus.unauthenticated);
     } on AuthException catch (e) {
       _setError(e.message);
@@ -372,6 +461,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final fresh = await _auth.findById(state.user!.id);
       if (fresh != null) state = state.copyWith(user: fresh);
+    } catch (_) {}
+  }
+
+  Future<void> sendEmailVerification() async {
+    if (state.user == null) return;
+    await _auth.sendEmailVerification(state.user!.phone);
+  }
+
+  Future<void> refreshEmailStatus() async {
+    if (state.user == null) return;
+    try {
+      final fresh = await _auth.findById(state.user!.id);
+      if (fresh != null) {
+        state = state.copyWith(status: AuthStatus.authenticated, user: fresh);
+      }
     } catch (_) {}
   }
 }

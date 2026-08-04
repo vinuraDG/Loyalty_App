@@ -42,7 +42,6 @@ class CompaniesApiService implements ICompaniesService {
     try {
       final res  = await _dio.get('Mobile/GetAllCompanies');
       final list = _asList(res.data);
-      // Pass the list index as fallbackIndex so each company gets a stable id
       return List.generate(list.length, (i) {
         return CompanyModel.fromMap(
           list[i] as Map<String, dynamic>,

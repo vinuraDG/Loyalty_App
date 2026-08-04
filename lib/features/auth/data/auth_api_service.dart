@@ -56,9 +56,37 @@ abstract class IAuthService {
   Future<bool> verifyOtpForReset({required String phone, required String otp});
   Future<void> sendPhoneConfirmation(String phone);
   Future<void> confirmPhone({required String phone, required String otp});
+
+  /// Calls Account/Register only. The backend auto-sends an OTP to the phone
+  /// at this point. Does NOT call Common/RegisterCustomer — that happens after
+  /// the user verifies the OTP via [completeCustomerRegistration].
+  Future<void> registerIdentityOnly({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+  });
+
+  /// Calls Common/RegisterCustomer then fetches and returns the new profile.
+  /// Must be called after [confirmPhone] succeeds.
+  Future<UserModel> completeCustomerRegistration({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+    required String address,
+  });
   Future<void> resetPassword({
     required String phone,
     required String otp,
+    required String newPassword,
+  });
+  Future<void> sendPasswordResetEmail(String email);
+  Future<void> resetPasswordWithToken({
+    required String email,
+    required String token,
     required String newPassword,
   });
   Future<UserModel?> findById(String id);
@@ -69,6 +97,9 @@ abstract class IAuthService {
 
   /// Permanently deletes the current customer account and clears the session.
   Future<void> deleteAccount();
+
+  /// Sends an email verification link to the account associated with [phone].
+  Future<void> sendEmailVerification(String phone);
 }
 
 class AuthApiService implements IAuthService {
@@ -286,6 +317,8 @@ class AuthApiService implements IAuthService {
       createdAt: u['CreatedAt'] != null
           ? DateTime.tryParse(u['CreatedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
+      emailConfirmed:
+          (u['EmailConfirmed'] ?? u['emailConfirmed'] ?? false) == true,
     );
   }
 
@@ -746,6 +779,78 @@ class AuthApiService implements IAuthService {
     }
   }
 
+  @override
+  Future<void> registerIdentityOnly({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+  }) async {
+    final trimmedPhone = phone.trim();
+    try {
+      final res = await _dio.post(
+        'Account/Register',
+        data: {
+          'FirstName': firstName.trim(),
+          'LastName':  lastName.trim(),
+          'PhoneNo':   trimmedPhone,
+          'UserName':  trimmedPhone,
+          'Email':     email.trim().toLowerCase(),
+          'Password':  password,
+          'Role':      'Customer',
+        },
+      );
+      final data = res.data;
+      if (data is Map<String, dynamic>) {
+        final token = _extractToken(data);
+        if (token.isNotEmpty) {
+          await _persistToken(token);
+          ApiClient.instance.setToken(token);
+        }
+      }
+      await _persistPassword(password);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<UserModel> completeCustomerRegistration({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String password,
+    required String address,
+  }) async {
+    final trimmedPhone = phone.trim();
+    try {
+      await _dio.post(
+        'Common/RegisterCustomer',
+        data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'FirstName': firstName.trim(),
+          'LastName':  lastName.trim(),
+          'Address':   address.trim(),
+          'Email':     email.trim().toLowerCase(),
+          'PhoneNo':   trimmedPhone,
+          'Password':  password,
+          'Username':  trimmedPhone,
+        },
+      );
+    } on DioException catch (e) {
+      assert(() {
+        debugPrint('[Auth] Common/RegisterCustomer -> '
+            'status=${e.response?.statusCode} body=${e.response?.data}');
+        return true;
+      }());
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.prefAuthToken) ?? '';
+    return _fetchAndPersistCustomer(trimmedPhone, token);
+  }
+
   // ── Forgot password ───────────────────────────────────────────────────────
 
   @override
@@ -784,6 +889,49 @@ class AuthApiService implements IAuthService {
         data: {
           'PhoneNumber': phone.trim(),
           'Token':       otp.trim(),
+          'NewPassword': newPassword,
+        },
+      );
+      _throwIfErrorBody(res.data);
+    } on AuthException {
+      rethrow;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw AuthException(e.toString());
+    }
+  }
+
+  // ── Email-based password reset (deep-link flow) ───────────────────────────
+
+  @override
+  Future<void> sendPasswordResetEmail(String phone) async {
+    try {
+      await _dio.post(
+        'Mobile/ForgotPassword',
+        options: Options(responseType: ResponseType.plain),
+        data: {'PhoneNumber': phone.trim()},
+      );
+    } on AuthException {
+      rethrow;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> resetPasswordWithToken({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final res = await _dio.post(
+        'Mobile/ResetPassword',
+        options: Options(responseType: ResponseType.plain),
+        data: {
+          'Email':       email.trim(),
+          'Token':       token,
           'NewPassword': newPassword,
         },
       );
@@ -846,6 +994,21 @@ class AuthApiService implements IAuthService {
     } on DioException catch (e) {
       // 404 = already deleted; treat as success
       if (e.response?.statusCode == 404) return;
+      throw _handleDioError(e);
+    }
+  }
+
+  // ── Email confirmation ───────────────────────────────────────────────────
+
+  @override
+  Future<void> sendEmailVerification(String phone) async {
+    try {
+      await _dio.post(
+        'Mobile/SendEmailConfirmation',
+        queryParameters: {'PhoneNumber': phone.trim()},
+        options: Options(responseType: ResponseType.plain),
+      );
+    } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }

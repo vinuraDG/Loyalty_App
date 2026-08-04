@@ -46,6 +46,15 @@ class PointsMockService implements IPointsService {
   }
 
   @override
+  Future<List<TransactionModel>> getTransactionsForMonth(
+      String userId, int month, int year) async {
+    final all = await getTransactions(userId);
+    return all
+        .where((t) => t.date.month == month && t.date.year == year)
+        .toList();
+  }
+
+  @override
   Future<void> awardPoints(String userId, String business, int points) async {
     await _delay(ms: 600);
     _transactions.add(TransactionModel(

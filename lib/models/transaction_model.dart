@@ -18,9 +18,10 @@ class TransactionModel {
   final String?   redeemCompanyName;
   final String?   businessFullName;
   final String?   redeemCompanyFullName;
+  // Backend's remaining balance for this Earn batch (PointBalance field).
+  // Always set for Earn entries; 0 for Redeem/Expired.
+  final int       pointBalance;
   // Non-null on Earn entries whose DateExpire is in the future.
-  // expiringBalance = PointBalance from the backend (remaining points in
-  // that earn batch after any redeems applied against it).
   final int?      expiringBalance;
   final DateTime? expiryDate;
 
@@ -38,6 +39,7 @@ class TransactionModel {
     this.redeemCompanyName,
     this.businessFullName,
     this.redeemCompanyFullName,
+    this.pointBalance = 0,
     this.expiringBalance,
     this.expiryDate,
   });

@@ -5,6 +5,7 @@ import 'package:loyalty_app/core/utils/formatters.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/data/companies_api_service.dart';
 import 'package:loyalty_app/customer/points/data/points_api_service.dart';
+import 'package:loyalty_app/data/customer_ledger_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/models/company_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
@@ -88,7 +89,8 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     return '${m[local.month]} ${local.day}, ${local.year}';
   }
 
-  List<Widget> _buildGroupedTxs(List<TransactionModel> txs) {
+  List<Widget> _buildGroupedTxs(
+      List<TransactionModel> txs, List<String> bizNames) {
     final grouped = <String, List<TransactionModel>>{};
     for (final tx in txs) {
       grouped.putIfAbsent(_dateLabel(tx.date), () => []).add(tx);
@@ -96,18 +98,44 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     final widgets = <Widget>[];
     for (final entry in grouped.entries) {
       widgets.add(_TxDateHeader(label: entry.key));
-      for (final tx in entry.value) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _TxCard(tx: tx),
-        ));
-      }
+      final items = entry.value;
+      widgets.add(Container(
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: List.generate(items.length, (i) {
+            final isLast = i == items.length - 1;
+            final bizIdx = bizNames.indexOf(items[i].business);
+            final accent =
+                _colorForCompany(items[i].business, bizIdx < 0 ? 0 : bizIdx);
+            return Column(children: [
+              _TxCard(tx: items[i], accent: accent),
+              if (!isLast)
+                const Divider(
+                  height: 1,
+                  indent: 62,
+                  endIndent: 16,
+                  color: AppColors.border,
+                ),
+            ]);
+          }),
+        ),
+      ));
+      widgets.add(const SizedBox(height: 10));
     }
     return widgets;
   }
 
   Future<List<TransactionModel>>? _txFuture;
   String? _loadedUserId;
+
+  // Month-specific transaction history — fetched per selected month from
+  // backend (like employee side), separate from the all-time balance data.
+  List<TransactionModel> _historyTxs   = [];
+  bool                   _historyLoading = false;
 
   // Dynamic company list fetched from backend
   List<CompanyModel> _companies = [];
@@ -117,29 +145,72 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId != null && userId != _loadedUserId) {
       _loadedUserId = userId;
-      _txFuture     = _loadAll(userId);
+      setState(() => _historyLoading = true);
+      _txFuture = _loadAll(userId);
+      // History is populated inside _loadAll by filtering the all-time result —
+      // no separate date-range request needed for the initial month.
     }
   }
 
-  /// Load companies + transactions together so companies are ready when
-  /// we build the UI.
+  /// Load companies + ALL transactions (for balance, company cards).
+  /// Also populates _historyTxs by filtering to the selected month — no
+  /// separate backend request is needed for the initial month view.
   Future<List<TransactionModel>> _loadAll(String userId) async {
-    // Fetch companies first (cached after first call) — ignore errors,
-    // transactions will still show.
     try {
       final companies = await CompaniesApiService.instance.getCompanies();
       if (mounted) setState(() { _companies = companies; });
-    } catch (_) {
+    } catch (_) {}
+    try {
+      final txs = await _svc.getTransactions(userId);
+      if (mounted) {
+        final sel = _months[_monthIdx];
+        final monthTxs = txs
+            .where((t) =>
+                t.date.month == (sel['month'] as int) &&
+                t.date.year  == (sel['year']  as int))
+            .toList();
+        setState(() {
+          _historyTxs     = monthTxs;
+          _historyLoading = false;
+        });
+      }
+      return txs;
+    } catch (e) {
+      if (mounted) setState(() => _historyLoading = false);
+      rethrow;
     }
-    return _svc.getTransactions(userId);
+  }
+
+  /// Filter history for [month]/[year] from the already-fetched all-time
+  /// future — reuses cached data, no extra network request.
+  Future<void> _filterHistoryFromFuture(int month, int year) async {
+    if (_txFuture == null) {
+      if (mounted) setState(() => _historyLoading = false);
+      return;
+    }
+    try {
+      final allTxs = await _txFuture!;
+      if (!mounted) return;
+      final monthTxs = allTxs
+          .where((t) => t.date.month == month && t.date.year == year)
+          .toList();
+      setState(() {
+        _historyTxs     = monthTxs;
+        _historyLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _historyLoading = false);
+    }
   }
 
   Future<void> _reload() async {
     final userId = ref.read(currentUserProvider)?.id;
     if (userId == null) return;
+    CustomerLedgerService.instance.clearCache();
+    if (mounted) setState(() => _historyLoading = true);
     final newFuture = _loadAll(userId);
-    setState(() { _txFuture = newFuture; });
-    await newFuture;
+    if (mounted) setState(() => _txFuture = newFuture);
+    await newFuture; // _loadAll updates _historyTxs for the selected month
   }
 
   Future<void> _refresh() async {
@@ -191,10 +262,14 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   : null,
               onTap: () {
                 setState(() {
-                  _monthIdx = i;
-                  _filter   = 'All';
+                  _monthIdx       = i;
+                  _filter         = 'All';
+                  _historyLoading = true;
                 });
                 Navigator.pop(context);
+                final m = _months[i];
+                _filterHistoryFromFuture(
+                    m['month'] as int, m['year'] as int);
               },
             );
           }),
@@ -209,14 +284,12 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   void _showBizDetail(
     BuildContext context, {
     required String business,
+    required int netPoints,
     required int totalEarned,
     required int totalRedeemed,
     required int totalExpired,
     required Color color,
   }) {
-    // Expiring is informational — those points are still spendable until
-    // DateExpire, so they are NOT deducted from the available balance.
-    final netPoints = totalEarned - totalRedeemed;
 
     showModalBottomSheet(
       context: context,
@@ -540,28 +613,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   );
                 }
 
-                // ── Total balance (all time) ────────────────────────────────
-                final allEarned = allTxs
+                // ── Total balance — sum of backend's PointBalance per Earn batch ──
+                final totalBalance = allTxs
                     .where((t) => t.isEarned)
-                    .fold<int>(0, (s, t) => s + t.points);
-                final allRedeemed = allTxs
-                    .where((t) => t.isRedeemed)
-                    .fold<int>(0, (s, t) => s + t.points);
-                final totalBalance = allEarned - allRedeemed;
+                    .fold<int>(0, (s, t) => s + t.pointBalance);
 
-                // ── Month slice ────────────────────────────────────────────
-                final sel        = _months[_monthIdx];
-                final int tMonth = sel['month'] as int;
-                final int tYear  = sel['year']  as int;
-
-                final monthTxs = allTxs
-                    .where((t) =>
-                        t.date.month == tMonth && t.date.year == tYear)
-                    .toList();
-
-                final monthExpired = monthTxs
-                    .where((t) => t.isExpired)
-                    .fold<int>(0, (s, t) => s + t.points);
+                // ── Month slice — uses per-month backend fetch ─────────────
+                final sel = _months[_monthIdx];
 
                 // ── Today slice ────────────────────────────────────────────
                 final today    = DateTime.now();
@@ -590,12 +648,12 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   }
                 }
 
-                final byBizNet = <String, int>{
-                  for (final biz in bizNames)
-                    biz: (byBizEarned[biz] ?? 0) -
-                         (byBizRedeemed[biz] ?? 0),
-                  // Expiring is informational only — not subtracted from net.
-                };
+                // Per-business balance from backend's PointBalance per batch.
+                final byBizNet = <String, int>{};
+                for (final t in allTxs) {
+                  if (!t.isEarned) continue;
+                  byBizNet[t.business] = (byBizNet[t.business] ?? 0) + t.pointBalance;
+                }
 
                 // ── Per-business expiring (all future expiry dates)
                 final byBizExpiring = <String, int>{};
@@ -618,8 +676,8 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                 final totalExpiring = byBizExpiring.values
                     .fold<int>(0, (s, v) => s + v);
 
-                // ── Filtered transaction list (selected month + company) ───
-                final txs = monthTxs
+                // ── Filtered transaction list — from per-month backend fetch ─
+                final txs = _historyTxs
                     .where((t) => !t.isExpired)
                     .where((t) => _filter == 'All' || t.business == _filter)
                     .toList()
@@ -760,7 +818,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                                         ? const Color(0xFFFBBF24)
                                         : Colors.white38,
                                     label: nearestExpiry != null
-                                        ? _fmtExpDate(nearestExpiry!)
+                                        ? _fmtExpDate(nearestExpiry)
                                         : 'Expiring',
                                     value: formatPoints(totalExpiring),
                                     valueColor: totalExpiring > 0
@@ -786,7 +844,8 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           byBizExpired: byBizExpiring,
                           onTap: (biz, idx) => _showBizDetail(
                             context,
-                            business: fullNameOf[biz] ?? biz,
+                            business:      fullNameOf[biz]    ?? biz,
+                            netPoints:     byBizNet[biz]      ?? 0,
                             totalEarned:   byBizEarned[biz]   ?? 0,
                             totalRedeemed: byBizRedeemed[biz] ?? 0,
                             totalExpired:  byBizExpiring[biz] ?? 0,
@@ -859,7 +918,12 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                       const SizedBox(height: 14),
 
                       // ── Transaction list ──────────────────────────────────
-                      if (txs.isEmpty)
+                      if (_historyLoading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (txs.isEmpty)
                         Center(
                           child: Padding(
                             padding: const EdgeInsets.all(32),
@@ -876,7 +940,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                           ),
                         )
                       else
-                        ..._buildGroupedTxs(txs),
+                        ..._buildGroupedTxs(txs, bizNames),
 
                       const SizedBox(height: 20),
                     ],
@@ -1228,7 +1292,8 @@ class _TxDateHeader extends StatelessWidget {
 
 class _TxCard extends StatelessWidget {
   final TransactionModel tx;
-  const _TxCard({required this.tx});
+  final Color accent;
+  const _TxCard({required this.tx, required this.accent});
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -1241,13 +1306,6 @@ class _TxCard extends StatelessWidget {
         t.expiryDate!.isBefore(now.add(const Duration(days: 30)));
   }
 
-  String _txTypeLabel(TransactionModel t) {
-    if (t.isRedeemed) return 'Redeem';
-    if (_isExpiringSoon(t) || t.isExpired) return 'Expiring';
-    if (t.isEarned) return 'Earn';
-    return 'Expiring';
-  }
-
   Color _txColor(TransactionModel t) {
     if (_isExpiringSoon(t) || t.isExpired) return const Color(0xFFF97316);
     if (t.isEarned)   return AppColors.success;
@@ -1258,8 +1316,13 @@ class _TxCard extends StatelessWidget {
   IconData _txIcon(TransactionModel t) {
     if (t.isRedeemed) return Icons.arrow_downward_rounded;
     if (_isExpiringSoon(t) || t.isExpired) return Icons.timer_off_rounded;
-    if (t.isEarned)   return Icons.arrow_upward_rounded;
-    return Icons.timer_off_rounded;
+    return Icons.arrow_upward_rounded;
+  }
+
+  String _txTypeLabel(TransactionModel t) {
+    if (t.isRedeemed) return 'Redeem';
+    if (_isExpiringSoon(t) || t.isExpired) return 'Expiring';
+    return 'Earn';
   }
 
   String _fmtDate(DateTime d) {
@@ -1287,136 +1350,151 @@ class _TxCard extends StatelessWidget {
     final minute = local.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final h      = hour % 12 == 0 ? 12 : hour % 12;
-    return '${local.day} ${months[local.month - 1]} ${local.year}  ·  $h:$minute $period';
+    return '${local.day} ${months[local.month - 1]} ${local.year} · $h:$minute $period';
   }
 
-  // ── Card ─────────────────────────────────────────────────────────────────
+  // ── Tile ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final color = _txColor(tx);
+    const warningColor = Color(0xFFF97316);
+    final isExpired      = tx.isExpired;
+    final isExpiringSoon = _isExpiringSoon(tx);
+    final isWarning      = isExpiringSoon || isExpired;
+    final tileAccent     = isExpired
+        ? AppColors.textSecondary.withValues(alpha: 0.4)
+        : isExpiringSoon
+            ? warningColor
+            : accent;
+
     return GestureDetector(
       onTap: () => _showDetail(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(children: [
-          // ── Icon avatar ─────────────────────────────────────────────────
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: _isExpiringSoon(tx)
-                  ? Icon(Icons.timer_off_rounded, size: 22, color: color)
-                  : BusinessIcon(business: tx.business, size: 28),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // ── Company + badge + time ────────────────────────────────────
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tx.isRedeemed
-      ? (tx.redeemCompanyFullName?.isNotEmpty == true
-          ? tx.redeemCompanyFullName!
-          : tx.redeemCompanyName ?? tx.business)
-      : (tx.businessFullName?.isNotEmpty == true
-          ? tx.businessFullName!
-          : tx.business),
-                  style: AppTextStyles.labelMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 5),
-                Row(children: [
-                  // Colored type badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_txIcon(tx), size: 10, color: color),
-                        const SizedBox(width: 3),
-                        Text(
-                          _txTypeLabel(tx),
-                          style: AppTextStyles.caption.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Date · Time
-                  Flexible(
-                    child: Text(
-                      _fmtDateAndTime(tx.date),
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ]),
-              ],
-            ),
-          ),
-
-          // ── Points + chevron ─────────────────────────────────────────
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _isExpiringSoon(tx)
-                    ? '${tx.expiringBalance}'
-                    : tx.displayPoints,
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: color,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+      child: Opacity(
+        opacity: isExpired ? 0.65 : 1.0,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(children: [
+            // ── Icon avatar ─────────────────────────────────────────────────
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: tileAccent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                  color: tileAccent.withValues(alpha: 0.2), width: 1),
               ),
-              const SizedBox(height: 2),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Center(
+                child: isWarning
+                    ? Icon(Icons.timer_off_rounded, size: 20, color: tileAccent)
+                    : BusinessIcon(business: tx.business, size: 44),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // ── Company + badge + time ────────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isExpiringSoon(tx) ? 'expiring' : 'pts',
-                    style: AppTextStyles.caption.copyWith(
-                      color: _isExpiringSoon(tx)
-                          ? const Color(0xFFF97316).withValues(alpha: 0.7)
-                          : AppColors.textSecondary,
+                    tx.isRedeemed
+                        ? (tx.redeemCompanyFullName?.isNotEmpty == true
+                            ? tx.redeemCompanyFullName!
+                            : tx.redeemCompanyName ?? tx.business)
+                        : (tx.businessFullName?.isNotEmpty == true
+                            ? tx.businessFullName!
+                            : tx.business),
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: isExpired
+                          ? AppColors.textSecondary.withValues(alpha: 0.5)
+                          : null,
+                      decoration: isExpired
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor:
+                          AppColors.textSecondary.withValues(alpha: 0.4),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    _TxBadge(
+                      type: isExpiringSoon
+                          ? TransactionType.expired
+                          : tx.type,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _fmtDateAndTime(tx.date),
+                        style: AppTextStyles.caption.copyWith(fontSize: 10),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ]),
+                  if (tx.note != null && tx.note!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      tx.note!,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isWarning
+                            ? warningColor.withValues(alpha: 0.55)
+                            : AppColors.textSecondary.withValues(alpha: 0.5),
+                        fontStyle: FontStyle.italic,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // ── Points + chevron ─────────────────────────────────────────
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  isExpiringSoon
+                      ? '${tx.expiringBalance}'
+                      : tx.displayPoints,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isExpired
+                        ? AppColors.textSecondary.withValues(alpha: 0.45)
+                        : isExpiringSoon
+                            ? warningColor
+                            : tx.isEarned
+                                ? AppColors.success
+                                : AppColors.error,
+                    decoration: isExpired
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                    decorationColor:
+                        AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
+                ),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(
+                    isWarning ? 'expiring' : 'pts',
+                    style: TextStyle(
                       fontSize: 10,
+                      color: isWarning
+                          ? warningColor.withValues(alpha: 0.55)
+                          : AppColors.textSecondary.withValues(alpha: 0.45),
                     ),
                   ),
                   const SizedBox(width: 2),
                   const Icon(Icons.chevron_right_rounded,
-                      size: 14, color: AppColors.textSecondary),
-                ],
-              ),
-            ],
-          ),
-        ]),
+                      size: 12, color: AppColors.textSecondary),
+                ]),
+              ],
+            ),
+          ]),
+        ),
       ),
     );
   }
@@ -1610,6 +1688,57 @@ class _TxCard extends StatelessWidget {
             ),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+// ── Transaction Badge ─────────────────────────────────────────────────────────
+
+class _TxBadge extends StatelessWidget {
+  final TransactionType type;
+  const _TxBadge({required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, icon, color) = switch (type) {
+      TransactionType.earned => (
+          'Earn',
+          Icons.arrow_upward_rounded,
+          AppColors.success,
+        ),
+      TransactionType.redeemed => (
+          'Redeem',
+          Icons.arrow_downward_rounded,
+          AppColors.error,
+        ),
+      TransactionType.expired => (
+          'Expiring',
+          Icons.timer_off_rounded,
+          const Color(0xFFF97316),
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 9, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -116,6 +116,7 @@ class EmpHomeMockService implements IEmpHomeService {
     required String offerId,
     required String otp,
     required String employeeId,
+    int companyId = 0,
   }) async {
     await _delay(ms: 600);
     final expected = _activeOtps['$customerId:$offerId'];
@@ -145,6 +146,7 @@ class EmpHomeMockService implements IEmpHomeService {
     required int pointsToRedeem,
     required String companyPhoneNo,
     required String employeeId,
+    int companyId = 0,
   }) async {
     await _delay(ms: 800);
     // Deduct from laundry balance, not fuel points

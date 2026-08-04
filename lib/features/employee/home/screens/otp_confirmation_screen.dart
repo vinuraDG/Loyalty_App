@@ -152,6 +152,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
         offerId:    widget.offer.id,
         otp:        _otp,
         employeeId: widget.employeeId,
+        companyId:  widget.offer.companyId,
       );
       // Backend returns empty body on success — fill in values we already know.
       if (result.pointsDeducted == 0 && widget.pointsToRedeem > 0) {
