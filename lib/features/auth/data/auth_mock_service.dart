@@ -292,6 +292,7 @@ class AuthMockService implements IAuthService {
     required String email,
     required String phone,
     required String password,
+    String address = '',
   }) async {
     await _delay();
     if (_users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
@@ -360,6 +361,11 @@ class AuthMockService implements IAuthService {
     // In mock mode, mark the user as email-confirmed after a simulated send.
     final i = _users.indexWhere((u) => u.phone.trim() == phone.trim());
     if (i != -1) _users[i] = _users[i].copyWith(emailConfirmed: true);
+  }
+
+  @override
+  Future<void> confirmEmail({required String phone, required String otp}) async {
+    await _delay(ms: 600);
   }
 
   @override

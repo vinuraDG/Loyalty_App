@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -252,6 +253,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         controller: _firstNameCtrl,
                         label: 'First Name',
                         icon: Icons.person_outline_rounded,
+                        textCapitalization: TextCapitalization.words,
+                        inputFormatters: [_CapWordsFormatter()],
                         validator: (v) {
                           if (v == null || v.trim().isEmpty)
                             return 'First name is required';
@@ -265,6 +268,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         controller: _lastNameCtrl,
                         label: 'Last Name',
                         icon: Icons.person_outline_rounded,
+                        textCapitalization: TextCapitalization.words,
+                        inputFormatters: [_CapWordsFormatter()],
                         validator: (v) {
                           if (v == null || v.trim().isEmpty)
                             return 'Last name is required';
@@ -355,11 +360,29 @@ class _SectionLabel extends StatelessWidget {
           color: AppColors.textMuted, letterSpacing: 0.8));
 }
 
+class _CapWordsFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    final capitalized = newValue.text.replaceAllMapped(
+      RegExp(r'(^|\s)\S'),
+      (m) => m.group(0)!.toUpperCase(),
+    );
+    if (capitalized == newValue.text) return newValue;
+    return newValue.copyWith(text: capitalized);
+  }
+}
+
 class _ProfileField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final TextInputType keyboardType;
+  final TextCapitalization textCapitalization;
+  final List<TextInputFormatter>? inputFormatters;
   final bool readOnly;
   final String? hint;
   final int maxLines;
@@ -371,6 +394,8 @@ class _ProfileField extends StatelessWidget {
     required this.icon,
     required this.validator,
     this.keyboardType = TextInputType.text,
+    this.textCapitalization = TextCapitalization.none,
+    this.inputFormatters,
     this.readOnly = false,
     this.hint,
     this.maxLines = 1,
@@ -380,6 +405,8 @@ class _ProfileField extends StatelessWidget {
   Widget build(BuildContext context) => TextFormField(
     controller: controller,
     keyboardType: keyboardType,
+    textCapitalization: textCapitalization,
+    inputFormatters: inputFormatters,
     readOnly: readOnly,
     maxLines: maxLines,
     validator: validator,

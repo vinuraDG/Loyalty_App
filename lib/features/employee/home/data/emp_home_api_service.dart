@@ -7,6 +7,7 @@ class ScannedMember {
   final String tier;
   final int currentPoints;
   final String phone;
+  final String earnCompanyName;
 
   const ScannedMember({
     required this.userId,
@@ -15,6 +16,7 @@ class ScannedMember {
     required this.tier,
     required this.currentPoints,
     required this.phone,
+    this.earnCompanyName = '',
   });
 }
 
@@ -73,10 +75,9 @@ class ScanEntry {
               '')
           .toString(),
       saleAmount: saleAmount,
-      points: int.tryParse(
+      points: (double.tryParse(
               (j['PointsValue'] ?? j['points'] ?? j['Points'] ?? 0)
-                  .toString()) ??
-          0,
+                  .toString()) ?? 0).round(),
       commission: commission,
       time: timeStr,
       date: dateStr,
@@ -160,6 +161,7 @@ abstract interface class IEmpHomeService {
     required double saleAmount,
     required int pointsAwarded,
     required String documentNo,
+    String customerName = '',
   });
   Future<List<ScanEntry>> getTodayScans(String employeeId);
   Future<List<int>> getWeeklyCommission(String employeeId);
@@ -169,6 +171,7 @@ abstract interface class IEmpHomeService {
     required String offerId,
     required int pointsToRedeem,
     required String companyPhoneNo,
+    int companyId = 0,
   }); // returns the OTP from the response body
   Future<RedemptionResult> confirmRedemption({
     required String customerId,

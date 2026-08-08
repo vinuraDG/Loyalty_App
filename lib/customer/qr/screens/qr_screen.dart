@@ -34,7 +34,6 @@ class _QrScreenState extends ConsumerState<QrScreen> {
       backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: Column(children: [
-
           // ── Header ────────────────────────────────────────────────────────
           const Padding(
             padding: EdgeInsets.fromLTRB(4, 16, 16, 0),
@@ -49,18 +48,12 @@ class _QrScreenState extends ConsumerState<QrScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(children: [
-                const Text('Show this to staff to earn your points',
-                    style: AppTextStyles.bodySmall,
-                    textAlign: TextAlign.center),
                 const SizedBox(height: 20),
 
                 // Avatar & name
                 InitialsAvatar(initials: user.initials, size: 52),
                 const SizedBox(height: 10),
                 Text(user.name, style: AppTextStyles.h4),
-                const SizedBox(height: 4),
-                Text('Member ID: #$shortId', style: AppTextStyles.caption),
-                const SizedBox(height: 24),
 
                 // QR code card
                 Container(
@@ -90,9 +83,7 @@ class _QrScreenState extends ConsumerState<QrScreen> {
                     const _CornerBracket(bottom: 0, right: 0, br: true),
                   ]),
                 ),
-                const SizedBox(height: 8),
-                const Text('Show to staff to earn or redeem points',
-                    style: AppTextStyles.caption),
+
                 const SizedBox(height: 20),
 
                 // ── Redemption hint ───────────────────────────────────────
@@ -101,7 +92,7 @@ class _QrScreenState extends ConsumerState<QrScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.bgCard,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: Colors.red),
                   ),
                   child: Row(children: [
                     Container(
@@ -172,10 +163,10 @@ class _CornerBracket extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             border: Border(
-              top:    (tl || tr) ? borderSide : BorderSide.none,
+              top: (tl || tr) ? borderSide : BorderSide.none,
               bottom: (bl || br) ? borderSide : BorderSide.none,
-              left:   (tl || bl) ? borderSide : BorderSide.none,
-              right:  (tr || br) ? borderSide : BorderSide.none,
+              left: (tl || bl) ? borderSide : BorderSide.none,
+              right: (tr || br) ? borderSide : BorderSide.none,
             ),
           ),
         ),

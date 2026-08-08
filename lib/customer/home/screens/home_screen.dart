@@ -27,6 +27,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   int _adIndex = 0;
 
   int _totalPoints = 0;
+  int _pointsExpire = 0;
   List<int> _weeklyPts = List.filled(7, 0);
   List<TransactionModel> _recentTxs = [];
 
@@ -78,6 +79,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _loadPoints(userId),
       _loadWeekly(userId),
       _loadTransactions(userId),
+      _loadExpirePoints(userId),
     ]);
   }
 
@@ -87,6 +89,13 @@ Future<void> _loadPoints(String userId) async {
     if (mounted) setState(() => _totalPoints = pts);
   } catch (_) {}
 }
+
+  Future<void> _loadExpirePoints(String userId) async {
+    try {
+      final pts = await homeService.getPointsExpire(userId);
+      if (mounted) setState(() => _pointsExpire = pts);
+    } catch (_) {}
+  }
 
   Future<void> _loadWeekly(String userId) async {
     try {
@@ -366,6 +375,19 @@ Future<void> _loadPoints(String userId) async {
                                             Colors.white.withValues(alpha: 0.5),
                                         fontWeight: FontWeight.w400)),
                               ]),
+                              if (_pointsExpire > 0) ...[
+                                const SizedBox(height: 6),
+                                Row(children: [
+                                  const Icon(Icons.hourglass_bottom_rounded,
+                                      size: 11, color: Color(0xFFFBBF24)),
+                                  const SizedBox(width: 4),
+                                  Text('${_formatPoints(_pointsExpire)} pts expiring',
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFFFBBF24),
+                                          fontWeight: FontWeight.w500)),
+                                ]),
+                              ],
                             ],
                           ),
                         ),

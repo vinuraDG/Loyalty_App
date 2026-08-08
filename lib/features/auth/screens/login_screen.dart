@@ -8,6 +8,8 @@ import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
+import 'login_phone_otp_screen.dart';
+import 'login_email_verify_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -66,6 +68,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (auth.isAuthenticated) {
       _navigateByRole(auth);
+    } else if (auth.phoneNotConfirmed) {
+      final phone = auth.pendingPhone ?? _emailCtrl.text.trim();
+      ref.read(authProvider.notifier).clearPhoneNotConfirmed();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPhoneOtpScreen(
+            phone: phone,
+            password: _passCtrl.text,
+          ),
+        ),
+      );
+    } else if (auth.emailNotConfirmed) {
+      final phone = auth.pendingPhone ?? _emailCtrl.text.trim();
+      ref.read(authProvider.notifier).clearEmailNotConfirmed();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginEmailVerifyScreen(
+            phone: phone,
+            password: _passCtrl.text,
+          ),
+        ),
+      );
     } else if (auth.errorMessage != null) {
       _showError(auth.errorMessage!);
       ref.read(authProvider.notifier).clearError();

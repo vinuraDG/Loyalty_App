@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyalty_app/core/constants/app_constants.dart';
+import 'package:loyalty_app/core/network/api_client.dart';
 import 'package:loyalty_app/data/customer_ledger_service.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/customer/home/data/home_mock_service.dart';
@@ -34,6 +35,9 @@ abstract class IHomeService {
 
   /// Total redeemable points balance derived from the ledger.
   Future<int> getTotalPoints(String userId);
+
+  /// Sum of PointsExpire across all customer wallets. Returns 0 if none.
+  Future<int> getPointsExpire(String userId);
 }
 
 // ── Real API service ──────────────────────────────────────────────────────────
@@ -125,6 +129,39 @@ Future<List<int>> getWeeklyPoints(String userId) async {
     return List.filled(7, 0);
   }
 }
+
+  @override
+  Future<int> getPointsExpire(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    if (phone.isEmpty) return 0;
+    try {
+      final res = await ApiClient.instance.dio.get(
+        'Common/GetAllCustomerWallets',
+        data: {'TransactionCompanyId': 0, 'CustomerPhoneNo': phone},
+      );
+      final list = _asList(res.data);
+      int total = 0;
+      for (final w in list) {
+        if (w is! Map) continue;
+        total += (double.tryParse(
+                (w['PointsExpire'] ?? w['pointsExpire'] ?? 0).toString()) ??
+            0).round();
+      }
+      return total.clamp(0, 999999999);
+    } catch (_) {
+      return 0;
+    }
+  }
+}
+
+List _asList(dynamic data) {
+  if (data is List) return data;
+  if (data is Map) {
+    final inner = data['Value'] ?? data['value'] ?? data['data'] ?? data['items'];
+    if (inner is List) return inner;
+  }
+  return [];
 }
 
 // ── Service factory ───────────────────────────────────────────────────────────

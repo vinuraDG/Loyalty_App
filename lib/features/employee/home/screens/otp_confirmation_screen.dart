@@ -96,6 +96,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
         offerId:        widget.offer.id,
         pointsToRedeem: widget.pointsToRedeem,
         companyPhoneNo: widget.offer.companyPhoneNo,
+        companyId:      widget.offer.companyId,
       );
       if (!mounted) return;
       setState(() {
@@ -147,12 +148,17 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
       _error = null;
     });
     try {
+      // RedeemConfirmation needs c.Id (PointsRedeemCompanyId = 1), not wallet TC (3).
+      // offer.id = 'redeem-{c.Id}' so parse it; fall back to offer.companyId.
+      final confirmTcId = int.tryParse(
+            widget.offer.id.replaceFirst('redeem-', '')) ??
+          widget.offer.companyId;
       var result = await widget.svc.confirmRedemption(
         customerId: widget.member.userId,
         offerId:    widget.offer.id,
         otp:        _otp,
         employeeId: widget.employeeId,
-        companyId:  widget.offer.companyId,
+        companyId:  confirmTcId,
       );
       // Backend returns empty body on success — fill in values we already know.
       if (result.pointsDeducted == 0 && widget.pointsToRedeem > 0) {
@@ -240,57 +246,25 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
                   const Text('Enter Customer OTP',
                       style: AppTextStyles.h4, textAlign: TextAlign.center),
                   const SizedBox(height: 8),
+                  const Text(
+                    'We sent a code to',
+                    style: AppTextStyles.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  if (widget.member.phone.isNotEmpty)
+                    Text(
+                      widget.member.phone,
+                      style: AppTextStyles.h4,
+                      textAlign: TextAlign.center,
+                    ),
+                  const SizedBox(height: 6),
                   Text(
-                    'Ask the customer for the OTP sent to their phone, then type it below.',
+                    'Ask the customer for the code and type it below.',
                     style: AppTextStyles.bodySmall
                         .copyWith(color: AppColors.textMuted),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 6),
-                  if (widget.member.phone.isNotEmpty)
-                    Text(
-                      widget.member.phone,
-                      style: AppTextStyles.labelMedium
-                          .copyWith(color: AppColors.primaryLight),
-                    ),
-
-                  // ── OTP display for employee ───────────────────────
-                  if (_displayedOtp.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A2744),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: AppColors.primaryLight.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(children: [
-                        Text(
-                          'OTP Code',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textMuted),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _displayedOtp,
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryLight,
-                            letterSpacing: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Customer also received this via SMS',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textMuted),
-                        ),
-                      ]),
-                    ),
-                  ],
 
                   const SizedBox(height: 24),
 

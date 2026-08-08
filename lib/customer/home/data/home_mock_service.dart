@@ -37,6 +37,9 @@ class HomeMockService implements IHomeService {
     return weekly.fold(0, (sum, pts) => sum + pts);
   }
 
+  @override
+  Future<int> getPointsExpire(String userId) async => 0;
+
   Future<void> _delay({int ms = 300}) =>
       Future.delayed(Duration(milliseconds: ms));
 }

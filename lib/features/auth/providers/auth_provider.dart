@@ -15,6 +15,8 @@ class AuthState {
   final String?    errorMessage;
   final String?    pendingPhone;
   final bool       registrationSuccess;
+  final bool       emailNotConfirmed;
+  final bool       phoneNotConfirmed;
 
   const AuthState({
     this.status = AuthStatus.initial,
@@ -22,6 +24,8 @@ class AuthState {
     this.errorMessage,
     this.pendingPhone,
     this.registrationSuccess = false,
+    this.emailNotConfirmed   = false,
+    this.phoneNotConfirmed   = false,
   });
 
   bool get isLoading       => status == AuthStatus.loading;
@@ -34,6 +38,8 @@ class AuthState {
     String?     errorMessage,
     String?     pendingPhone,
     bool?       registrationSuccess,
+    bool?       emailNotConfirmed,
+    bool?       phoneNotConfirmed,
   }) =>
       AuthState(
         status:              status              ?? this.status,
@@ -41,6 +47,8 @@ class AuthState {
         errorMessage:        errorMessage,
         pendingPhone:        pendingPhone        ?? this.pendingPhone,
         registrationSuccess: registrationSuccess ?? false,
+        emailNotConfirmed:   emailNotConfirmed   ?? false,
+        phoneNotConfirmed:   phoneNotConfirmed   ?? false,
       );
 }
 
@@ -63,7 +71,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         const Duration(seconds: 8),
         onTimeout: () => null,
       );
-      if (user != null) {
+      if (user != null && user.role != 'employee' &&
+          (!user.phoneConfirmed || !user.emailConfirmed)) {
+        await _clearSession();
+      } else if (user != null) {
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
         return;
       }
@@ -91,6 +102,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove(AppConstants.prefUserPhone);
     await prefs.remove(AppConstants.prefUserEmail);
     await prefs.remove(AppConstants.prefUserPassword);
+    await prefs.remove(AppConstants.prefEmailConfirmed);
+    await prefs.remove(AppConstants.prefPhoneConfirmed);
     await prefs.remove('userJson');
   }
 
@@ -112,6 +125,91 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       final user = await _auth.signInWithEmail(email: email, password: password);
+      if (user.role != 'employee') {
+        if (!user.phoneConfirmed) {
+          try { await _auth.sendPhoneConfirmation(user.phone); } catch (_) {}
+          // Also send email verification now so the link is ready when phone is done
+          if (!user.emailConfirmed) {
+            try { await _auth.sendEmailVerification(user.phone); } catch (_) {}
+          }
+          await _clearSession();
+          state = state.copyWith(
+            status: AuthStatus.unauthenticated,
+            phoneNotConfirmed: true,
+            pendingPhone: user.phone,
+          );
+          return;
+        }
+        if (!user.emailConfirmed) {
+          try { await _auth.sendEmailVerification(user.phone); } catch (_) {}
+          await _clearSession();
+          state = state.copyWith(
+            status: AuthStatus.unauthenticated,
+            emailNotConfirmed: true,
+            pendingPhone: user.phone,
+          );
+          return;
+        }
+      }
+      await _saveSession(user);
+      state = state.copyWith(status: AuthStatus.authenticated, user: user);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
+  /// Called by LoginPhoneOtpScreen after phone OTP is confirmed.
+  /// Routes to email verification only if backend says email is unconfirmed.
+  Future<void> signInAfterPhoneVerification(String email, String password) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final user = await _auth.signInWithEmail(email: email, password: password);
+      if (user.role != 'employee' && !user.emailConfirmed) {
+        try { await _auth.sendEmailVerification(user.phone); } catch (_) {}
+        await _clearSession();
+        state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          emailNotConfirmed: true,
+          pendingPhone: user.phone,
+        );
+        return;
+      }
+      await _saveSession(user);
+      state = state.copyWith(status: AuthStatus.authenticated, user: user);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
+  /// Verifies the email OTP sent to the user's email address.
+  Future<void> confirmEmail({required String phone, required String otp}) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      await _auth.confirmEmail(phone: phone, otp: otp);
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    } on AuthException catch (e) {
+      _setError(e.message);
+    } catch (e) {
+      _setError(e.toString());
+    }
+  }
+
+  /// Final login step called from LoginEmailVerifyScreen after user clicks the email link.
+  /// Checks IsEmailConfirmed from backend — blocks login if link not yet clicked.
+  Future<void> signInAfterEmailVerification(String email, String password) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final user = await _auth.signInWithEmail(email: email, password: password);
+      if (user.role != 'employee' && !user.emailConfirmed) {
+        _setError(
+          'Email not verified yet. Please click the link in your inbox first, then try again.',
+        );
+        return;
+      }
       await _saveSession(user);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
     } on AuthException catch (e) {
@@ -250,6 +348,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String phone,
     required String password,
+    String address = '',
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
@@ -259,6 +358,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email:     email,
         phone:     phone,
         password:  password,
+        address:   address,
       );
       state = state.copyWith(status: AuthStatus.unauthenticated);
     } on AuthException catch (e) {
@@ -289,6 +389,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         address:   address,
       );
       await _saveSession(user);
+      // Send email verification link so the user can confirm before first login.
+      try { await _auth.sendEmailVerification(phone); } catch (_) {}
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         registrationSuccess: true,
@@ -455,6 +557,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void clearError() =>
       state = state.copyWith(status: state.status, errorMessage: null);
+
+  void clearEmailNotConfirmed() =>
+      state = state.copyWith(emailNotConfirmed: false);
+
+  void clearPhoneNotConfirmed() =>
+      state = state.copyWith(phoneNotConfirmed: false);
+
+  Future<void> resendEmailVerification(String phone) async {
+    try { await _auth.sendEmailVerification(phone.trim()); } catch (_) {}
+  }
 
   void refreshUser() async {
     if (state.user == null) return;

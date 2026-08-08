@@ -24,6 +24,12 @@ class RedeemMockService implements IRedeemService {
   }
 
   @override
+  Future<int> getRedeemableBalance(String phone, int transactionCompanyId) async {
+    await _delay(ms: 300);
+    return 0;
+  }
+
+  @override
   Future<String> redeemOffer(String userId, OfferModel offer, {int points = 0}) async {
     await _delay(ms: 600);
     final user = AuthMockService.instance.findByIdSync(userId);

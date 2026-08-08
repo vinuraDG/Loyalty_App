@@ -1,5 +1,7 @@
 // lib/features/employee/commission/data/emp_commission_api_service.dart
 
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -129,12 +131,33 @@ class EmpCommissionApiService implements IEmpCommissionService {
     final phone = await _empPhone;
     if (phone.isEmpty) return [];
     final range = _monthRange(month);
+
+    // Load all scan-name caches for every day in the requested month.
+    // The cache is written by EmpHomeRealService.recordFuelSale, keyed by
+    // the exact server DateCreated of the new employee ledger entry.
+    final scanNames = <String, String>{};
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var d = range[0];
+      while (!d.isAfter(range[1])) {
+        final key =
+            'scan_names_${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        final raw = prefs.getString(key);
+        if (raw != null) {
+          final dayMap = Map<String, String>.from(
+              (jsonDecode(raw) as Map).cast<String, String>());
+          scanNames.addAll(dayMap);
+        }
+        d = d.add(const Duration(days: 1));
+      }
+    } catch (_) {}
+
     try {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.earnCompanyId,
-          'CompanyId':            AppConstants.earnCompanyId,
+          'TransactionCompanyId': AppConstants.activeCompanyId,
+          'CompanyId':            AppConstants.activeCompanyId,
           'EmployeePhoneNo':      phone,
           'DateFrom':             _fmt(range[0]),
           'DateTo':               _fmt(range[1]),
@@ -142,7 +165,7 @@ class EmpCommissionApiService implements IEmpCommissionService {
       );
       final list = _asList(res.data);
       return list.map((entry) {
-        final m = entry as Map<String, dynamic>;
+        final m = Map<String, dynamic>.from(entry as Map);
         final amount = double.tryParse(
                 (m['Amount'] ?? m['ValueFrom'] ?? 0.0).toString()) ??
             0.0;
@@ -157,12 +180,33 @@ class EmpCommissionApiService implements IEmpCommissionService {
             (m['DateCreated'] ?? m['Date'] ?? m['date'] ?? '').toString();
         final parsed = DateTime.tryParse(dateStr);
         final safeDate = (parsed == null || parsed.year < 2000) ? null : _txDate(parsed);
+
+        // Look up the cached customer name written at scan time.
+        String? cachedName;
+        if (scanNames.isNotEmpty && dateStr.isNotEmpty) {
+          cachedName = scanNames[dateStr];
+          if ((cachedName == null || cachedName.isEmpty) && parsed != null) {
+            for (final e in scanNames.entries) {
+              final t = DateTime.tryParse(e.key);
+              if (t != null &&
+                  parsed.difference(t).abs().inSeconds <= 600) {
+                cachedName = e.value;
+                break;
+              }
+            }
+          }
+        }
+
+        final resolvedName = (cachedName != null && cachedName.isNotEmpty)
+            ? cachedName
+            : (m['CustomerName']  ?? m['MemberName']   ??
+               m['customerName']  ?? m['FullName']     ??
+               m['Name']          ?? '').toString();
+
         return SaleEntry(
           id:             (m['Id']           ?? m['id']           ?? '').toString(),
           business:       (m['CompanyName']   ?? m['MerchantName'] ?? '').toString(),
-          customerName:   (m['CustomerName']  ?? m['MemberName']   ??
-                           m['customerName']  ?? m['FullName']     ??
-                           m['Name']          ?? '').toString(),
+          customerName:   resolvedName,
           customerId:     (m['CustomerPhoneNo'] ?? m['customerPhoneNo'] ??
                            m['PhoneNo']         ?? '').toString(),
           litres:         0.0,

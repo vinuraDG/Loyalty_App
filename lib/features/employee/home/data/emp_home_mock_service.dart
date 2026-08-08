@@ -35,6 +35,7 @@ class EmpHomeMockService implements IEmpHomeService {
     required double saleAmount,
     required int pointsAwarded,
     required String documentNo,
+    String customerName = '',
   }) async {
     await _delay(ms: 500);
     _ensureSeedLoaded();
@@ -97,6 +98,7 @@ class EmpHomeMockService implements IEmpHomeService {
     required String offerId,
     required int pointsToRedeem,
     required String companyPhoneNo,
+    int companyId = 0,
   }) async {
     await _delay(ms: 700);
     final current = _laundryBalances[customerId] ?? 1500;

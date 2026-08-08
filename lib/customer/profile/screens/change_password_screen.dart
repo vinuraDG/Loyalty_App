@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../features/auth/providers/auth_provider.dart';
-import '../../../features/auth/screens/login_screen.dart';
+
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -101,54 +101,21 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   }
 
   void _showSuccess() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bgCard,
-      isDismissible: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 72, height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle_outline_rounded,
-                  color: AppColors.success, size: 40),
-            ),
-            const SizedBox(height: 20),
-            const Text('Password Changed!', style: AppTextStyles.h3,
-                textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Text(
-              'Your password has been updated successfully.',
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 28),
-            GradientButton(
-              label: 'Sign In Again',
-              onPressed: () async {
-                Navigator.pop(context);
-                await ref.read(authProvider.notifier).signOut();
-                if (!mounted) return;
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (_) => false,
-                );
-              },
-            ),
-          ]),
-        ),
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(children: [
+          Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+          SizedBox(width: 10),
+          Expanded(child: Text('Password changed successfully')),
+        ]),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
       ),
     );
+    Navigator.pop(context);
   }
 
   @override

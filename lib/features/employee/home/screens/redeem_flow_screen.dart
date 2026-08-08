@@ -103,15 +103,12 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     try {
       final offers = await widget.svc.getRedeemableOffers(widget.member.userId);
       if (mounted) {
-        // Auto-select the first available offer from whatever the backend returns
-        final firstActive = offers.where((o) => !o.isExpired).toList();
         setState(() {
           _offers = offers;
           _loading = false;
-          _selectedBusiness =
-              firstActive.isNotEmpty ? firstActive.first.business : null;
-          _selectedOffer =
-              firstActive.isNotEmpty ? firstActive.first : null;
+          // No auto-select — employee taps a company card to choose
+          _selectedOffer = null;
+          _selectedBusiness = null;
         });
       }
     } catch (e) {
@@ -146,6 +143,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
         offerId:        offer.id,
         pointsToRedeem: _pointsToRedeem!,
         companyPhoneNo: offer.companyPhoneNo,
+        companyId:      offer.companyId,
       );
       if (!mounted) return;
       final confirmed = await Navigator.push<bool>(
@@ -343,39 +341,87 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
               color: Colors.redAccent, size: 40),
           const SizedBox(height: 12),
           Text(_error!,
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textMuted),
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
               textAlign: TextAlign.center),
           const SizedBox(height: 20),
           GradientButton(
-              label: 'Retry',
-              onPressed: () {
-                setState(() {
-                  _loading = true;
-                  _error = null;
-                });
-                _loadOffers();
-              }),
+            label: 'Retry',
+            onPressed: () {
+              setState(() { _loading = true; _error = null; });
+              _loadOffers();
+            },
+          ),
         ]),
       );
     }
 
-    if (_selectedBusiness == null) {
-      return Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text('No companies found.',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-            textAlign: TextAlign.center),
-      );
-    }
+    final offers = _offers ?? [];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-      child: _CustomerPointsRow(
-        totalPoints: widget.member.currentPoints,
-        companyPoints: _selectedOffer?.customerPoints ?? 0,
-        companyName: _selectedOffer?.business ?? '',
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Section label ────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: Text(
+            'Redeemable Companies',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textMuted,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+
+        // ── Horizontal company cards ─────────────────────────────────────
+        if (offers.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Text(
+              'No redeemable companies found for this customer.',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+            ),
+          )
+        else
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              itemCount: offers.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) {
+                final offer = offers[i];
+                final isSelected = _selectedOffer?.id == offer.id;
+                return _CompanyPointCard(
+                  offer: offer,
+                  isSelected: isSelected,
+                  onTap: () => setState(() {
+                    _selectedOffer = offer;
+                    _selectedBusiness = offer.business;
+                    _resetPointsInput();
+                  }),
+                );
+              },
+            ),
+          ),
+
+        // ── Hint when nothing selected ───────────────────────────────────
+        if (_selectedOffer == null && offers.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Row(children: [
+              const Icon(Icons.touch_app_rounded,
+                  size: 14, color: AppColors.textMuted),
+              const SizedBox(width: 6),
+              Text(
+                'Tap a company card to start redeeming',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+              ),
+            ]),
+          ),
+
+        const SizedBox(height: 8),
+      ],
     );
   }
 }
@@ -585,110 +631,111 @@ class _PointsInputField extends StatelessWidget {
   }
 }
 
-// ── Customer points summary row ───────────────────────────────────────────────
 
-class _CustomerPointsRow extends StatelessWidget {
-  final int totalPoints;
-  final int companyPoints;
-  final String companyName;
+// ── Company point card (horizontally scrollable) ──────────────────────────────
 
-  const _CustomerPointsRow({
-    required this.totalPoints,
-    required this.companyPoints,
-    required this.companyName,
+class _CompanyPointCard extends StatelessWidget {
+  final RedeemableOffer offer;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _CompanyPointCard({
+    required this.offer,
+    required this.isSelected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = _BusinessTheme.of(companyName);
-    return Row(children: [
-      Expanded(
-        child: _StatCard(
-          label: 'Total Points',
-          value: '$totalPoints',
-          icon: Icons.local_gas_station_rounded,
-          iconColor: const Color(0xFF34D399),
-          valueColor: const Color(0xFF34D399),
-        ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: _StatCard(
-          label: '$companyName Points',
-          value: '$companyPoints',
-          icon: theme.icon,
-          iconColor: theme.color,
-          valueColor: theme.color,
-          highlight: true,
-        ),
-      ),
-    ]);
-  }
-}
+    final theme = _BusinessTheme.of(offer.business);
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-  final Color valueColor;
-  final bool highlight;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-    required this.valueColor,
-    this.highlight = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: iconColor.withValues(alpha: highlight ? 0.08 : 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: iconColor.withValues(alpha: highlight ? 0.30 : 0.18),
-          width: highlight ? 1.5 : 1,
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 148,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.color.withValues(alpha: 0.12)
+              : AppColors.bgCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? theme.color.withValues(alpha: 0.55)
+                : AppColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(icon, size: 15, color: iconColor),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: const Color(0xFF94A3B8),
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Company name + icon
+            Row(children: [
+              Icon(theme.icon,
+                  size: 14,
+                  color: isSelected ? theme.color : AppColors.textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  offer.business,
+                  style: TextStyle(
+                    color: isSelected
+                        ? theme.accentColor
+                        : AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ]),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          Text(
-            'pts',
-            style: TextStyle(
-              color: valueColor.withValues(alpha: 0.6),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+            ]),
+
+            // Points value
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                '${offer.customerPoints}',
+                style: TextStyle(
+                  color: isSelected ? theme.color : AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              Text(
+                'pts',
+                style: TextStyle(
+                  color: (isSelected ? theme.color : AppColors.textMuted)
+                      .withValues(alpha: 0.7),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ]),
+
+            // Selected badge
+            if (isSelected)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: theme.color.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Selected',
+                  style: TextStyle(
+                    color: theme.color,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

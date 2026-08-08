@@ -4,49 +4,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
-import 'login_screen.dart';
+import '../../../customer/home/screens/main_screen.dart';
+import '../../../features/employee/home/screens/employee_dashboard_screen.dart';
+import 'login_email_verify_screen.dart';
 
-class SignupOtpScreen extends ConsumerStatefulWidget {
+class LoginPhoneOtpScreen extends ConsumerStatefulWidget {
   final String phone;
-  final String firstName;
-  final String lastName;
-  final String email;
-  final String address;
   final String password;
 
-  const SignupOtpScreen({
+  const LoginPhoneOtpScreen({
     super.key,
     required this.phone,
-    required this.firstName,
-    required this.lastName,
-    required this.email,
-    required this.address,
     required this.password,
   });
 
   @override
-  ConsumerState<SignupOtpScreen> createState() => _SignupOtpScreenState();
+  ConsumerState<LoginPhoneOtpScreen> createState() => _LoginPhoneOtpScreenState();
 }
 
-class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
+class _LoginPhoneOtpScreenState extends ConsumerState<LoginPhoneOtpScreen> {
   static const _otpLength   = 6;
-  static const _otpDuration = 90; // matches backend OTP expiry
+  static const _otpDuration = 90;
 
   final _ctrls = List.generate(_otpLength, (_) => TextEditingController());
   final _focus  = List.generate(_otpLength, (_) => FocusNode());
-  bool _hasError  = false;
+
+  bool    _hasError  = false;
   String? _errorText;
-  int _seconds = _otpDuration;
-  Timer? _timer;
+  int     _seconds   = _otpDuration;
+  Timer?  _timer;
 
   @override
   void initState() {
     super.initState();
     _startTimer();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focus[0].requestFocus();
-      // OTP is sent automatically by Common/RegisterCustomer — no extra call needed.
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus[0].requestFocus());
   }
 
   @override
@@ -66,7 +58,6 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
     });
   }
 
-  // Formats remaining seconds as M:SS (e.g. 1:30, 0:09)
   String get _timerLabel {
     final m = _seconds ~/ 60;
     final s = _seconds % 60;
@@ -91,48 +82,45 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
     setState(() { _hasError = false; _errorText = null; });
     FocusScope.of(context).unfocus();
 
-    // Verify the OTP — profile was already created by Common/RegisterCustomer
+    // Step 1 — confirm the phone OTP
     await ref.read(authProvider.notifier).confirmPhone(
       phone: widget.phone,
       otp:   _otp,
     );
-
     if (!mounted) return;
-    final authAfterVerify = ref.read(authProvider);
-    if (authAfterVerify.errorMessage != null) {
-      setState(() {
-        _hasError  = true;
-        _errorText = authAfterVerify.errorMessage;
-      });
+    final afterOtp = ref.read(authProvider);
+    if (afterOtp.errorMessage != null) {
+      setState(() { _hasError = true; _errorText = afterOtp.errorMessage; });
       ref.read(authProvider.notifier).clearError();
       _clearBoxes();
       return;
     }
 
-    // Capture messenger before navigation deactivates this context.
-    final messenger = ScaffoldMessenger.of(context);
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
+    // Step 2 — re-login bypassing the phone OTP requirement (already verified)
+    await ref.read(authProvider.notifier).signInAfterPhoneVerification(
+      widget.phone,
+      widget.password,
     );
-    messenger.showSnackBar(
-      SnackBar(
-        content: const Row(children: [
-          Icon(Icons.mark_email_unread_rounded, color: Colors.white, size: 18),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Account created! Check your email to verify before signing in.',
-            ),
+    if (!mounted) return;
+    final afterLogin = ref.read(authProvider);
+
+    if (afterLogin.isAuthenticated) {
+      _navigateByRole(afterLogin);
+    } else if (afterLogin.emailNotConfirmed) {
+      ref.read(authProvider.notifier).clearEmailNotConfirmed();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginEmailVerifyScreen(
+            phone: widget.phone,
+            password: widget.password,
           ),
-        ]),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 5),
-      ),
-    );
+        ),
+      );
+    } else if (afterLogin.errorMessage != null) {
+      setState(() { _hasError = true; _errorText = afterLogin.errorMessage; });
+      ref.read(authProvider.notifier).clearError();
+    }
   }
 
   Future<void> _resend() async {
@@ -155,6 +143,23 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+  }
+
+  void _navigateByRole(AuthState auth) {
+    if (auth.isEmployee && auth.user != null) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+            builder: (_) => EmployeeDashboardScreen(employee: auth.user!)),
+        (_) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (_) => false,
+      );
+    }
   }
 
   @override
@@ -191,15 +196,20 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
               ),
               const SizedBox(height: 24),
 
-              const Text('Enter OTP', style: AppTextStyles.h2),
+              const Text('Verify Your Phone', style: AppTextStyles.h2),
               const SizedBox(height: 10),
               const Text('We sent a 6-digit code to',
                   style: AppTextStyles.bodySmall),
               const SizedBox(height: 4),
               Text(widget.phone, style: AppTextStyles.h4),
+              const SizedBox(height: 8),
+              const Text(
+                'Enter the code below to verify your phone number and sign in.',
+                style: AppTextStyles.caption,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 32),
 
-              // 6 OTP boxes
               FittedBox(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -215,7 +225,6 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
                 ),
               ),
 
-              // Error message
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: _errorText != null
@@ -251,14 +260,13 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
               const SizedBox(height: 32),
 
               GradientButton(
-                label: 'Verify & Activate',
+                label: 'Verify & Sign In',
                 icon: Icons.verified_user_rounded,
                 isLoading: auth.isLoading,
                 onPressed: auth.isLoading ? null : _verify,
               ),
               const SizedBox(height: 24),
 
-              // Countdown timer / resend button
               _seconds > 0
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -266,11 +274,9 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
                         const Icon(Icons.timer_outlined,
                             size: 14, color: AppColors.textMuted),
                         const SizedBox(width: 6),
-                        Text(
-                          'Resend in ',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textMuted),
-                        ),
+                        Text('Resend in ',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.textMuted)),
                         Text(
                           _timerLabel,
                           style: AppTextStyles.bodySmall.copyWith(

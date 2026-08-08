@@ -1,9 +1,12 @@
+import 'package:loyalty_app/core/constants/app_constants.dart';
+
 class CompanyModel {
-  final int    Id;
-  final String name;
-  final String displayName;
-  final String phoneNo;
-  final int    transactionCompanyId;
+  final int       Id;
+  final String    name;
+  final String    displayName;
+  final String    phoneNo;
+  final int       transactionCompanyId;
+  final List<int> redeemCompanies;
 
   const CompanyModel({
     required this.Id,
@@ -11,6 +14,7 @@ class CompanyModel {
     required this.displayName,
     this.phoneNo = '',
     this.transactionCompanyId = 0,
+    this.redeemCompanies = const [],
   });
 
   factory CompanyModel.fromMap(Map<String, dynamic> m, {int fallbackIndex = 0}) {
@@ -24,21 +28,34 @@ class CompanyModel {
     final tcIdRaw = m['TransactionCompanyId'];
     final tcId    = tcIdRaw is int ? tcIdRaw : int.tryParse(tcIdRaw.toString()) ?? 0;
 
+    final redeemRaw = m['RedeemCompanies'];
+    final redeemCompanies = redeemRaw is List
+        ? redeemRaw
+            .map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
+            .where((e) => e > 0)
+            .toList()
+        : <int>[];
+
     return CompanyModel(
       Id:                   id,
       name:                 fallback,
       displayName:          raw.isNotEmpty ? raw : fallback,
       phoneNo:              (m['PhoneNo'] ?? m['Phone'] ?? m['phoneNo'] ?? '').toString().trim(),
       transactionCompanyId: tcId,
+      redeemCompanies:      redeemCompanies,
     );
   }
 
-  /// True for companies that are earn-only (should NOT appear in the redeem list).
-  /// Currently the Fuel company (Id 3 / DisplayName "Fuel") is earn-only.
-  bool get isEarnOnly => Id == 3;
+  /// True when this company is the active earn company (should NOT appear in the redeem list).
+  /// Determined dynamically from AppConstants.activeCompanyId set at employee login.
+  bool get isEarnOnly {
+    final active = AppConstants.activeCompanyId;
+    return active > 0 && transactionCompanyId == active;
+  }
 
   @override
   String toString() =>
       'CompanyModel(Id: $Id, name: $name, displayName: $displayName, '
-      'phoneNo: $phoneNo, transactionCompanyId: $transactionCompanyId)';
+      'phoneNo: $phoneNo, transactionCompanyId: $transactionCompanyId, '
+      'redeemCompanies: $redeemCompanies)';
 }

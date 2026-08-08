@@ -5,6 +5,10 @@ class OfferModel {
   final String business;
   final int    pointsCost;
   final String companyPhoneNo;
+  // Company.Id — used to filter PointsOwnCompanyId in the ledger for balance lookup.
+  final int    companyId;
+  // Company.TransactionCompanyId — sent as TransactionCompanyId in RedeemPoints call.
+  final int    companyTransactionId;
 
   const OfferModel({
     required this.id,
@@ -13,5 +17,7 @@ class OfferModel {
     required this.business,
     required this.pointsCost,
     this.companyPhoneNo = '',
+    this.companyId = 0,
+    this.companyTransactionId = 0,
   });
 }

@@ -90,6 +90,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       email:     email,
       phone:     phone,
       password:  password,
+      address:   address,
     );
 
     if (!mounted) return;

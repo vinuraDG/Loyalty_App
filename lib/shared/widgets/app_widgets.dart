@@ -385,12 +385,13 @@ class AppBottomNav extends StatelessWidget {
       (Icons.qr_code_rounded, 'My QR'),
       (Icons.person_rounded, 'Profile'),
     ];
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.bgDark,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: EdgeInsets.fromLTRB(0, 10, 0, 10 + bottomInset),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(items.length, (i) {

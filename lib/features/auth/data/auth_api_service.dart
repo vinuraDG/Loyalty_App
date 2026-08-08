@@ -57,15 +57,16 @@ abstract class IAuthService {
   Future<void> sendPhoneConfirmation(String phone);
   Future<void> confirmPhone({required String phone, required String otp});
 
-  /// Calls Account/Register only. The backend auto-sends an OTP to the phone
-  /// at this point. Does NOT call Common/RegisterCustomer — that happens after
-  /// the user verifies the OTP via [completeCustomerRegistration].
+  /// Calls Common/RegisterCustomer with Username+Password.
+  /// The backend creates the Identity account + customer profile and sends
+  /// the phone OTP automatically — no separate Account/Register needed.
   Future<void> registerIdentityOnly({
     required String firstName,
     required String lastName,
     required String email,
     required String phone,
     required String password,
+    String address = '',
   });
 
   /// Calls Common/RegisterCustomer then fetches and returns the new profile.
@@ -100,6 +101,9 @@ abstract class IAuthService {
 
   /// Sends an email verification link to the account associated with [phone].
   Future<void> sendEmailVerification(String phone);
+
+  /// Verifies the 6-digit email OTP sent by [sendEmailVerification].
+  Future<void> confirmEmail({required String phone, required String otp});
 }
 
 class AuthApiService implements IAuthService {
@@ -324,11 +328,16 @@ class AuthApiService implements IAuthService {
 
   /// Fetches the customer profile (points, name, etc.) now that a bearer
   /// token is attached, and persists the full session.
+  ///
+  /// If the backend returns a NullReferenceException (400 "Object reference
+  /// not set"), the customer profile row is missing — this happens when
+  /// Account/Register was called in the past but RegisterCustomer was never
+  /// completed. In that case we create a minimal profile and retry once.
   Future<UserModel> _fetchAndPersistCustomer(String phone, String token) async {
-    try {
+    Future<UserModel> doFetch() async {
       final res = await _dio.get(
         'Common/GetCustomerByPhoneNo',
-        queryParameters: {'CustomerPhoneNo': phone},
+        queryParameters: {'TransactionCompanyId': 0, 'CustomerPhoneNo': phone},
       );
       final data = res.data;
       if (_isEmptyBody(data) || data is! Map<String, dynamic>) {
@@ -341,9 +350,43 @@ class AuthApiService implements IAuthService {
       final user = _userFromResponse(data);
       await _persistSession(token, user);
       return user;
+    }
+
+    try {
+      return await doFetch();
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
+      // Backend throws NullReferenceException (400) when the customer profile
+      // row doesn't exist (auth account present but RegisterCustomer was skipped).
+      // Auto-create a minimal profile and retry once.
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 400) {
+        try {
+          await _dio.post(
+            'Common/RegisterCustomer',
+            data: {
+              'TransactionCompanyId': AppConstants.activeCompanyId,
+              'FirstName': '',
+              'LastName': '',
+              'Address': '',
+              'Email': '',
+              'PhoneNo': phone,
+              'Password': '',
+              'Username': phone,
+            },
+          );
+        } catch (_) {
+          // Ignore — if RegisterCustomer fails the retry below will surface it.
+        }
+        try {
+          return await doFetch();
+        } on AuthException {
+          rethrow;
+        } on DioException catch (e2) {
+          throw _handleDioError(e2);
+        }
+      }
       throw _handleDioError(e);
     }
   }
@@ -399,7 +442,29 @@ class AuthApiService implements IAuthService {
       // Reset to Fuel (3) — guards against a previous employee session having
       // set activeCompanyId to a different company (e.g. Gold House = 1).
       AppConstants.setActiveCompanyId(AppConstants.transactionCompanyId);
-      return _fetchAndPersistCustomer(phoneForLookup, token);
+      // Account/Login is the only endpoint that returns the ASP.NET Identity
+      // EmailConfirmed flag (GetCustomerByPhoneNo is the customer-profile table
+      // and never includes it).  Persist the value so session restore can use it.
+      final loginEmailConfirmed = (data['EmailConfirmed'] ??
+              data['emailConfirmed'] ??
+              data['IsEmailConfirmed'] ??
+              data['isEmailConfirmed'] ??
+              false) ==
+          true;
+      final loginPhoneConfirmed = (data['PhoneNoConfirmed'] ??
+              data['phoneNoConfirmed'] ??
+              data['IsPhoneNoConfirmed'] ??
+              data['isPhoneNoConfirmed'] ??
+              false) ==
+          true;
+      final prefs2 = await SharedPreferences.getInstance();
+      await prefs2.setBool(AppConstants.prefEmailConfirmed, loginEmailConfirmed);
+      await prefs2.setBool(AppConstants.prefPhoneConfirmed, loginPhoneConfirmed);
+      final customer = await _fetchAndPersistCustomer(phoneForLookup, token);
+      return customer.copyWith(
+        emailConfirmed: loginEmailConfirmed,
+        phoneConfirmed: loginPhoneConfirmed,
+      );
     } on AuthException {
       rethrow;
     } on DioException catch (e) {
@@ -512,7 +577,7 @@ class AuthApiService implements IAuthService {
     try {
       final res = await _dio.get(
         'Common/GetCustomerByPhoneNo',
-        queryParameters: {'CustomerPhoneNo': phone.trim()},
+        queryParameters: {'TransactionCompanyId': 0, 'CustomerPhoneNo': phone.trim()},
       );
       if (_isEmptyBody(res.data) || res.data is! Map) return null;
       if (_isErrorEnvelope(res.data)) return null;
@@ -558,7 +623,7 @@ class AuthApiService implements IAuthService {
     try {
       final res = await _dio.get(
         'Common/GetCustomerByPhoneNo',
-        queryParameters: {'CustomerPhoneNo': phone.trim()},
+        queryParameters: {'TransactionCompanyId': 0, 'CustomerPhoneNo': phone.trim()},
       );
       if (_isEmptyBody(res.data) || res.data is! Map) {
         throw const AuthException('Account created but could not retrieve user.');
@@ -732,10 +797,10 @@ class AuthApiService implements IAuthService {
           if (code.isNotEmpty) throw AuthException(code);
         }
       }
-      // Single error object
+      // Single error object — only Description/Code are error indicators.
+      // message/Message is used by the backend for success responses.
       if (decoded is Map) {
-        final desc = (decoded['Description'] ?? decoded['description'] ??
-            decoded['message'] ?? decoded['Message'] ?? '').toString();
+        final desc = (decoded['Description'] ?? decoded['description'] ?? '').toString();
         if (desc.isNotEmpty) throw AuthException(desc);
       }
     } on AuthException {
@@ -753,7 +818,10 @@ class AuthApiService implements IAuthService {
       await _dio.post(
         'Mobile/SendPhoneConfirmation',
         queryParameters: {'PhoneNumber': phone.trim()},
-        options: Options(responseType: ResponseType.plain),
+        options: Options(
+          responseType: ResponseType.plain,
+          receiveTimeout: const Duration(seconds: 60),
+        ),
       );
     } on DioException catch (e) {
       throw _handleDioError(e);
@@ -763,7 +831,7 @@ class AuthApiService implements IAuthService {
   @override
   Future<void> confirmPhone({required String phone, required String otp}) async {
     try {
-      final res = await _dio.post(
+      await _dio.post(
         'Mobile/ConfirmPhone',
         queryParameters: {
           'PhoneNumber': phone.trim(),
@@ -771,9 +839,7 @@ class AuthApiService implements IAuthService {
         },
         options: Options(responseType: ResponseType.plain),
       );
-      _throwIfErrorBody(res.data);
-    } on AuthException {
-      rethrow;
+      // 200 = success regardless of body content; HTTP 4xx errors are caught below.
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
@@ -786,31 +852,31 @@ class AuthApiService implements IAuthService {
     required String email,
     required String phone,
     required String password,
+    String address = '',
   }) async {
     final trimmedPhone = phone.trim();
     try {
-      final res = await _dio.post(
-        'Account/Register',
+      await _dio.post(
+        'Common/RegisterCustomer',
         data: {
+          'TransactionCompanyId': AppConstants.activeCompanyId,
           'FirstName': firstName.trim(),
           'LastName':  lastName.trim(),
-          'PhoneNo':   trimmedPhone,
-          'UserName':  trimmedPhone,
+          'Address':   address.trim(),
           'Email':     email.trim().toLowerCase(),
+          'PhoneNo':   trimmedPhone,
+          'Username':  trimmedPhone,
           'Password':  password,
-          'Role':      'Customer',
         },
       );
-      final data = res.data;
-      if (data is Map<String, dynamic>) {
-        final token = _extractToken(data);
-        if (token.isNotEmpty) {
-          await _persistToken(token);
-          ApiClient.instance.setToken(token);
-        }
-      }
       await _persistPassword(password);
     } on DioException catch (e) {
+      final serverMsg = _extractServerMessage(e.response?.data)?.toLowerCase() ?? '';
+      if (serverMsg.contains('already registered') || serverMsg.contains('already taken')) {
+        throw const AuthException(
+          'This phone number is already registered. Please sign in instead.',
+        );
+      }
       throw _handleDioError(e);
     }
   }
@@ -967,11 +1033,16 @@ class AuthApiService implements IAuthService {
     try {
       final res = await _dio.get(
         'Common/GetCustomerByPhoneNo',
-        queryParameters: {'CustomerPhoneNo': phone},
+        queryParameters: {'TransactionCompanyId': 0, 'CustomerPhoneNo': phone},
       );
       if (_isEmptyBody(res.data) || res.data is! Map) return null;
       if (_isErrorEnvelope(res.data)) return null;
-      return _userFromResponse(res.data as Map<String, dynamic>);
+      final user = _userFromResponse(res.data as Map<String, dynamic>);
+      // GetCustomerByPhoneNo never returns EmailConfirmed or PhoneNoConfirmed.
+      // Overlay both from SharedPreferences persisted at login time.
+      final emailConfirmed = prefs.getBool(AppConstants.prefEmailConfirmed) ?? false;
+      final phoneConfirmed = prefs.getBool(AppConstants.prefPhoneConfirmed) ?? false;
+      return user.copyWith(emailConfirmed: emailConfirmed, phoneConfirmed: phoneConfirmed);
     } on DioException catch (_) {
       return null;
     }
@@ -1006,6 +1077,25 @@ class AuthApiService implements IAuthService {
       await _dio.post(
         'Mobile/SendEmailConfirmation',
         queryParameters: {'PhoneNumber': phone.trim()},
+        options: Options(
+          responseType: ResponseType.plain,
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> confirmEmail({required String phone, required String otp}) async {
+    try {
+      await _dio.post(
+        'Mobile/ConfirmEmail',
+        queryParameters: {
+          'PhoneNumber': phone.trim(),
+          'Token':       otp.trim(),
+        },
         options: Options(responseType: ResponseType.plain),
       );
     } on DioException catch (e) {

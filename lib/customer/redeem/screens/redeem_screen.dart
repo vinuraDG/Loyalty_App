@@ -16,17 +16,32 @@ class RedeemScreen extends ConsumerStatefulWidget {
 
 class _RedeemScreenState extends ConsumerState<RedeemScreen> {
   late Future<List<OfferModel>> _offersFuture;
+  int _redeemableBalance = 0;
+  bool _balanceLoaded = false;
+  String _redeemCompanyName = '';
 
   @override
   void initState() {
     super.initState();
+    final phone = ref.read(currentUserProvider)?.phone ?? '';
     _offersFuture = redeemService.getOffers();
+    _offersFuture.then((offers) {
+      if (!mounted || offers.isEmpty) return;
+      if (mounted) setState(() => _redeemCompanyName = offers.first.business);
+      redeemService
+          .getRedeemableBalance(phone, 0)
+          .then((balance) {
+        if (mounted) setState(() { _redeemableBalance = balance; _balanceLoaded = true; });
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
+
+    final displayBalance = _balanceLoaded ? _redeemableBalance : user.totalPoints;
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -54,11 +69,14 @@ class _RedeemScreenState extends ConsumerState<RedeemScreen> {
               ),
               child: Row(children: [
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Available to redeem',
+                  Text(
+                    _redeemCompanyName.isNotEmpty
+                        ? '$_redeemCompanyName redeemable points'
+                        : 'Redeemable points',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: Colors.white.withValues(alpha: 0.75))),
                   const SizedBox(height: 4),
-                  Text('${user.totalPoints} pts', style: AppTextStyles.h2),
+                  Text('$displayBalance pts', style: AppTextStyles.h2),
                 ]),
                 const Spacer(),
                 const Icon(Icons.card_giftcard_rounded,
@@ -109,7 +127,7 @@ class _RedeemScreenState extends ConsumerState<RedeemScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _OfferCard(
                     offer: offers[i],
-                    canAfford: user.totalPoints >= offers[i].pointsCost,
+                    canAfford: displayBalance >= offers[i].pointsCost,
                     onTap: () => _showConfirmSheet(context, offers[i]),
                   ),
                 );
@@ -126,7 +144,7 @@ class _RedeemScreenState extends ConsumerState<RedeemScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ConfirmSheet(offer: offer),
+      builder: (_) => _ConfirmSheet(offer: offer, redeemableBalance: _redeemableBalance),
     );
   }
 }
@@ -195,7 +213,8 @@ class _OfferCard extends StatelessWidget {
 // ─── Confirmation bottom sheet ────────────────────────────────────────────────
 class _ConfirmSheet extends ConsumerStatefulWidget {
   final OfferModel offer;
-  const _ConfirmSheet({required this.offer});
+  final int redeemableBalance;
+  const _ConfirmSheet({required this.offer, required this.redeemableBalance});
 
   @override
   ConsumerState<_ConfirmSheet> createState() => _ConfirmSheetState();
@@ -209,7 +228,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
     setState(() => _loading = true);
     final user = ref.read(currentUserProvider)!;
     try {
-      final code = await redeemService.redeemOffer(user.id, widget.offer, points: user.totalPoints);
+      final code = await redeemService.redeemOffer(user.id, widget.offer, points: widget.redeemableBalance);
       ref.read(authProvider.notifier).refreshUser();
       if (!mounted) return;
       Navigator.pop(context);
@@ -226,8 +245,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider)!;
-    final after = user.totalPoints - widget.offer.pointsCost;
+    final after = widget.redeemableBalance - widget.offer.pointsCost;
 
     return Container(
       decoration: const BoxDecoration(
@@ -259,7 +277,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
             color: AppColors.bgDark, borderRadius: BorderRadius.circular(16),
           ),
           child: Column(children: [
-            _SummaryRow(label: 'Your balance', value: '${user.totalPoints} pts',
+            _SummaryRow(label: 'Your balance', value: '${widget.redeemableBalance} pts',
               valueColor: AppColors.textPrimary),
             const SizedBox(height: 10),
             _SummaryRow(label: 'Cost', value: '-${widget.offer.pointsCost} pts',

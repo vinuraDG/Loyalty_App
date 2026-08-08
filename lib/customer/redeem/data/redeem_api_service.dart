@@ -12,6 +12,7 @@ import 'package:loyalty_app/customer/redeem/data/redeem_mock_service.dart';
 
 abstract class IRedeemService {
   Future<List<OfferModel>> getOffers();
+  Future<int> getRedeemableBalance(String phone, int transactionCompanyId);
   Future<String> redeemOffer(String userId, OfferModel offer, {int points = 0});
 }
 
@@ -26,11 +27,48 @@ class RedeemApiService implements IRedeemService {
   @override
   Future<List<OfferModel>> getOffers() async {
     try {
-      final companies = await CompaniesApiService.instance.getCompanies();
+      final prefs = await SharedPreferences.getInstance();
+      final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+
+      // Step 1: wallet (TC=0) → get TransactionCompanyId(s).
+      // Step 2: ledger with that TC ID → collect PointsRedeemCompanyId (= c.Id).
+      // Step 3: filter companies by those IDs.
+      final companiesFuture = CompaniesApiService.instance.getCompanies();
+      final walletsFuture   = _fetchAllWallets(phone);
+      final companies = await companiesFuture;
+      final wallets   = await walletsFuture;
       if (companies.isEmpty) return [];
-      // Filter out earn-only companies (e.g. Fuel/Id 3) — they are not redeem partners.
-      return companies
-          .where((c) => !c.isEarnOnly)
+
+      final redeemCompanyIds = <int>{};
+      for (final w in wallets) {
+        final tcId = int.tryParse(
+                (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0).toString()) ?? 0;
+        if (tcId <= 0) continue;
+        try {
+          final ledgerRes = await _dio.get(
+            'Mobile/GetAllCustomerLedgers',
+            data: {'TransactionCompanyId': tcId, 'CustomerPhoneNo': phone},
+          );
+          final raw = ledgerRes.data;
+          List items = raw is List ? raw : (raw is Map
+              ? (raw['Value'] ?? raw['value'] ?? raw['Data'] ?? raw['data'] ?? [])
+              : []);
+          for (final entry in items) {
+            if (entry is! Map) continue;
+            final redeemId = int.tryParse(
+                (entry['PointsRedeemCompanyId'] ?? 0).toString()) ?? 0;
+            if (redeemId > 0) redeemCompanyIds.add(redeemId);
+          }
+        } catch (_) {}
+      }
+
+      // Filter by PointsRedeemCompanyId (matches c.Id).
+      // Fall back to !isEarnOnly if ledger returned no redeem IDs.
+      final redeemable = redeemCompanyIds.isNotEmpty
+          ? companies.where((c) => redeemCompanyIds.contains(c.Id)).toList()
+          : companies.where((c) => !c.isEarnOnly).toList();
+
+      return redeemable
           .map((c) => OfferModel(
                 id: 'redeem-${c.Id}',
                 title: c.displayName,
@@ -38,10 +76,74 @@ class RedeemApiService implements IRedeemService {
                 business: c.displayName,
                 pointsCost: 0,
                 companyPhoneNo: c.phoneNo,
+                companyId: c.Id,
+                companyTransactionId: c.transactionCompanyId,
               ))
           .toList();
     } catch (_) {
       return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchAllWallets(String phone) async {
+    try {
+      final res = await _dio.get(
+        'Common/GetAllCustomerWallets',
+        data: {
+          'TransactionCompanyId': 0,
+          'CustomerPhoneNo': phone,
+        },
+      );
+      final raw = res.data;
+      List items = [];
+      if (raw is List) {
+        items = raw;
+      } else if (raw is Map) {
+        final inner = raw['Value'] ?? raw['value'] ?? raw['Data'] ?? raw['data'];
+        if (inner is List) {
+          items = inner;
+        } else if (inner == null) {
+          items = [raw];
+        }
+      }
+      return items.whereType<Map<String, dynamic>>().toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Future<int> getRedeemableBalance(String phone, int transactionCompanyId) async {
+    try {
+      // Step 1: wallet (TC=0) → get TransactionCompanyId(s).
+      // Step 2: ledger with that TC ID → sum PointBalance from Earn entries.
+      final wallets = await _fetchAllWallets(phone);
+      int balance = 0;
+      for (final w in wallets) {
+        final tcId = int.tryParse(
+            (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0).toString()) ?? 0;
+        if (tcId <= 0) continue;
+        try {
+          final ledgerRes = await _dio.get(
+            'Mobile/GetAllCustomerLedgers',
+            data: {'TransactionCompanyId': tcId, 'CustomerPhoneNo': phone},
+          );
+          final raw = ledgerRes.data;
+          List items = raw is List ? raw : (raw is Map
+              ? (raw['Value'] ?? raw['value'] ?? raw['Data'] ?? raw['data'] ?? [])
+              : []);
+          for (final entry in items) {
+            if (entry is! Map) continue;
+            final type = (entry['PointsTransactionType'] ?? '').toString().toLowerCase();
+            if (type != 'earn') continue;
+            final b = entry['PointBalance'] ?? entry['PointsBalance'] ?? 0;
+            balance += (double.tryParse(b.toString()) ?? 0).round();
+          }
+        } catch (_) {}
+      }
+      return balance;
+    } catch (_) {
+      return 0;
     }
   }
 
@@ -59,7 +161,7 @@ class RedeemApiService implements IRedeemService {
         'Common/RedeemPoints',
         options: Options(responseType: ResponseType.plain),
         data: {
-          'TransactionCompanyId': AppConstants.earnCompanyId,
+          'TransactionCompanyId': offer.companyTransactionId,
           'CustomerPhoneNo': phone,
           'EmployeePhoneNo': '',
           'Points': pointsToSend,

@@ -63,6 +63,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         saleAmount: _amount,
         pointsAwarded: _points,
         documentNo: _docNoCtrl.text.trim(),
+        customerName: widget.member.name,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {

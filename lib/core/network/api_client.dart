@@ -52,6 +52,8 @@ class _AuthInterceptor extends Interceptor {
     'Mobile/ResetPassword',
     'Mobile/SendPhoneConfirmation',
     'Mobile/ConfirmPhone',
+    'Mobile/SendEmailConfirmation',
+    'Mobile/ConfirmEmail',
     'Common/ForgotPassword',
     'Common/ResetPassword',
   ];

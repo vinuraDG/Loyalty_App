@@ -1,37 +1,28 @@
-#define MyAppName "LoyaltyHub"
-#define MyAppVersion "1.0.0"
-#define MyAppPublisher "EonTech"
-#define MyAppExeName "loyalty_app.exe"
-
 [Setup]
-AppId={{7F3A9C2E-4B1D-4E6F-9A8C-D5E6F7A8B9C0}
-AppName={#MyAppName}
-AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+AppName=Loyalty App
+AppVersion=1.0.0
+AppPublisher=Your Company
+DefaultDirName={autopf}\LoyaltyApp
+DefaultGroupName=Loyalty App
 OutputDir=installer_output
-OutputBaseFilename={#MyAppName}_Setup_{#MyAppVersion}
+OutputBaseFilename=LoyaltyApp_Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-DisableProgramGroupPage=yes
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"
+Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
 
 [Files]
-Source: "D:\Flutter-Projects\loyalty_app\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\Loyalty App"; Filename: "{app}\loyalty_app.exe"
+Name: "{group}\Uninstall Loyalty App"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\Loyalty App"; Filename: "{app}\loyalty_app.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\loyalty_app.exe"; Description: "Launch Loyalty App"; Flags: nowait postinstall skipifsilent

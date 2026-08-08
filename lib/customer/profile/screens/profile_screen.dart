@@ -373,7 +373,8 @@ Future<void> _deleteAccount(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.keyboard_outlined,
                 color: AppColors.error, size: 32),
             const SizedBox(height: 14),
@@ -441,11 +442,14 @@ Future<void> _deleteAccount(
               ),
             ),
           ]),
+          ),
         ),
       ),
     ),
   );
-  ctrl.dispose();
+  // Dispose after the next frame so the focus system can finish its
+  // cleanup callbacks before the controller is torn down.
+  WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
 
   if (typed != true || !context.mounted) return;
 
