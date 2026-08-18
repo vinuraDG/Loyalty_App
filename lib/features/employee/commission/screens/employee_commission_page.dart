@@ -450,15 +450,7 @@ class _SaleTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  sale.customerName.isNotEmpty ? sale.customerName : 'Customer',
-                  style: AppTextStyles.labelMedium,
-                ),
-                const SizedBox(height: 4),
                 Row(children: [
-                  const Icon(Icons.access_time_rounded,
-                      size: 12, color: AppColors.textMuted),
-                  const SizedBox(width: 3),
                   Flexible(
                     child: Text(
                       '${sale.fullDate}  ${sale.time}',
@@ -576,13 +568,7 @@ class _SaleTile extends StatelessWidget {
                       value: sale.documentNumber),
                   _TxDivider(),
                 ],
-                if (sale.customerName.isNotEmpty) ...[
-                  _DetailRow(
-                      icon: Icons.person_rounded,
-                      label: 'Customer',
-                      value: sale.customerName),
-                  _TxDivider(),
-                ],
+                
                 _DetailRow(
                     icon: Icons.payments_outlined,
                     label: 'Sale amount',

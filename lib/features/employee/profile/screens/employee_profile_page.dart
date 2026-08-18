@@ -9,6 +9,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/screens/login_screen.dart';
 import '../data/emp_profile_api_service.dart';
 import 'change_password_page.dart';
+import 'emp_edit_profile_screen.dart';
 
 class EmployeeProfilePage extends ConsumerStatefulWidget {
   final UserModel employee;
@@ -22,7 +23,7 @@ class EmployeeProfilePage extends ConsumerStatefulWidget {
 class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
   final _svc = empProfileService;
 
-  dynamic _info;
+  EmployeeProfileInfo? _info;
 
   @override
   void initState() {
@@ -36,17 +37,19 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
     setState(() => _info = info);
   }
 
-  String _initials(String name) {
-    final parts = name.trim().split(' ');
-    final f = parts.isNotEmpty && parts[0].isNotEmpty ? parts[0][0].toUpperCase() : '';
-    final l = parts.length > 1 && parts.last.isNotEmpty ? parts.last[0].toUpperCase() : '';
-    return '$f$l';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final rawId   = widget.employee.id.toUpperCase();
-    final shortId = rawId.substring(0, rawId.length.clamp(0, 8));
+    final emp   = widget.employee;
+    final phone = _info?.phone.isNotEmpty == true
+        ? _info!.phone
+        : emp.phone;
+    final email = _info?.email.isNotEmpty == true
+        ? _info!.email
+        : emp.email;
+
+    final f = emp.firstName.isNotEmpty ? emp.firstName[0].toUpperCase() : '';
+    final l = emp.lastName.isNotEmpty  ? emp.lastName[0].toUpperCase()  : '';
+    final initials = '$f$l';
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -58,110 +61,94 @@ class _EmployeeProfilePageState extends ConsumerState<EmployeeProfilePage> {
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(children: [
-            // ── Header ──────────────────────────────────────────────
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Row(children: [
-                Text('My Profile', style: AppTextStyles.h3),
-                Spacer(),
-              ]),
-            ),
-            const SizedBox(height: 20),
 
-            // ── Avatar card ─────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.bgCard,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: AppColors.border),
-                ),
+              // ── Header ────────────────────────────────────────────
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(children: [
-                  InitialsAvatar(
-                    initials: _initials(widget.employee.name),
-                    size: 64,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(widget.employee.name, style: AppTextStyles.h4),
-                        const SizedBox(height: 3),
-                        Text(
-                          _info?.phone ?? '—',
-                          style: AppTextStyles.caption,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'ID: #$shortId',
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                  ),
+                  Text('My Profile', style: AppTextStyles.h3),
+                  Spacer(),
                 ]),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // ── Menu ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(children: [
-                _MenuSection(title: 'Account', items: [
-                  _MenuItem(
-                    icon: Icons.person_outline_rounded,
-                    label: 'Full Name',
-                    value: widget.employee.name,
-                    color: AppColors.primary,
-                    onTap: () {},
+              // ── User card ─────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgCard,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: AppColors.border),
                   ),
-                  _MenuItem(
-                    icon: Icons.phone_outlined,
-                    label: 'Phone',
-                    value: _info?.phone ?? '—',
-                    color: AppColors.primary,
-                    onTap: () {},
-                  ),
-                  _MenuItem(
-                    icon: Icons.badge_outlined,
-                    label: 'Employee ID',
-                    value: '#$shortId',
-                    color: AppColors.primary,
-                    onTap: () {},
-                  ),
-                ]),
-                const SizedBox(height: 12),
-                _MenuSection(title: 'Security', items: [
-                  _MenuItem(
-                    icon: Icons.lock_outline_rounded,
-                    label: 'Change Password',
-                    color: AppColors.primary,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ChangePasswordPage()),
+                  child: Row(children: [
+                    InitialsAvatar(initials: initials, size: 64),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(emp.name, style: AppTextStyles.h4),
+                          const SizedBox(height: 3),
+                          Text(phone, style: AppTextStyles.caption),
+                          const SizedBox(height: 2),
+                          Text(
+                            'ID: #${emp.id.toUpperCase().substring(0, emp.id.length.clamp(0, 8))}',
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Menu ──────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(children: [
+                  _MenuSection(title: 'Account', items: [
+
+                    _MenuItem(
+                      icon: Icons.edit_outlined,
+                      label: 'Edit Profile',
+                      color: AppColors.accentGold,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              EmpEditProfileScreen(employee: emp),
+                        ),
+                      ),
+                    ),
+                    _MenuItem(
+                      icon: Icons.lock_outline_rounded,
+                      label: 'Change Password',
+                      color: AppColors.primary,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ChangePasswordPage()),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 12),
+                  _MenuSection(title: '', items: [
+                    _MenuItem(
+                      icon: Icons.logout_rounded,
+                      label: 'Sign Out',
+                      color: AppColors.error,
+                      textColor: AppColors.error,
+                      onTap: () => _signOut(context, ref),
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
                 ]),
-                const SizedBox(height: 12),
-                _MenuSection(title: '', items: [
-                  _MenuItem(
-                    icon: Icons.logout_rounded,
-                    label: 'Sign Out',
-                    color: AppColors.error,
-                    textColor: AppColors.error,
-                    onTap: () => _signOut(context, ref),
-                  ),
-                ]),
-                const SizedBox(height: 24),
-              ]),
-            ),
-          ]),
-        ),
+              ),
+            ]),
+          ),
         ),
       ),
     );
@@ -208,7 +195,7 @@ Future<bool> _showSignOutDialog(BuildContext context) async {
                   style: AppTextStyles.h4, textAlign: TextAlign.center),
               const SizedBox(height: 6),
               const Text(
-                "You'll be returned to the login screen and will need to sign back in.",
+                "You'll need to sign back in to access the employee portal.",
                 style: AppTextStyles.caption,
                 textAlign: TextAlign.center,
               ),
@@ -299,7 +286,7 @@ class _MenuSection extends StatelessWidget {
 class _MenuItem extends StatelessWidget {
   final IconData     icon;
   final String       label;
-  final String?      value;   // optional trailing value (read-only tiles)
+  final String?      value;
   final Color        color;
   final Color?       textColor;
   final VoidCallback onTap;

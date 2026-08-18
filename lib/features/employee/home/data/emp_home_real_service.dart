@@ -169,55 +169,44 @@ class EmpHomeRealService implements IEmpHomeService {
     final phone = await _empPhone;
     final callTime = DateTime.now().toUtc();
 
-    // EarnPoints requires the earn company's wallet TC (e.g. 3), not 0.
-    // Fetch the customer's wallet to get the correct TransactionCompanyId.
+    // Resolve earn TC independently — never read activeCompanyId here because
+    // getRedeemableOffers sets it to the ledger-based empId (may be wrong for
+    // earn). GetCompanyById responses don't include TransactionCompanyId (always
+    // 0), so we use the company Id directly. We iterate ALL companies and keep
+    // overwriting the candidate so the LAST company with a non-empty
+    // RedeemCompanies list wins. City Oil (Id=3) is last in GetAllCompanies and
+    // has RedeemCompanies pointing to the redeem destinations, so earnTcId=3.
+    // We do NOT write to activeCompanyId so the redeem flow is not affected.
     int earnTcId = 0;
     try {
-      final wallets = await _fetchCustomerWallets(customerId);
-      for (final w in wallets) {
-        final tc = int.tryParse(
-            (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0).toString()) ?? 0;
-        if (tc > 0) { earnTcId = tc; break; }
+      final companies = await CompaniesApiService.instance.getCompanies();
+      int baseIdFallback = 0;
+      for (final c in companies) {
+        final baseId = c.Id > 0 ? c.Id : 0;
+        if (baseId <= 0) continue;
+        if (baseIdFallback == 0) baseIdFallback = baseId;
+        try {
+          final cr = await _dio.get('Mobile/GetCompanyById',
+              queryParameters: {'CompanyId': baseId});
+          final val = cr.data is Map ? cr.data['Value'] : null;
+          if (val is Map) {
+            final realTc = int.tryParse(
+                (val['TransactionCompanyId'] ?? val['transactionCompanyId'] ?? 0).toString()) ?? 0;
+            if (realTc > 0) {
+              earnTcId = realTc; // overwrite — last TC > 0 wins
+            } else {
+              final raw = val['RedeemCompanies'];
+              if (raw is List && raw.isNotEmpty) {
+                earnTcId = baseId; // overwrite — last company with RedeemCompanies wins
+              }
+            }
+          }
+        } catch (_) {}
+      }
+      if (earnTcId == 0 && baseIdFallback > 0) {
+        earnTcId = baseIdFallback;
       }
     } catch (_) {}
-
-    // Fallback for brand-new customers who have no wallet yet: pick the first
-    // company with a non-zero TC from the company list.
-    if (earnTcId == 0) {
-      try {
-        final companies = await CompaniesApiService.instance.getCompanies();
-        for (final c in companies) {
-          if (c.transactionCompanyId > 0) {
-            earnTcId = c.transactionCompanyId;
-            break;
-          }
-        }
-      } catch (_) {}
-    }
-
-    // Final fallback: read PointsOwnCompanyId from the employee's own ledger.
-    // GetAllCompanies doesn't include TransactionCompanyId in its response, so
-    // the company-list fallback above always yields 0. The ledger reliably
-    // carries the correct earn TC (e.g. 3 for Fuel) in PointsOwnCompanyId.
-    if (earnTcId == 0) {
-      try {
-        final now3 = DateTime.now();
-        final lr = await _dio.get('Mobile/GetAllEmployeeLedgers', data: {
-          'TransactionCompanyId': 0,
-          'CompanyId':            0,
-          'EmployeePhoneNo':      phone,
-          'DateFrom': _fmt(DateTime(now3.year, now3.month, 1)),
-          'DateTo':   _fmt(now3),
-        });
-        for (final raw in _asList(lr.data)) {
-          if (raw is! Map) continue;
-          final poc = int.tryParse(
-              (raw['PointsOwnCompanyId'] ?? raw['pointsOwnCompanyId'] ?? 0)
-                  .toString()) ?? 0;
-          if (poc > 0) { earnTcId = poc; break; }
-        }
-      } catch (_) {}
-    }
 
     try {
       final res = await _dio.post(
@@ -339,8 +328,8 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CompanyId':            AppConstants.activeCompanyId,
+          'TransactionCompanyId': 0,
+          'CompanyId':            0,
           'EmployeePhoneNo':      phone,
           'DateFrom':             _fmt(monthStart),
           'DateTo':               _fmt(monthEnd),
@@ -411,8 +400,8 @@ class EmpHomeRealService implements IEmpHomeService {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
-          'TransactionCompanyId': AppConstants.activeCompanyId,
-          'CompanyId':            AppConstants.activeCompanyId,
+          'TransactionCompanyId': 0,
+          'CompanyId':            0,
           'EmployeePhoneNo':      phone,
           'DateFrom':             _fmt(monthStart),
           'DateTo':               _fmt(monthEnd),
@@ -476,31 +465,18 @@ class EmpHomeRealService implements IEmpHomeService {
             (w['PointsBalance'] ?? w['pointsBalance'] ?? 0).toString()) ?? 0).round();
       }
 
-      // Resolve employee's assigned company Id.
-      // activeCompanyId is 0 when backend returns TC=0; read from ledger instead.
-      int empId = AppConstants.activeCompanyId;
-      if (empId <= 0) {
-        try {
-          final phone = await _empPhone;
-          final now   = DateTime.now();
-          final lr = await _dio.get('Mobile/GetAllEmployeeLedgers', data: {
-            'TransactionCompanyId': 0,
-            'CompanyId':            0,
-            'EmployeePhoneNo':      phone,
-            'DateFrom': _fmt(DateTime(now.year, now.month, 1)),
-            'DateTo':   _fmt(now),
-          });
-          for (final raw in _asList(lr.data)) {
-            if (raw is! Map) continue;
-            final poc = int.tryParse(
-                (raw['PointsOwnCompanyId'] ?? 0).toString()) ?? 0;
-            if (poc > 0) {
-              empId = poc;
-              AppConstants.setActiveCompanyId(poc);
-              break;
-            }
-          }
-        } catch (_) {}
+      // Resolve the earn company Id from the customer's wallet TransactionCompanyId.
+      // The wallet TC tells us which company's points the customer holds, so we read
+      // that company's RedeemCompanies to know where they can redeem.
+      // This is correct even when the employee ledger still has old TC=1 entries.
+      int empId = 0;
+      for (final w in wallets) {
+        final tcId = int.tryParse(
+            (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0).toString()) ?? 0;
+        if (tcId > 0) {
+          empId = tcId;
+          break;
+        }
       }
 
       // Get employee's company RedeemCompanies via GetCompanyById.

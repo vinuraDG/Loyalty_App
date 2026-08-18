@@ -565,13 +565,7 @@ class _TodayScanTile extends StatelessWidget {
                       value: scan.documentNumber),
                   _ScanDivider(),
                 ],
-                if (scan.memberName.isNotEmpty) ...[
-                  _ScanDetailRow(
-                      icon: Icons.person_rounded,
-                      label: 'Customer',
-                      value: scan.memberName),
-                  _ScanDivider(),
-                ],
+                
                 _ScanDetailRow(
                     icon: Icons.payments_outlined,
                     label: 'Sale amount',
@@ -649,15 +643,7 @@ class _TodayScanTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  scan.memberName.isNotEmpty ? scan.memberName : 'Customer',
-                  style: AppTextStyles.labelMedium,
-                ),
-                const SizedBox(height: 4),
                 Row(children: [
-                  const Icon(Icons.access_time_rounded,
-                      size: 12, color: AppColors.textMuted),
-                  const SizedBox(width: 3),
                   Flexible(
                     child: Text(
                       '${scan.date}  ${scan.time}',

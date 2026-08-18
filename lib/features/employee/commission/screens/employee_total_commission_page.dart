@@ -279,12 +279,6 @@ class _FuelSaleTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    sale.customerName.isNotEmpty ? sale.customerName : 'Customer',
-                    style: AppTextStyles.labelMedium,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
                   Row(children: [
                     const Icon(Icons.calendar_today_rounded,
                         size: 11, color: AppColors.textMuted),
@@ -293,9 +287,6 @@ class _FuelSaleTile extends StatelessWidget {
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.textMuted)),
                     const SizedBox(width: 8),
-                    const Icon(Icons.access_time_rounded,
-                        size: 11, color: AppColors.textMuted),
-                    const SizedBox(width: 4),
                     Text(sale.time,
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.textMuted)),
@@ -389,13 +380,7 @@ class _FuelSaleTile extends StatelessWidget {
                       value: sale.documentNumber),
                   _TxDivider(),
                 ],
-                if (sale.customerName.isNotEmpty) ...[
-                  _DetailRow(
-                      icon: Icons.person_rounded,
-                      label: 'Customer',
-                      value: sale.customerName),
-                  _TxDivider(),
-                ],
+                
                 _DetailRow(
                     icon: Icons.payments_outlined,
                     label: 'Sale amount',

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../auth/screens/login_screen.dart';
 
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
@@ -23,6 +24,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   bool    _showConfirm  = false;
   bool    _isLoading    = false;
   String? _errorText;
+  String? _successText;
 
   int _strength = 0;
 
@@ -99,20 +101,17 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
 
   void _showSuccess() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(children: [
-          Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-          SizedBox(width: 10),
-          Expanded(child: Text('Password changed successfully')),
-        ]),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-    Navigator.pop(context);
+    setState(() => _successText = 'Password changed. Please sign in again.');
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      if (!mounted) return;
+      await ref.read(authProvider.notifier).signOut();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    });
   }
 
   @override
@@ -284,6 +283,31 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                         ],
                       ),
                     ),
+
+                    // ── Inline success ────────────────────────────
+                    if (_successText != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppColors.success.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.check_circle_outline_rounded,
+                              size: 16, color: AppColors.success),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(_successText!,
+                                style: AppTextStyles.caption
+                                    .copyWith(color: AppColors.success)),
+                          ),
+                        ]),
+                      ),
+                    ],
 
                     // ── Inline error ──────────────────────────────
                     if (_errorText != null) ...[

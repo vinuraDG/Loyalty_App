@@ -38,7 +38,6 @@ class FuelEntrySheet extends StatefulWidget {
 
 class _FuelEntrySheetState extends State<FuelEntrySheet> {
   final _amountCtrl = TextEditingController();
-  final _docNoCtrl  = TextEditingController();
   bool _confirming = false;
 
   static const double _pointsPerLkr = 0.1;
@@ -49,7 +48,6 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
   @override
   void dispose() {
     _amountCtrl.dispose();
-    _docNoCtrl.dispose();
     super.dispose();
   }
 
@@ -62,7 +60,7 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         customerId: widget.member.userId,
         saleAmount: _amount,
         pointsAwarded: _points,
-        documentNo: _docNoCtrl.text.trim(),
+        documentNo: '',
         customerName: widget.member.name,
       );
       if (mounted) Navigator.pop(context, true);
@@ -118,21 +116,13 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
         ]),
         const SizedBox(height: 20),
 
-        // Document No + Amount input + estimated points preview
+        // Amount input
         StatefulBuilder(
           builder: (_, setInner) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppTextField(
-                label: 'Document No',
-                hint: 'e.g. INV-001',
-                controller: _docNoCtrl,
-                prefixIconData: Icons.receipt_long_rounded,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 14),
-              AppTextField(
-                label: 'Sale Amount (LKR)',
+                label: 'Sale Amount (Liters)',
                 hint: 'e.g. 7015',
                 controller: _amountCtrl,
                 prefixIconData: Icons.payments_outlined,
@@ -143,19 +133,6 @@ class _FuelEntrySheetState extends State<FuelEntrySheet> {
                   setState(() {});
                 },
               ),
-              if (_amount > 0) ...[
-                const SizedBox(height: 10),
-                Row(children: [
-                  const Icon(Icons.stars_rounded,
-                      size: 15, color: Color(0xFFFFD700)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '≈ $_points pts will be awarded (estimate)',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textMuted),
-                  ),
-                ]),
-              ],
             ],
           ),
         ),

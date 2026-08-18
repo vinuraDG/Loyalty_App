@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_widgets.dart';
 import '../data/emp_home_api_service.dart';
+import 'package:loyalty_app/data/companies_api_service.dart';
 import '../../../../models/user_model.dart';
 import 'otp_confirmation_screen.dart';
 
@@ -99,7 +100,13 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     _loadOffers();
   }
 
+  Future<void> _refreshOffers() async {
+    CompaniesApiService.instance.clearCache();
+    await _loadOffers();
+  }
+
   Future<void> _loadOffers() async {
+    CompaniesApiService.instance.clearCache();
     try {
       final offers = await widget.svc.getRedeemableOffers(widget.member.userId);
       if (mounted) {
@@ -187,51 +194,57 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
       backgroundColor: AppColors.bgDark,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(children: [
-            // ── Header ──────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 12, 16, 0),
-              child: Row(children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.textPrimary, size: 20),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Redeem Points', style: AppTextStyles.h4),
-                      Text(
-                        'For ${widget.member.name}',
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.textMuted),
-                      ),
-                    ],
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgCard,
+          onRefresh: _refreshOffers,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(children: [
+              // ── Header ──────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 12, 16, 0),
+                child: Row(children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: AppColors.textPrimary, size: 20),
                   ),
-                ),
-              ]),
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildBody(),
-
-            if (!_loading && _error == null && _isGoldSelected)
-              _RedeemPanel(
-                controller: _pointsController,
-                customerPoints: _availablePoints,
-                pointsError: _pointsError,
-                pointsToRedeem: _pointsToRedeem,
-                redeeming: _redeeming,
-                companyName: _selectedOffer?.business ?? '',
-                onPointsChanged: _onPointsChanged,
-                onConfirm: _confirmRedemption,
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Redeem Points', style: AppTextStyles.h4),
+                        Text(
+                          'For ${widget.member.name}',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]),
               ),
-          ]),
+
+              const SizedBox(height: 16),
+
+              _buildBody(),
+
+              if (!_loading && _error == null && _isGoldSelected)
+                _RedeemPanel(
+                  controller: _pointsController,
+                  customerPoints: _availablePoints,
+                  pointsError: _pointsError,
+                  pointsToRedeem: _pointsToRedeem,
+                  redeeming: _redeeming,
+                  companyName: _selectedOffer?.business ?? '',
+                  onPointsChanged: _onPointsChanged,
+                  onConfirm: _confirmRedemption,
+                ),
+            ]),
+          ),
         ),
       ),
     );
@@ -513,7 +526,7 @@ class _RedeemPanel extends StatelessWidget {
 
           // ── CTA Button ─────────────────────────────────────────────────
           GradientButton(
-            label: redeeming ? 'Sending OTP…' : 'Send OTP to Customer',
+            label: redeeming ? 'Sending OTP…' : 'Send OTP',
             icon: Icons.send_rounded,
             onPressed: canSend ? onConfirm : null,
           ),
@@ -875,4 +888,3 @@ class _RedemptionSuccessSheet extends StatelessWidget {
     );
   }
 }
-

@@ -771,8 +771,6 @@ class AuthApiService implements IAuthService {
           'NewPassword': newPassword,
         },
       );
-      // Backend returns 200 even on failure — check the body for error objects.
-      _throwIfErrorBody(res.data);
       await _persistPassword(newPassword);
     } on AuthException {
       rethrow;
