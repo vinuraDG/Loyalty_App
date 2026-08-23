@@ -55,6 +55,11 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
     _loadMonths();
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   Future<void> _loadMonths() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -327,24 +332,30 @@ class _EmployeeCommissionPageState extends State<EmployeeCommissionPage> {
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : _sales.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No sales recorded for $_selectedMonth',
-                            style: AppTextStyles.bodySmall,
-                          ),
-                        )
-                      : RefreshIndicator(
-                          color: AppColors.primary,
-                          backgroundColor: AppColors.bgCard,
-                          onRefresh: () => _selectedMonth != null
-                              ? _loadMonth(_selectedMonth!)
-                              : _loadMonths(),
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                            children: _buildGroupedSales(_sales),
-                          ),
-                        ),
+                  : RefreshIndicator(
+                      color: AppColors.primary,
+                      backgroundColor: AppColors.bgCard,
+                      onRefresh: () => _selectedMonth != null
+                          ? _loadMonth(_selectedMonth!)
+                          : _loadMonths(),
+                      child: _sales.isEmpty
+                          ? const SingleChildScrollView(
+                              physics: AlwaysScrollableScrollPhysics(),
+                              child: SizedBox(
+                                height: 300,
+                                child: Center(
+                                  child: Text(
+                                    'No sales recorded',
+                                    style: AppTextStyles.bodySmall,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : ListView(
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                              children: _buildGroupedSales(_sales),
+                            ),
+                    ),
             ),
           ],
         ),

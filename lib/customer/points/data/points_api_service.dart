@@ -44,7 +44,14 @@ class PointsApiService implements IPointsService {
 
     // Build Id → CompanyModel map directly from backend data.
     // GetAllCompanies returns each company with its real Id field.
+    // Build a unified lookup keyed by both TransactionCompanyId and Id so that
+    // PointsOwnCompanyId / PointsRedeemCompanyId resolve correctly regardless
+    // of whether the backend stores the TC or the primary Id in those fields.
+    // Id takes priority on collision (inserted second so it overwrites TC entry).
     final companyMap = <int, CompanyModel>{};
+    for (final c in companies) {
+      if (c.transactionCompanyId > 0) companyMap[c.transactionCompanyId] = c;
+    }
     for (final c in companies) {
       if (c.Id > 0) companyMap[c.Id] = c;
     }
@@ -85,6 +92,9 @@ class PointsApiService implements IPointsService {
     final rawList   = results[1] as List<dynamic>? ?? <dynamic>[];
 
     final companyMap = <int, CompanyModel>{};
+    for (final c in companies) {
+      if (c.transactionCompanyId > 0) companyMap[c.transactionCompanyId] = c;
+    }
     for (final c in companies) {
       if (c.Id > 0) companyMap[c.Id] = c;
     }

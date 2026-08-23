@@ -33,27 +33,6 @@ class EmpHomeRealService implements IEmpHomeService {
     return null;
   }
 
-  /// Logs a backend failure without surfacing it to the user.
-  ///
-  /// NOTE (2026-06-30): GetAllEmployeeWallets is now confirmed (via
-  /// successive 405/400 responses during live debugging) to require:
-  ///   1. HTTP verb GET (POST returns 405 Method Not Allowed).
-  ///   2. A non-empty JSON request body (an empty/missing body returns 400
-  ///      with a generic "Request field is required" — "Request" there is
-  ///      just the action's parameter name, not a JSON wrapper key).
-  ///   3. The body's fields FLAT at the top level, not nested under a
-  ///      "Request" key — wrapping them caused the binder to report
-  ///      EmployeePhoneNo (and presumably the others) as missing, since it
-  ///      couldn't see past the extra nesting.
-  /// In short: `[HttpGet] ... ([FromBody] WalletsRequestDto)`, an
-  /// unconventional GET-with-flat-body action. Implemented below as
-  /// `_dio.get(..., data: {...flat fields...})`.
-  /// GetAllEmployeeLedgers has the same 500/empty-body symptom but is
-  /// already sent as GET + flat `data:`, so if it's still failing the
-  /// cause is likely something endpoint-specific (different/extra required
-  /// fields, a genuine server bug, etc.) rather than this same shape issue
-  /// — worth testing in isolation. This try/catch fallback is kept
-  /// defensively either way.
   void _logBackendFailure(String endpoint, DioException e) {
     assert(() {
       debugPrint(
@@ -93,11 +72,14 @@ class EmpHomeRealService implements IEmpHomeService {
         for (final raw in _asList(ledgerRes.data)) {
           if (raw is! Map) continue;
           final j = Map<String, dynamic>.from(raw);
-          final type = (j['PointsTransactionType'] ?? '').toString().toLowerCase();
+          final type =
+              (j['PointsTransactionType'] ?? '').toString().toLowerCase();
           if (type != 'earn') continue;
-          points += (double.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0).round();
+          points += (double.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0)
+              .round();
           if (ownCompanyId == 0) {
-            ownCompanyId = int.tryParse((j['PointsOwnCompanyId'] ?? 0).toString()) ?? 0;
+            ownCompanyId =
+                int.tryParse((j['PointsOwnCompanyId'] ?? 0).toString()) ?? 0;
           }
         }
       } catch (_) {}
@@ -107,8 +89,11 @@ class EmpHomeRealService implements IEmpHomeService {
         try {
           final wallets = await _fetchCustomerWallets(phone);
           for (final w in wallets) {
-            final tcId = int.tryParse(
-                (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0).toString()) ?? 0;
+            final tcId = int.tryParse((w['TransactionCompanyId'] ??
+                        w['transactionCompanyId'] ??
+                        0)
+                    .toString()) ??
+                0;
             if (tcId <= 0) continue;
             try {
               final ledgerRes = await _dio.get(
@@ -118,11 +103,16 @@ class EmpHomeRealService implements IEmpHomeService {
               for (final raw in _asList(ledgerRes.data)) {
                 if (raw is! Map) continue;
                 final j = Map<String, dynamic>.from(raw);
-                final type = (j['PointsTransactionType'] ?? '').toString().toLowerCase();
+                final type =
+                    (j['PointsTransactionType'] ?? '').toString().toLowerCase();
                 if (type != 'earn') continue;
-                points += (double.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0).round();
+                points +=
+                    (double.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0)
+                        .round();
                 if (ownCompanyId == 0) {
-                  ownCompanyId = int.tryParse((j['PointsOwnCompanyId'] ?? 0).toString()) ?? 0;
+                  ownCompanyId =
+                      int.tryParse((j['PointsOwnCompanyId'] ?? 0).toString()) ??
+                          0;
                 }
               }
             } catch (_) {}
@@ -135,8 +125,8 @@ class EmpHomeRealService implements IEmpHomeService {
       if (ownCompanyId > 0) {
         try {
           final companies = await CompaniesApiService.instance.getCompanies();
-          final match = companies.where(
-              (c) => c.transactionCompanyId == ownCompanyId || c.Id == ownCompanyId);
+          final match = companies.where((c) =>
+              c.transactionCompanyId == ownCompanyId || c.Id == ownCompanyId);
           if (match.isNotEmpty) earnCompanyName = match.first.displayName;
         } catch (_) {}
       }
@@ -177,36 +167,7 @@ class EmpHomeRealService implements IEmpHomeService {
     // RedeemCompanies list wins. City Oil (Id=3) is last in GetAllCompanies and
     // has RedeemCompanies pointing to the redeem destinations, so earnTcId=3.
     // We do NOT write to activeCompanyId so the redeem flow is not affected.
-    int earnTcId = 0;
-    try {
-      final companies = await CompaniesApiService.instance.getCompanies();
-      int baseIdFallback = 0;
-      for (final c in companies) {
-        final baseId = c.Id > 0 ? c.Id : 0;
-        if (baseId <= 0) continue;
-        if (baseIdFallback == 0) baseIdFallback = baseId;
-        try {
-          final cr = await _dio.get('Mobile/GetCompanyById',
-              queryParameters: {'CompanyId': baseId});
-          final val = cr.data is Map ? cr.data['Value'] : null;
-          if (val is Map) {
-            final realTc = int.tryParse(
-                (val['TransactionCompanyId'] ?? val['transactionCompanyId'] ?? 0).toString()) ?? 0;
-            if (realTc > 0) {
-              earnTcId = realTc; // overwrite — last TC > 0 wins
-            } else {
-              final raw = val['RedeemCompanies'];
-              if (raw is List && raw.isNotEmpty) {
-                earnTcId = baseId; // overwrite — last company with RedeemCompanies wins
-              }
-            }
-          }
-        } catch (_) {}
-      }
-      if (earnTcId == 0 && baseIdFallback > 0) {
-        earnTcId = baseIdFallback;
-      }
-    } catch (_) {}
+    final earnTcId = await _resolveEmployeeCompanyId();
 
     try {
       final res = await _dio.post(
@@ -251,7 +212,8 @@ class EmpHomeRealService implements IEmpHomeService {
               final j = Map<String, dynamic>.from(raw);
               final amt = double.tryParse((j['Amount'] ?? 0).toString()) ?? 0;
               if ((amt - saleAmount).abs() > 0.01) continue;
-              final dc = (j['DateCreated'] ?? j['dateCreated'] ?? '').toString();
+              final dc =
+                  (j['DateCreated'] ?? j['dateCreated'] ?? '').toString();
               if (dc.isEmpty) continue;
               final t = DateTime.tryParse(dc);
               if (t == null) continue;
@@ -267,7 +229,11 @@ class EmpHomeRealService implements IEmpHomeService {
       }
 
       if (data is Map) {
-        final pts = (double.tryParse((data['Points'] ?? data['points'] ?? pointsAwarded).toString()) ?? 0).round();
+        final pts = (double.tryParse(
+                    (data['Points'] ?? data['points'] ?? pointsAwarded)
+                        .toString()) ??
+                0)
+            .round();
         if (pts > 0) return pts;
       }
       return pointsAwarded;
@@ -323,16 +289,16 @@ class EmpHomeRealService implements IEmpHomeService {
     final phone = await _empPhone;
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
-    final monthEnd   = DateTime(now.year, now.month + 1, 0);
+    final monthEnd = DateTime(now.year, now.month + 1, 0);
     try {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
           'TransactionCompanyId': 0,
-          'CompanyId':            0,
-          'EmployeePhoneNo':      phone,
-          'DateFrom':             _fmt(monthStart),
-          'DateTo':               _fmt(monthEnd),
+          'CompanyId': 0,
+          'EmployeePhoneNo': phone,
+          'DateFrom': _fmt(monthStart),
+          'DateTo': _fmt(monthEnd),
         },
       );
       final list = _asList(res.data);
@@ -344,7 +310,9 @@ class EmpHomeRealService implements IEmpHomeService {
       bool isToday(Map<String, dynamic> j) {
         final raw = j['DateCreated'] ?? j['dateCreated'] ?? j['Date'];
         final _p = raw != null ? DateTime.tryParse(raw.toString()) : null;
-        final d = _p != null ? DateTime(_p.year, _p.month, _p.day, _p.hour, _p.minute, _p.second) : null;
+        final d = _p != null
+            ? DateTime(_p.year, _p.month, _p.day, _p.hour, _p.minute, _p.second)
+            : null;
         if (d == null) return false;
         return d.year == now.year && d.month == now.month && d.day == now.day;
       }
@@ -356,7 +324,8 @@ class EmpHomeRealService implements IEmpHomeService {
 
       // Inject customer name: exact match on DateCreated, then fuzzy ±2 min.
       for (final j in todayEntries) {
-        final dc = (j['DateCreated'] ?? j['dateCreated'] ?? '').toString().trim();
+        final dc =
+            (j['DateCreated'] ?? j['dateCreated'] ?? '').toString().trim();
         if (dc.isEmpty) continue;
 
         String? name = scanNames[dc];
@@ -365,8 +334,7 @@ class EmpHomeRealService implements IEmpHomeService {
           if (entryTime != null) {
             for (final e in scanNames.entries) {
               final t = DateTime.tryParse(e.key);
-              if (t != null &&
-                  entryTime.difference(t).abs().inSeconds <= 600) {
+              if (t != null && entryTime.difference(t).abs().inSeconds <= 600) {
                 name = e.value;
                 break;
               }
@@ -390,21 +358,21 @@ class EmpHomeRealService implements IEmpHomeService {
   @override
   Future<List<int>> getWeeklyCommission(String employeeId) async {
     final phone = await _empPhone;
-    final now    = DateTime.now();
+    final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
-    final result = List<int>.filled(7, 0);
+    final resultDouble = List<double>.filled(7, 0.0);
     final monthStart = DateTime(now.year, now.month, 1);
-    final monthEnd   = DateTime(now.year, now.month + 1, 0);
+    final monthEnd = DateTime(now.year, now.month + 1, 0);
 
     try {
       final res = await _dio.get(
         'Mobile/GetAllEmployeeLedgers',
         data: {
           'TransactionCompanyId': 0,
-          'CompanyId':            0,
-          'EmployeePhoneNo':      phone,
-          'DateFrom':             _fmt(monthStart),
-          'DateTo':               _fmt(monthEnd),
+          'CompanyId': 0,
+          'EmployeePhoneNo': phone,
+          'DateFrom': _fmt(monthStart),
+          'DateTo': _fmt(monthEnd),
         },
       );
       final list = _asList(res.data);
@@ -412,72 +380,144 @@ class EmpHomeRealService implements IEmpHomeService {
         if (raw is! Map) continue;
         final j = Map<String, dynamic>.from(raw);
         final dateRaw = j['DateCreated'] ?? j['dateCreated'] ?? j['Date'];
-        final _dp = dateRaw != null ? DateTime.tryParse(dateRaw.toString()) : null;
+        final _dp =
+            dateRaw != null ? DateTime.tryParse(dateRaw.toString()) : null;
         if (_dp == null) continue;
-        final d = DateTime(_dp.year, _dp.month, _dp.day, _dp.hour, _dp.minute, _dp.second);
+        final d = DateTime(
+            _dp.year, _dp.month, _dp.day, _dp.hour, _dp.minute, _dp.second);
 
-        final dayIndex = d.difference(
-          DateTime(monday.year, monday.month, monday.day),
-        ).inDays;
+        final dayIndex = d
+            .difference(
+              DateTime(monday.year, monday.month, monday.day),
+            )
+            .inDays;
         if (dayIndex < 0 || dayIndex > 6) continue;
 
         final commissionRaw =
             j['Commission'] ?? j['commission'] ?? j['CommissionAmount'];
         final commissionAmt = commissionRaw != null
-            ? (double.tryParse(commissionRaw.toString()) ?? 0.0).round()
-            : 0;
-        result[dayIndex] += commissionAmt;
+            ? (double.tryParse(commissionRaw.toString()) ?? 0.0)
+            : 0.0;
+        resultDouble[dayIndex] += commissionAmt;
       }
     } on DioException catch (e) {
       _logBackendFailure('GetAllEmployeeLedgers (getWeeklyCommission)', e);
     }
-    return result;
+    return resultDouble.map((v) => v.round()).toList();
   }
 
   // ── getRedeemableOffers — driven by employee's assigned company ──────────
-  // Flow: employee company Id → GetAllCompanies → find that company →
-  //   RedeemCompanies array → destination companies to show.
-  // Customer balance comes from their wallet for the employee's company TC.
+  // Flow: employee company TC → GetCompanyById → RedeemCompanies array →
+  //   cross-check with customer wallet balances → offers to show.
   //
-  // GetEmployeeByPhoneNo returns TransactionCompanyId=0, so we read
-  // PointsOwnCompanyId from the employee's own ledger as the company Id
-  // (same fallback used in recordFuelSale). Result is cached in activeCompanyId.
+  // Employee company TC is resolved from the employee's own ledger
+  // (GetAllEmployeeLedgers with employee phone → first TransactionCompanyId > 0).
+  // This ensures the RedeemCompanies list reflects the employee's company,
+  // not the customer's wallet company.
+
+  /// Resolves the employee's assigned company ID. Strategy (first wins):
+  /// 1. Value stored in SharedPreferences at login (from login response body, if backend provides it).
+  /// 2. GetAllEmployeeWallets — returns TC if employee has a wallet entry.
+  /// 3. GetAllEmployeeLedgers — PointsOwnCompanyId tells which company they process for.
+  /// 4. Fall back to AppConstants.activeCompanyId.
+  Future<int> _resolveEmployeeCompanyId() async {
+    final phone = await _empPhone;
+    if (phone.isEmpty) return AppConstants.activeCompanyId;
+
+    // 1. Company ID stored at login (works when backend includes it in login response).
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getInt(AppConstants.prefEmployeeCompanyId) ?? 0;
+    if (stored > 0) return stored;
+
+    // 2. GetAllEmployeeWallets.
+    try {
+      final res = await _dio.get(
+        'Mobile/GetAllEmployeeWallets',
+        data: {'TransactionCompanyId': 0, 'EmployeePhoneNo': phone},
+      );
+      final list = _asList(res.data);
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final tc = int.tryParse((raw['TransactionCompanyId'] ??
+                    raw['transactionCompanyId'] ??
+                    0)
+                .toString()) ??
+            0;
+        if (tc > 0) {
+          await prefs.setInt(AppConstants.prefEmployeeCompanyId, tc);
+          AppConstants.setActiveCompanyId(tc);
+          return tc;
+        }
+      }
+    } catch (_) {}
+
+    // 3. GetAllEmployeeLedgers — PointsOwnCompanyId identifies the employee's company.
+    try {
+      final now = DateTime.now();
+      final from = DateTime(now.year, now.month - 11, 1);
+      final res = await _dio.get(
+        'Mobile/GetAllEmployeeLedgers',
+        data: {
+          'TransactionCompanyId': 0,
+          'CompanyId': 0,
+          'EmployeePhoneNo': phone,
+          'DateFrom':
+              '${from.year}-${from.month.toString().padLeft(2, '0')}-01',
+          'DateTo':
+              '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+        },
+      );
+      final list = _asList(res.data);
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final tc = int.tryParse(
+                (raw['PointsOwnCompanyId'] ?? raw['pointsOwnCompanyId'] ?? 0)
+                    .toString()) ??
+            0;
+        if (tc > 0) {
+          await prefs.setInt(AppConstants.prefEmployeeCompanyId, tc);
+          AppConstants.setActiveCompanyId(tc);
+          return tc;
+        }
+      }
+    } catch (_) {}
+
+    return AppConstants.activeCompanyId;
+  }
 
   @override
   Future<List<RedeemableOffer>> getRedeemableOffers(String customerId) async {
     try {
       final companiesFuture = CompaniesApiService.instance.getCompanies();
-      final walletsFuture   = _fetchCustomerWallets(customerId);
+      final walletsFuture = _fetchCustomerWallets(customerId);
+      final empIdFuture = _resolveEmployeeCompanyId();
+
       final companies = await companiesFuture;
-      final wallets   = await walletsFuture;
+      final wallets = await walletsFuture;
+      final empId = await empIdFuture;
 
       if (companies.isEmpty) return [];
 
-      final companyById = <int, CompanyModel>{for (final c in companies) c.Id: c};
+      final companyById = <int, CompanyModel>{
+        for (final c in companies) c.Id: c
+      };
 
-      // Build wallet map: TC → PointsBalance.
+      // Build wallet map: TC → PointsBalance (from customer wallets).
       final walletBalanceByTc = <int, int>{};
       for (final w in wallets) {
         final tcId = int.tryParse(
-            (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0).toString()) ?? 0;
+                (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0)
+                    .toString()) ??
+            0;
         if (tcId <= 0) continue;
         walletBalanceByTc[tcId] = (double.tryParse(
-            (w['PointsBalance'] ?? w['pointsBalance'] ?? 0).toString()) ?? 0).round();
+                    (w['PointsBalance'] ?? w['pointsBalance'] ?? 0)
+                        .toString()) ??
+                0)
+            .round();
       }
 
-      // Resolve the earn company Id from the customer's wallet TransactionCompanyId.
-      // The wallet TC tells us which company's points the customer holds, so we read
-      // that company's RedeemCompanies to know where they can redeem.
-      // This is correct even when the employee ledger still has old TC=1 entries.
-      int empId = 0;
-      for (final w in wallets) {
-        final tcId = int.tryParse(
-            (w['TransactionCompanyId'] ?? w['transactionCompanyId'] ?? 0).toString()) ?? 0;
-        if (tcId > 0) {
-          empId = tcId;
-          break;
-        }
-      }
+      // empId comes from the employee's own company (resolved above).
 
       // Get employee's company RedeemCompanies via GetCompanyById.
       // GetAllCompanies may not include RedeemCompanies, so we fetch explicitly.
@@ -487,6 +527,8 @@ class EmpHomeRealService implements IEmpHomeService {
           final cr = await _dio.get('Mobile/GetCompanyById',
               queryParameters: {'CompanyId': empId});
           final val = cr.data is Map ? cr.data['Value'] : null;
+          debugPrint(
+              '[Redeem] empId=$empId RedeemCompanies=${val is Map ? val['RedeemCompanies'] : 'val not a Map'}');
           if (val is Map) {
             final raw = val['RedeemCompanies'];
             if (raw is List) {
@@ -504,15 +546,17 @@ class EmpHomeRealService implements IEmpHomeService {
         }
       }
 
-      // Build one card per redeem company with that company's wallet balance.
-      // Each card shows walletBalanceByTc[redeemId] — the customer's points
-      // at that specific company. companyId = empId (earn TC) for RedeemPoints.
       if (redeemIds.isNotEmpty) {
         final offers = <RedeemableOffer>[];
         for (final redeemId in redeemIds) {
           final dest = companyById[redeemId];
           if (dest == null) continue;
-          final customerBalance = walletBalanceByTc[redeemId] ?? 0;
+          final redeemTc = dest.transactionCompanyId > 0
+              ? dest.transactionCompanyId
+              : redeemId;
+          final customerBalance = walletBalanceByTc[redeemTc] ?? 0;
+          debugPrint(
+              '[Redeem] redeemId=$redeemId dest.Id=${dest.Id} dest.transactionCompanyId=${dest.transactionCompanyId} redeemTc=$redeemTc customerBalance=$customerBalance');
           offers.add(RedeemableOffer(
             id: 'redeem-$redeemId',
             title: dest.name,
@@ -521,36 +565,21 @@ class EmpHomeRealService implements IEmpHomeService {
             pointsCost: 0,
             companyPhoneNo: dest.phoneNo,
             customerPoints: customerBalance,
-            companyId: empId, // earn TC — used in RedeemPoints
+            companyId: redeemTc, // redeem company TC — used in RedeemPoints
           ));
         }
         if (offers.isNotEmpty) return offers;
       }
 
-      // Fallback: show all non-earn companies with total wallet balance.
-      final fallbackPts = walletBalanceByTc.values.fold<int>(0, (a, b) => a + b);
-      final fallbackTc  = walletBalanceByTc.keys.isNotEmpty
-          ? walletBalanceByTc.keys.first : 0;
-      return companies
-          .where((c) => !c.isEarnOnly)
-          .map((c) => RedeemableOffer(
-                id: 'redeem-${c.Id}',
-                title: c.name,
-                description: 'Redeem at ${c.displayName}',
-                business: c.displayName,
-                pointsCost: 0,
-                companyPhoneNo: c.phoneNo,
-                customerPoints: fallbackPts,
-                companyId: fallbackTc,
-              ))
-          .toList();
+      return [];
     } catch (_) {
       return [];
     }
   }
 
   // Calls GetAllCustomerWallets with TransactionCompanyId:0 to get all wallets.
-  Future<List<Map<String, dynamic>>> _fetchCustomerWallets(String customerId) async {
+  Future<List<Map<String, dynamic>>> _fetchCustomerWallets(
+      String customerId) async {
     try {
       final res = await _dio.get(
         'Common/GetAllCustomerWallets',
@@ -564,7 +593,8 @@ class EmpHomeRealService implements IEmpHomeService {
       if (raw is List) {
         items = raw;
       } else if (raw is Map) {
-        final inner = raw['Value'] ?? raw['value'] ?? raw['Data'] ?? raw['data'];
+        final inner =
+            raw['Value'] ?? raw['value'] ?? raw['Data'] ?? raw['data'];
         if (inner is List) {
           items = inner;
         } else if (inner == null) {
@@ -591,10 +621,12 @@ class EmpHomeRealService implements IEmpHomeService {
       int balance = 0;
       for (final raw in list) {
         if (raw is! Map) continue;
-        final j    = Map<String, dynamic>.from(raw);
-        final type = (j['PointsTransactionType'] ?? '').toString().toLowerCase();
+        final j = Map<String, dynamic>.from(raw);
+        final type =
+            (j['PointsTransactionType'] ?? '').toString().toLowerCase();
         if (type != 'earn') continue;
-        balance += (double.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0).round();
+        balance +=
+            (double.tryParse((j['PointBalance'] ?? 0).toString()) ?? 0).round();
       }
       return balance;
     } catch (_) {
@@ -614,9 +646,8 @@ class EmpHomeRealService implements IEmpHomeService {
     int companyId = 0,
   }) async {
     final phone = await _empPhone;
-    final redeemPhone = companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
-    // companyId = wallet TC ID (set from offer.companyId in getRedeemableOffers).
-    final tcId = companyId > 0 ? companyId : AppConstants.activeCompanyId;
+    final redeemPhone = companyPhoneNo;
+    final tcId = await _resolveEmployeeCompanyId();
     try {
       final res = await _dio.post(
         'Common/RedeemPoints',
@@ -634,22 +665,24 @@ class EmpHomeRealService implements IEmpHomeService {
       );
       return _extractOtp(res.data);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 422) throw const InsufficientPointsException();
+      if (e.response?.statusCode == 422)
+        throw const InsufficientPointsException();
       throw Exception(_msg(e) ?? 'Failed to initiate redemption.');
     }
   }
 
-  /// Extracts the OTP from a RedeemPoints response body.
-  /// Backend may return: plain digits ("1234"), JSON map ({"otp":"1234"}),
-  /// or JSON string ("\"1234\"").
   String _extractOtp(dynamic rawBody) {
     final body = (rawBody as String? ?? '').trim();
     if (body.isEmpty) return '';
     try {
       final parsed = jsonDecode(body);
       if (parsed is Map) {
-        final otp = (parsed['otp'] ?? parsed['OTP'] ?? parsed['Otp'] ??
-                parsed['Token'] ?? parsed['token'] ?? '')
+        final otp = (parsed['otp'] ??
+                parsed['OTP'] ??
+                parsed['Otp'] ??
+                parsed['Token'] ??
+                parsed['token'] ??
+                '')
             .toString()
             .trim();
         if (otp.isNotEmpty) return otp;
@@ -676,8 +709,9 @@ class EmpHomeRealService implements IEmpHomeService {
     int companyId = 0,
   }) async {
     final phone = await _empPhone;
-    final redeemPhone = companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
-    final tcId = companyId;
+    final redeemPhone =
+        companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
+    final tcId = await _resolveEmployeeCompanyId();
 
     // Step 1: Initiate redemption — backend returns OTP in response body.
     String otp = '';
@@ -698,7 +732,8 @@ class EmpHomeRealService implements IEmpHomeService {
       );
       otp = _extractOtp(res.data);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 422) throw const InsufficientPointsException();
+      if (e.response?.statusCode == 422)
+        throw const InsufficientPointsException();
       throw Exception(_msg(e) ?? 'Redemption failed. Please try again.');
     }
 
@@ -714,6 +749,7 @@ class EmpHomeRealService implements IEmpHomeService {
         queryParameters: {
           'TransactionCompanyId': tcId,
           'CustomerPhoneNo': customerId,
+          'EmployeePhoneNo': phone,
           'OTP': otp,
         },
       );
@@ -728,11 +764,14 @@ class EmpHomeRealService implements IEmpHomeService {
       }
 
       final deducted = int.tryParse(
-              (data['PointsDeducted'] ?? data['points'] ?? pointsToRedeem).toString()) ??
+              (data['PointsDeducted'] ?? data['points'] ?? pointsToRedeem)
+                  .toString()) ??
           pointsToRedeem;
       final remaining = int.tryParse(
-              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ?? 0;
-      final code = (data['ConfirmationCode'] ?? data['code'] ??
+              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ??
+          0;
+      final code = (data['ConfirmationCode'] ??
+              data['code'] ??
               'RDM-${DateTime.now().millisecondsSinceEpoch % 100000}')
           .toString();
 
@@ -743,15 +782,10 @@ class EmpHomeRealService implements IEmpHomeService {
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 400) throw const InvalidOtpException();
-      throw Exception(_msg(e) ?? 'Redemption confirmation failed. Please try again.');
+      throw Exception(
+          _msg(e) ?? 'Redemption confirmation failed. Please try again.');
     }
   }
-
-  // ── confirmRedemption — POST /Common/RedeemConfirmation ──────────────────
-  // Validates the OTP and completes the redemption.
-  // NOTE: The backend keys the OTP under the REDEEM company's TransactionCompanyId
-  // (laundry = 1, as seen in PointsRedeemCompanyId from ledger entries), NOT the
-  // fuel company's TransactionCompanyId (3). Using 3 always returns 400.
 
   @override
   Future<RedemptionResult> confirmRedemption({
@@ -761,7 +795,8 @@ class EmpHomeRealService implements IEmpHomeService {
     required String employeeId,
     int companyId = 0,
   }) async {
-    final tcId = companyId;
+    final phone = await _empPhone;
+    final tcId = await _resolveEmployeeCompanyId();
     try {
       final res = await _dio.post(
         'Common/RedeemConfirmation',
@@ -769,6 +804,7 @@ class EmpHomeRealService implements IEmpHomeService {
         queryParameters: {
           'TransactionCompanyId': tcId,
           'CustomerPhoneNo': customerId,
+          'EmployeePhoneNo': phone,
           'OTP': otp,
         },
       );
@@ -783,10 +819,13 @@ class EmpHomeRealService implements IEmpHomeService {
       }
 
       final deducted = int.tryParse(
-              (data['PointsDeducted'] ?? data['points'] ?? 0).toString()) ?? 0;
+              (data['PointsDeducted'] ?? data['points'] ?? 0).toString()) ??
+          0;
       final remaining = int.tryParse(
-              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ?? 0;
-      final code = (data['ConfirmationCode'] ?? data['code'] ??
+              (data['RemainingPoints'] ?? data['remaining'] ?? 0).toString()) ??
+          0;
+      final code = (data['ConfirmationCode'] ??
+              data['code'] ??
               'RDM-${DateTime.now().millisecondsSinceEpoch % 100000}')
           .toString();
 
@@ -814,8 +853,11 @@ class EmpHomeRealService implements IEmpHomeService {
 List _asList(dynamic data) {
   if (data is List) return data;
   if (data is Map) {
-    final inner = data['Value'] ?? data['value'] ??
-        data['Data'] ?? data['data'] ?? data['items'];
+    final inner = data['Value'] ??
+        data['value'] ??
+        data['Data'] ??
+        data['data'] ??
+        data['items'];
     if (inner is List) return inner;
   }
   return [];

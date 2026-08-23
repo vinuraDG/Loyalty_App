@@ -67,8 +67,7 @@ class HomeApiService implements IHomeService {
         .toList();
   }
 
-  /// Total points = sum of all Earn PointsValue − sum of all Redeem PointsValue.
-  /// Matches the balance shown on the Points History screen.
+  /// Total points = earned − redeemed − expired, matching the Points History screen.
   @override
   Future<int> getTotalPoints(String userId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -79,11 +78,18 @@ class HomeApiService implements IHomeService {
       final list = await _fetchLedger(phone);
       int balance = 0;
       for (final entry in list) {
-        final m    = entry as Map<String, dynamic>;
-        final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
-        if (type != 'earn') continue;
-        balance += (double.tryParse(
-                (m['PointBalance'] ?? 0).toString()) ?? 0).round();
+        final m      = entry as Map<String, dynamic>;
+        final type   = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        final points = (double.tryParse(
+                (m['PointsValue'] ?? m['Points'] ?? 0).toString()) ?? 0).round();
+        if (type == 'earn') {
+          balance += points;
+        } else if (type == 'redeem') {
+          balance -= points;
+        } else if (type == 'expired' || type == 'expire' ||
+                   type == 'expiring' || type == 'pointsexpired') {
+          balance -= points;
+        }
       }
       return balance.clamp(0, 999999999);
     } catch (_) {

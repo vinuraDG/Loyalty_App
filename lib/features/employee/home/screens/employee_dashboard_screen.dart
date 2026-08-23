@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/core/providers/refresh_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../models/user_model.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -37,11 +38,15 @@ class EmployeeDashboardScreenState
 
   /// Switches the bottom nav to the Commission tab.
   /// Called from EmployeeHomePage via findAncestorStateOfType.
-  void switchToCommission() => setState(() => _currentIndex = 1);
+  void switchToCommission() {
+    appRefresh(ref);
+    setState(() => _currentIndex = 1);
+  }
 
-  /// Switches the bottom nav back to the Home tab.
-  /// Called from EmployeeCommissionPage via findAncestorStateOfType.
-  void switchToHome() => setState(() => _currentIndex = 0);
+  void switchToHome() {
+    appRefresh(ref);
+    setState(() => _currentIndex = 0);
+  }
 
   Future<void> _signOut() async {
     await ref.read(authProvider.notifier).signOut();
@@ -67,7 +72,10 @@ class EmployeeDashboardScreenState
           top: false,
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
-            onTap: (i) => setState(() => _currentIndex = i),
+            onTap: (i) {
+              if (i != _currentIndex) appRefresh(ref);
+              setState(() => _currentIndex = i);
+            },
             backgroundColor: Colors.transparent,
             elevation: 0,
             selectedItemColor: AppColors.primary,

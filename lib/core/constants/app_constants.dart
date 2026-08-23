@@ -33,6 +33,7 @@ class AppConstants {
   }
 
   static const prefCompanyId = 'companyId';
+  static const prefEmployeeCompanyId = 'employeeCompanyId';
 
   // ── Flip this ONE line to switch the entire app ───────────────────────────
   static const bool useMockServices = false; // false = real backend

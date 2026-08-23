@@ -268,6 +268,35 @@ class AuthApiService implements IAuthService {
     }
   }
 
+  /// Decodes a JWT and searches all claims for a company/TC identifier.
+  /// Returns the first non-zero int found, or 0 if none.
+  int _companyIdFromToken(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return 0;
+      String payload = parts[1];
+      while (payload.length % 4 != 0) { payload += '='; }
+      final decoded = utf8.decode(base64Url.decode(payload));
+      final map = jsonDecode(decoded) as Map<String, dynamic>;
+      assert(() {
+        debugPrint('[Auth] JWT claims: $map');
+        return true;
+      }());
+      for (final key in [
+        'CompanyId', 'company_id', 'companyId', 'company',
+        'TransactionCompanyId', 'transactionCompanyId',
+        'tc', 'TC',
+      ]) {
+        final v = map[key];
+        if (v != null) {
+          final id = int.tryParse(v.toString()) ?? 0;
+          if (id > 0) return id;
+        }
+      }
+    } catch (_) {}
+    return 0;
+  }
+
   String _extractToken(Map<String, dynamic> data) {
     for (final key in [
       'token', 'Token',
@@ -432,8 +461,20 @@ class AuthApiService implements IAuthService {
       if (phoneForLookup.isEmpty) phoneForLookup = username;
 
       final role = (data['Role'] ?? data['role'] ?? '').toString().toLowerCase();
+      final isEmployee = (data['IsEmployee'] ?? data['isEmployee'] ?? false) == true;
 
-      if (role == 'employee') {
+      if (role == 'employee' || isEmployee) {
+        // Read company ID from login response and store it before getEmployeeByPhone
+        // so _resolveEmployeeCompanyId() can use it for the redeem flow.
+        final loginCompanyId = int.tryParse(
+            (data['CompanyId'] ?? data['companyId'] ??
+             data['TransactionCompanyId'] ?? data['transactionCompanyId'] ?? 0)
+                .toString()) ?? 0;
+        if (loginCompanyId > 0) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(AppConstants.prefEmployeeCompanyId, loginCompanyId);
+          AppConstants.setActiveCompanyId(loginCompanyId);
+        }
         final employee = await getEmployeeByPhone(phoneForLookup);
         await _persistSession(token, employee);
         return employee;
@@ -1158,6 +1199,32 @@ class AuthApiService implements IAuthService {
       // Genuinely empty (no name, no phone confirmed) means not found.
       if (firstName.isEmpty && lastName.isEmpty && respPhone.isEmpty) {
         throw AuthException('No employee found for phone number $trimmed.');
+      }
+
+      // Resolve the employee's company ID for the redeem flow.
+      // Priority: (1) already-stored pref from login response body, (2) JWT
+      // claim, (3) CompanyId field in this response body.
+      // Never remove an existing pref — signInWithEmail() saves it from the
+      // Account/Login body just before calling this method, and erasing it
+      // here would defeat strategy 1 in _resolveEmployeeCompanyId().
+      final prefs = await SharedPreferences.getInstance();
+      final existingCompany = prefs.getInt(AppConstants.prefEmployeeCompanyId) ?? 0;
+      if (existingCompany <= 0) {
+        // Nothing stored yet — try JWT then response body.
+        final storedToken = prefs.getString(AppConstants.prefAuthToken) ?? '';
+        final jwtCompany = _companyIdFromToken(storedToken);
+        if (jwtCompany > 0) {
+          await prefs.setInt(AppConstants.prefEmployeeCompanyId, jwtCompany);
+          AppConstants.setActiveCompanyId(jwtCompany);
+        } else {
+          // Use CompanyId from GetEmployeeByPhoneNo response as last resort.
+          final responseCompanyId = int.tryParse(
+              (data['CompanyId'] ?? data['companyId'] ?? 0).toString()) ?? 0;
+          if (responseCompanyId > 0) {
+            await prefs.setInt(AppConstants.prefEmployeeCompanyId, responseCompanyId);
+            AppConstants.setActiveCompanyId(responseCompanyId);
+          }
+        }
       }
 
       return UserModel(

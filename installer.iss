@@ -1,12 +1,19 @@
 [Setup]
+AppId={{8A2D6A62-3B4F-4C8B-9CE3-1A7B9C4D2E10}}
 AppName=Loyalty App
 AppVersion=1.0.0
-AppPublisher=Your Company
-DefaultDirName={autopf}\LoyaltyApp
+AppPublisher=Loyalty App
+AppPublisherURL=https://example.com
+DefaultDirName={autopf}\Loyalty App
 DefaultGroupName=Loyalty App
+UninstallDisplayIcon={app}\loyalty_app.exe
 OutputDir=installer_output
-OutputBaseFilename=LoyaltyApp_Setup
-Compression=lzma
+OutputBaseFilename=LoyaltyApp_Setup_{#SetupSetting("AppVersion")}
+SetupIconFile=windows\runner\resources\app_icon.ico
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=admin
+Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 

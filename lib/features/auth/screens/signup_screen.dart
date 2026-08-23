@@ -229,6 +229,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   controller: _addressCtrl,
                   keyboardType: TextInputType.streetAddress,
                   prefixIconData: Icons.location_on_outlined,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Address is required';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 

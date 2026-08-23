@@ -1,6 +1,8 @@
 // lib/features/employee/screens/employee_home_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_app/core/providers/refresh_provider.dart';
 import 'package:loyalty_app/features/employee/home/data/emp_home_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
@@ -13,15 +15,15 @@ import 'customer_identified_screen.dart';
 import '../../commission/screens/employee_commission_page.dart';
 import 'employee_dashboard_screen.dart';
 
-class EmployeeHomePage extends StatefulWidget {
+class EmployeeHomePage extends ConsumerStatefulWidget {
   final UserModel employee;
   const EmployeeHomePage({super.key, required this.employee});
 
   @override
-  State<EmployeeHomePage> createState() => _EmployeeHomePageState();
+  ConsumerState<EmployeeHomePage> createState() => _EmployeeHomePageState();
 }
 
-class _EmployeeHomePageState extends State<EmployeeHomePage> {
+class _EmployeeHomePageState extends ConsumerState<EmployeeHomePage> {
   final IEmpHomeService _svc = empHomeService;
   final _commissionSvc = empCommissionService;
 
@@ -45,6 +47,11 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -158,6 +165,9 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(appRefreshKeyProvider, (prev, next) {
+      if (prev != null && mounted) _silentRefresh();
+    });
     if (_loading) {
       return const Scaffold(
         backgroundColor: AppColors.bgDark,

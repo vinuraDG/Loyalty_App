@@ -106,7 +106,7 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
       _startTimer();
       _focusNodes[0].requestFocus();
     } catch (e) {
-      if (mounted) setState(() { _resending = false; _error = e.toString(); });
+      if (mounted) setState(() { _resending = false; _error = _clean(e); });
     }
   }
 
@@ -148,11 +148,8 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
       _error = null;
     });
     try {
-      // RedeemConfirmation needs c.Id (PointsRedeemCompanyId = 1), not wallet TC (3).
-      // offer.id = 'redeem-{c.Id}' so parse it; fall back to offer.companyId.
-      final confirmTcId = int.tryParse(
-            widget.offer.id.replaceFirst('redeem-', '')) ??
-          widget.offer.companyId;
+      // offer.companyId is set to the redeem company's TC in getRedeemableOffers.
+      final confirmTcId = widget.offer.companyId;
       var result = await widget.svc.confirmRedemption(
         customerId: widget.member.userId,
         offerId:    widget.offer.id,
@@ -190,11 +187,17 @@ class _OtpConfirmationScreenState extends State<OtpConfirmationScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = _clean(e);
           _confirming = false;
         });
       }
     }
+  }
+
+  String _clean(Object e) {
+    final s = e.toString();
+    if (s.startsWith('Exception: ')) return s.substring(11);
+    return s;
   }
 
   @override

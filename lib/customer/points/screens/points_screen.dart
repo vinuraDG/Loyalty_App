@@ -77,6 +77,16 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
   final _months = _buildMonths();
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   String _dateLabel(DateTime date) {
     final local = date.toLocal();
     final now = DateTime.now();
@@ -209,7 +219,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     CustomerLedgerService.instance.clearCache();
     if (mounted) setState(() => _historyLoading = true);
     final newFuture = _loadAll(userId);
-    if (mounted) setState(() => _txFuture = newFuture);
+    if (mounted) setState(() { _txFuture = newFuture; });
     await newFuture; // _loadAll updates _historyTxs for the selected month
   }
 
@@ -613,10 +623,11 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   );
                 }
 
-                // ── Total balance — sum of backend's PointBalance per Earn batch ──
-                final totalBalance = allTxs
-                    .where((t) => t.isEarned)
-                    .fold<int>(0, (s, t) => s + t.pointBalance);
+                // ── Total balance = earned − redeemed − expired (matches History screen) ──
+                final _sumEarned   = allTxs.where((t) => t.isEarned).fold<int>(0, (s, t) => s + t.points);
+                final _sumRedeemed = allTxs.where((t) => t.isRedeemed).fold<int>(0, (s, t) => s + t.points);
+                final _sumExpired  = allTxs.where((t) => t.isExpired).fold<int>(0, (s, t) => s + t.points);
+                final totalBalance = (_sumEarned - _sumRedeemed - _sumExpired).clamp(0, 999999999);
 
                 // ── Month slice — uses per-month backend fetch ─────────────
                 final sel = _months[_monthIdx];
@@ -648,11 +659,22 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   }
                 }
 
-                // Per-business balance from backend's PointBalance per batch.
+                // Per-business balance = earned − redeemed − expired per company.
+                // tx.business is always the earn company for all tx types.
                 final byBizNet = <String, int>{};
                 for (final t in allTxs) {
-                  if (!t.isEarned) continue;
-                  byBizNet[t.business] = (byBizNet[t.business] ?? 0) + t.pointBalance;
+                  final biz = t.business;
+                  if (biz.isEmpty) continue;
+                  if (t.isEarned) {
+                    byBizNet[biz] = (byBizNet[biz] ?? 0) + t.points;
+                  } else if (t.isRedeemed) {
+                    byBizNet[biz] = (byBizNet[biz] ?? 0) - t.points;
+                  } else if (t.isExpired) {
+                    byBizNet[biz] = (byBizNet[biz] ?? 0) - t.points;
+                  }
+                }
+                for (final k in byBizNet.keys.toList()) {
+                  if ((byBizNet[k] ?? 0) < 0) byBizNet[k] = 0;
                 }
 
                 // ── Per-business expiring (all future expiry dates)

@@ -47,6 +47,12 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
     super.dispose();
   }
 
+  String _clean(Object e) {
+    final s = e.toString();
+    if (s.startsWith('Exception: ')) return s.substring(11);
+    return s;
+  }
+
   void _resetPointsInput() {
     _pointsController.clear();
     _pointsToRedeem = null;
@@ -178,7 +184,7 @@ class _RedeemFlowScreenState extends State<RedeemFlowScreen> {
           _redeeming = false;
           _error = e is InsufficientPointsException
               ? 'Not enough points to complete this redemption.'
-              : e.toString();
+              : _clean(e);
         });
       }
     }

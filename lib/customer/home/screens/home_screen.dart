@@ -25,7 +25,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final PageController _adController = PageController(viewportFraction: 0.82);
   int _adIndex = 0;
-
   int _totalPoints = 0;
   int _pointsExpire = 0;
   List<int> _weeklyPts = List.filled(7, 0);
@@ -297,12 +296,17 @@ Future<void> _loadPoints(String userId) async {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PointsHistoryScreen(userId: user.id),
-                    ),
-                  ),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PointsHistoryScreen(userId: user.id),
+                      ),
+                    );
+                    // Re-fetch home data when returning from the history screen
+                    // so the balance reflects any transactions viewed there.
+                    if (mounted) appRefresh(ref);
+                  },
                   child: Container(
                     width: double.infinity,
                     height: 160,

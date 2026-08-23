@@ -105,6 +105,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove(AppConstants.prefEmailConfirmed);
     await prefs.remove(AppConstants.prefPhoneConfirmed);
     await prefs.remove('userJson');
+    await prefs.remove(AppConstants.prefEmployeeCompanyId);
   }
 
   // ── Error helper — raw message, zero transformation ───────────────────────

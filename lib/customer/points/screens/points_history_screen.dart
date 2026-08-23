@@ -108,33 +108,31 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
   }
 
   Color _businessAccent(String business) {
-    switch (business) {
-      case 'Fuel':
-      case 'Fuel Station':
-        return const Color(0xFF60A5FA);
-      case 'Laundry':
-        return const Color(0xFF34D399);
-      case 'Gold House':
-      case 'Gold Shop':
-        return const Color(0xFFFBBF24);
-      default:
-        return AppColors.primary;
+    final b = business.toLowerCase();
+    if (b.contains('fuel') || b.contains('oil') || b.contains('gas') || b.contains('petrol')) {
+      return const Color(0xFF60A5FA);
     }
+    if (b.contains('laundry') || b.contains('wash') || b.contains('clean')) {
+      return const Color(0xFF34D399);
+    }
+    if (b.contains('gold') || b.contains('jewel')) {
+      return const Color(0xFFFBBF24);
+    }
+    return AppColors.primary;
   }
 
   IconData _businessIcon(String business) {
-    switch (business) {
-      case 'Fuel':
-      case 'Fuel Station':
-        return Icons.local_gas_station_rounded;
-      case 'Laundry':
-        return Icons.local_laundry_service_rounded;
-      case 'Gold House':
-      case 'Gold Shop':
-        return Icons.diamond_rounded;
-      default:
-        return Icons.store_rounded;
+    final b = business.toLowerCase();
+    if (b.contains('fuel') || b.contains('oil') || b.contains('gas') || b.contains('petrol')) {
+      return Icons.local_gas_station_rounded;
     }
+    if (b.contains('laundry') || b.contains('wash') || b.contains('clean')) {
+      return Icons.local_laundry_service_rounded;
+    }
+    if (b.contains('gold') || b.contains('jewel')) {
+      return Icons.diamond_rounded;
+    }
+    return Icons.store_rounded;
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -202,7 +200,10 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
           final totalRedeemed = allTxs
               .where((t) => t.isRedeemed)
               .fold<int>(0, (s, t) => s + t.points);
-          final balance = totalEarned - totalRedeemed;
+          final totalExpired = allTxs
+              .where((t) => t.isExpired)
+              .fold<int>(0, (s, t) => s + t.points);
+          final balance = totalEarned - totalRedeemed - totalExpired;
 
           // ── Per-business stats ────────────────────────────────────────────
           final businesses = allTxs.map((t) => t.business).toSet().toList()
@@ -226,12 +227,13 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
             final tabMatch = switch (_activeTab) {
               _Tab.earned => t.isEarned,
               _Tab.redeemed => t.isRedeemed,
-              _Tab.expired => t.isEarned &&
+              _Tab.expired => t.isExpired ||
+                  (t.isEarned &&
                   t.expiryDate != null &&
                   t.expiryDate!.isAfter(DateTime.now()) &&
                   t.expiryDate!.isBefore(
                       DateTime.now().add(const Duration(days: 30))) &&
-                  (t.expiringBalance ?? 0) > 0,
+                  (t.expiringBalance ?? 0) > 0),
               _Tab.all => true,
             };
             return bizMatch && tabMatch;
@@ -301,13 +303,13 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen>
                               t.business == _selectedBusiness))
                       .length,
                   expiredCount: allTxs.where((t) =>
-                      t.isEarned &&
-                      t.expiryDate != null &&
-                      t.expiryDate!.isAfter(DateTime.now()) &&
-                      t.expiryDate!.isBefore(
-                          DateTime.now().add(const Duration(days: 30))) &&
-                      (t.expiringBalance ?? 0) > 0 &&
-                      (_selectedBusiness == null || t.business == _selectedBusiness)).length,
+                      (_selectedBusiness == null || t.business == _selectedBusiness) &&
+                      (t.isExpired ||
+                       (t.isEarned &&
+                        t.expiryDate != null &&
+                        t.expiryDate!.isAfter(DateTime.now()) &&
+                        t.expiryDate!.isBefore(DateTime.now().add(const Duration(days: 30))) &&
+                        (t.expiringBalance ?? 0) > 0))).length,
                   onTabChanged: (t) => setState(() => _activeTab = t),
                 ),
               ),
