@@ -31,6 +31,9 @@ class AppConstants {
   static void setActiveCompanyId(int id) {
     if (id > 0) _activeCompanyId = id;
   }
+  static void resetActiveCompanyId() {
+    _activeCompanyId = transactionCompanyId;
+  }
 
   static const prefCompanyId = 'companyId';
   static const prefEmployeeCompanyId = 'employeeCompanyId';

@@ -199,8 +199,8 @@ class EmpHomeRealService implements IEmpHomeService {
             final lr = await _dio.get(
               'Mobile/GetAllEmployeeLedgers',
               data: {
-                'TransactionCompanyId': AppConstants.activeCompanyId,
-                'CompanyId': AppConstants.activeCompanyId,
+                'TransactionCompanyId': earnTcId,
+                'CompanyId': earnTcId,
                 'EmployeePhoneNo': phone,
                 'DateFrom': _fmt(DateTime(now2.year, now2.month, now2.day)),
                 'DateTo': _fmt(now2),
@@ -646,7 +646,7 @@ class EmpHomeRealService implements IEmpHomeService {
     int companyId = 0,
   }) async {
     final phone = await _empPhone;
-    final redeemPhone = companyPhoneNo;
+    final redeemPhone = companyPhoneNo.isNotEmpty ? companyPhoneNo : '';
     final tcId = await _resolveEmployeeCompanyId();
     try {
       final res = await _dio.post(
@@ -661,6 +661,7 @@ class EmpHomeRealService implements IEmpHomeService {
           'EmployeePhoneNo': phone,
           'Points': pointsToRedeem,
           'PointsRedeemCompanyPhoneNo': redeemPhone,
+          'PointsRedeemCompanyId': companyId,
         },
       );
       return _extractOtp(res.data);
@@ -709,8 +710,7 @@ class EmpHomeRealService implements IEmpHomeService {
     int companyId = 0,
   }) async {
     final phone = await _empPhone;
-    final redeemPhone =
-        companyPhoneNo.isNotEmpty ? companyPhoneNo : '0112948777';
+    final redeemPhone = companyPhoneNo.isNotEmpty ? companyPhoneNo : '';
     final tcId = await _resolveEmployeeCompanyId();
 
     // Step 1: Initiate redemption — backend returns OTP in response body.
@@ -728,6 +728,7 @@ class EmpHomeRealService implements IEmpHomeService {
           'EmployeePhoneNo': phone,
           'Points': pointsToRedeem,
           'PointsRedeemCompanyPhoneNo': redeemPhone,
+          'PointsRedeemCompanyId': companyId,
         },
       );
       otp = _extractOtp(res.data);
