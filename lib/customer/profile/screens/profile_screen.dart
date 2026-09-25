@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/customer/profile/data/profile_api_service.dart';
 import 'package:loyalty_app/customer/profile/screens/change_password_screen.dart';
 import 'package:loyalty_app/customer/profile/screens/edit_profile_screen.dart';
@@ -184,7 +186,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     icon: Icons.privacy_tip_outlined,
                     label: 'Privacy Policy',
                     color: AppColors.textSecondary,
-                    onTap: () {},
+                    onTap: () => _openLegal(context, AppConstants.privacyUrl),
+                  ),
+                  _MenuItem(
+                    icon: Icons.description_outlined,
+                    label: 'Terms & Conditions',
+                    color: AppColors.textSecondary,
+                    onTap: () => _openLegal(context, AppConstants.termsUrl),
                   ),
                 ]),
                 const SizedBox(height: 12),
@@ -211,6 +219,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final f = first.isNotEmpty ? first[0].toUpperCase() : '';
     final l = last.isNotEmpty  ? last[0].toUpperCase()  : '';
     return '$f$l';
+  }
+}
+
+// ── Legal links helper ────────────────────────────────────────────────────────
+
+Future<void> _openLegal(BuildContext context, String url) async {
+  bool ok = false;
+  try {
+    ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+  } catch (_) {
+    ok = false;
+  }
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(content: Text('Could not open the page.')),
+      );
   }
 }
 

@@ -132,7 +132,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const Row(children: [
                 AppLogo(size: 38),
                 SizedBox(width: 10),
-                Text('LoyaltyHub', style: AppTextStyles.h4),
+                Text('MSC Loyalty App', style: AppTextStyles.h4),
               ]),
               const SizedBox(height: 28),
 

@@ -184,16 +184,14 @@ class AppLogo extends StatelessWidget {
   const AppLogo({super.key, this.size = 72});
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: size, height: size,
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF5A3FD4), Color(0xFF9B30C8)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(size * 0.24),
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(size * 0.24),
+    child: Image.asset(
+      'assets/images/logo.png',
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
     ),
-    child: Icon(Icons.stars_rounded, color: Colors.white, size: size * 0.55),
   );
 }
 

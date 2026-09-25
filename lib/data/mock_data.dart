@@ -250,33 +250,17 @@ const Map<String, List<int>> kMockWeeklyPoints = {
 const List<Map<String, dynamic>> kMockAds = [
   {
     'id': 'ad_001',
-    'tag': '2× Points',
-    'title': 'Double points this weekend',
-    'subtitle': 'At all fuel stations',
-    'gradientStart': 0xFF2D1B69,
-    'gradientEnd': 0xFF7C3AED,
-    'tagColor': 0xFFE9D5FF,
+    'imageUrl': 'https://picsum.photos/1200/540?random=11',
   },
   {
     'id': 'ad_002',
-    'tag': 'New',
-    'title': 'Earn at Gold Shops now',
-    'subtitle': '+200 pts on every visit',
-    'gradientStart': 0xFF064E3B,
-    'gradientEnd': 0xFF059669,
-    'tagColor': 0xFFA7F3D0,
+    'imageUrl': 'https://picsum.photos/1200/540?random=12',
   },
   {
     'id': 'ad_003',
-    'tag': 'Limited',
-    'title': 'Laundry free wash promo',
-    'subtitle': 'Redeem 150 pts today',
-    'gradientStart': 0xFF7C2D12,
-    'gradientEnd': 0xFFEA580C,
-    'tagColor': 0xFFFED7AA,
+    'imageUrl': 'https://picsum.photos/1200/540?random=13',
   },
 ];
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Offers / Rewards
 // ─────────────────────────────────────────────────────────────────────────────

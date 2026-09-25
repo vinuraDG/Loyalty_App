@@ -24,6 +24,18 @@ class HomeMockService implements IHomeService {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> getPromotions() async {
+    await _delay(ms: 400);
+    return kMockAds.map((m) {
+      final id = m['id'] as String;
+      return {
+        'id': id,
+        'imageUrl': 'https://picsum.photos/seed/$id/400/200',
+      };
+    }).toList();
+  }
+
+  @override
   Future<List<int>> getWeeklyPoints(String userId) async {
     await _delay(ms: 200);
     return kMockWeeklyPoints[userId] ?? [0, 0, 0, 0, 0, 0, 0];

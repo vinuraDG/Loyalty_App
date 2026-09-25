@@ -1,7 +1,10 @@
 // signup_screen.dart
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../providers/auth_provider.dart';
@@ -25,8 +28,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _confCtrl      = TextEditingController();
   bool _agreed = false;
 
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal(AppConstants.termsUrl);
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal(AppConstants.privacyUrl);
+  }
+
   @override
   void dispose() {
+    _termsTap.dispose();
+    _privacyTap.dispose();
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _emailCtrl.dispose();
@@ -35,6 +52,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _passCtrl.dispose();
     _confCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _openLegal(String url) async {
+    bool ok = false;
+    try {
+      ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      ok = false;
+    }
+    if (!ok) _showError('Could not open the page.');
   }
 
   void _showError(String message) {
@@ -142,7 +172,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   child: Column(children: [
                     AppLogo(size: 60),
                     SizedBox(height: 14),
-                    Text('Join LoyaltyHub', style: AppTextStyles.h2),
+                    Text('Join MSC Loyalty App', style: AppTextStyles.h2),
                     SizedBox(height: 4),
                     Text(
                       'Earn points at fuel stations, laundry & gold shops',
@@ -293,6 +323,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           const TextSpan(text: 'I agree to the '),
                           TextSpan(
                             text: 'Terms & Conditions',
+                            recognizer: _termsTap,
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.primaryLight,
                               decoration: TextDecoration.underline,
@@ -302,6 +333,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           const TextSpan(text: ' and '),
                           TextSpan(
                             text: 'Privacy Policy',
+                            recognizer: _privacyTap,
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.primaryLight,
                               decoration: TextDecoration.underline,

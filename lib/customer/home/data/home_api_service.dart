@@ -38,6 +38,11 @@ abstract class IHomeService {
 
   /// Sum of PointsExpire across all customer wallets. Returns 0 if none.
   Future<int> getPointsExpire(String userId);
+
+  /// Live promotions/ads from the backend. Returns an empty list when the
+  /// backend has none (or the call fails) so the UI can hide the ads card
+  /// entirely instead of showing mock/placeholder content.
+  Future<List<Map<String, dynamic>>> getPromotions();
 }
 
 // ── Real API service ──────────────────────────────────────────────────────────
@@ -52,6 +57,16 @@ class HomeApiService implements IHomeService {
   Future<List<dynamic>> _fetchLedger(String phone) =>
       CustomerLedgerService.instance.fetchLedger(phone);
 
+  // Fallback gradient/tag colors for promotions, since the backend only
+  // supplies text/image content — cycles by index so cards still look distinct.
+  static const List<List<int>> _promoPalette = [
+    [0xFF6366F1, 0xFF8B5CF6, 0xFFC4B5FD], // indigo → violet
+    [0xFFF97316, 0xFFEA580C, 0xFFFED7AA], // orange
+    [0xFF059669, 0xFF10B981, 0xFFA7F3D0], // green
+    [0xFFDB2777, 0xFFEC4899, 0xFFFBCFE8], // pink
+    [0xFF0EA5E9, 0xFF0284C7, 0xFFBAE6FD], // sky
+  ];
+
   @override
   Future<List<AdItem>> getAds() async {
     return kMockAds
@@ -65,6 +80,68 @@ class HomeApiService implements IHomeService {
               tagColor: m['tagColor'] as int,
             ))
         .toList();
+  }
+
+  /// Fetches live promotions from the backend. Each entry only carries an
+  /// image (no title/subtitle/points), so this extracts and resolves that
+  /// image URL. An entry with no recognized image field is skipped — it
+  /// never gets guessed from an arbitrary field, so it can't silently show
+  /// a broken-image placeholder. Returns [] on any failure (network error,
+  /// 500, empty payload, no real images found) so the caller can hide the
+  /// ads card entirely when there's nothing valid to show.
+  @override
+  Future<List<Map<String, dynamic>>> getPromotions() async {
+    try {
+      final res = await ApiClient.instance.dio.get('Mobile/GetAllPromotions');
+      final list = _asList(res.data);
+      if (list.isEmpty) return [];
+
+      final result = <Map<String, dynamic>>[];
+      for (int i = 0; i < list.length; i++) {
+        final entry = list[i];
+        String rawImage = '';
+
+        if (entry is String) {
+          // Backend returns a plain list of image paths/URLs.
+          rawImage = entry;
+        } else if (entry is Map) {
+          final m = entry as Map<String, dynamic>;
+          rawImage = (m['Image'] ??
+                  m['ImageUrl'] ??
+                  m['ImagePath'] ??
+                  m['PromotionImage'] ??
+                  m['Banner'] ??
+                  m['Picture'] ??
+                  m['PhotoUrl'] ??
+                  m['image'] ??
+                  m['imageUrl'] ??
+                  m['url'] ??
+                  '')
+              .toString();
+        }
+
+        if (rawImage.isEmpty) continue; // no recognized image → skip, no guessing
+        result.add({
+          'id': i.toString(),
+          'imageUrl': _resolveImageUrl(rawImage),
+        });
+      }
+      return result;
+    } catch (_) {
+      return [];
+    }
+  }
+  /// Turns a possibly-relative image path from the backend into a full URL.
+  /// If the backend already returns an absolute http(s) URL, it's used as-is.
+  String _resolveImageUrl(String raw) {
+    if (raw.isEmpty) return '';
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+
+    final base = AppConstants.baseUrl.endsWith('/')
+        ? AppConstants.baseUrl.substring(0, AppConstants.baseUrl.length - 1)
+        : AppConstants.baseUrl;
+    final path = raw.startsWith('/') ? raw : '/$raw';
+    return '$base$path';
   }
 
   /// Total points = earned − redeemed − expired, matching the Points History screen.

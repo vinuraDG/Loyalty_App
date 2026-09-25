@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_app/core/utils/formatters.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
+import 'package:loyalty_app/core/constants/app_constants.dart';
 import 'package:loyalty_app/data/mock_data.dart';
 import 'package:loyalty_app/features/auth/providers/auth_provider.dart';
 import 'package:loyalty_app/customer/points/screens/points_history_screen.dart';
@@ -29,6 +30,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   int _pointsExpire = 0;
   List<int> _weeklyPts = List.filled(7, 0);
   List<TransactionModel> _recentTxs = [];
+
+  // Live promotions/ads from the backend. Empty = hide the offers card
+  // (including its "Offers for you" title) entirely.
+  List<Map<String, dynamic>> _promotions = [];
 
   // Track which user's data is currently loaded to avoid redundant fetches.
   String? _loadedUserId;
@@ -72,22 +77,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Future<void> _fetchHomeData(String userId) async {
-    // Run all three requests concurrently; each failure is isolated so a
+    // Run all requests concurrently; each failure is isolated so a
     // single bad endpoint doesn't blank the whole screen.
     await Future.wait([
       _loadPoints(userId),
       _loadWeekly(userId),
       _loadTransactions(userId),
       _loadExpirePoints(userId),
+      _loadPromotions(userId),
     ]);
   }
 
-Future<void> _loadPoints(String userId) async {
-  try {
-    final pts = await homeService.getTotalPoints(userId);
-    if (mounted) setState(() => _totalPoints = pts);
-  } catch (_) {}
-}
+  Future<void> _loadPoints(String userId) async {
+    try {
+      final pts = await homeService.getTotalPoints(userId);
+      if (mounted) setState(() => _totalPoints = pts);
+    } catch (_) {}
+  }
 
   Future<void> _loadExpirePoints(String userId) async {
     try {
@@ -103,18 +109,46 @@ Future<void> _loadPoints(String userId) async {
     } catch (_) {}
   }
 
+  // Loads live promotions and hides the ads card (and its title) entirely
+  // when the backend has none — or the call fails for any reason.
+  Future<void> _loadPromotions(String userId) async {
+    // Temporary: show mock ad images while the ads backend isn't ready.
+    // Flip AppConstants.kUseMockAds to false once it's live — this is
+    // independent of AppConstants.useMockServices, which already
+    // controls the real backend for everything else.
+    if (AppConstants.kUseMockAds) {
+      if (mounted) {
+        setState(() {
+          _promotions = kMockAds;
+          _adIndex = 0;
+        });
+      }
+      return;
+    }
+
+    try {
+      final promos = await homeService.getPromotions();
+      if (mounted) {
+        setState(() {
+          _promotions = promos;
+          _adIndex = 0; // reset in case the list shrank
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _promotions = []);
+    }
+  }
+
   Future<void> _loadTransactions(String userId) async {
     try {
       final txs = await pointsService.getTransactions(userId);
       final today = DateTime.now();
-      final todayTxs = txs
-          .where((t) {
-            final d = t.date.toLocal();
-            return d.year == today.year &&
-                   d.month == today.month &&
-                   d.day == today.day;
-          })
-          .toList();
+      final todayTxs = txs.where((t) {
+        final d = t.date.toLocal();
+        return d.year == today.year &&
+            d.month == today.month &&
+            d.day == today.day;
+      }).toList();
 
       if (mounted) setState(() => _recentTxs = todayTxs);
     } catch (_) {}
@@ -236,61 +270,64 @@ Future<void> _loadPoints(String userId) async {
               ),
               const SizedBox(height: 20),
 
-              // ── Advertisement Banner ──────────────────────────────────
-              Column(children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.only(left: 20, right: 20, bottom: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Offers for you', style: AppTextStyles.h4),
-                      Text('${_adIndex + 1} / ${kMockAds.length}',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textSecondary)),
-                    ],
+              // ── Advertisement Banner (hidden entirely, title included,
+              // when there are no live promotions) ────────────────────────
+              if (_promotions.isNotEmpty) ...[
+                Column(children: [
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(left: 20, right: 20, bottom: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Offers for you', style: AppTextStyles.h4),
+                        Text('${_adIndex + 1} / ${_promotions.length}',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(
-                  height: 160,
-                  child: PageView.builder(
-                    controller: _adController,
-                    itemCount: kMockAds.length,
-                    onPageChanged: (i) => setState(() => _adIndex = i),
-                    itemBuilder: (context, index) {
-                      final ad = kMockAds[index];
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          left: index == 0 ? 16 : 6,
-                          right: index == kMockAds.length - 1 ? 16 : 6,
+                  SizedBox(
+                    height: 160,
+                    child: PageView.builder(
+                      controller: _adController,
+                      itemCount: _promotions.length,
+                      onPageChanged: (i) => setState(() => _adIndex = i),
+                      itemBuilder: (context, index) {
+                        final ad = _promotions[index];
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            left: index == 0 ? 16 : 6,
+                            right: index == _promotions.length - 1 ? 16 : 6,
+                          ),
+                          child: _AdCard(ad: ad),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Page indicator dots
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_promotions.length, (i) {
+                      final active = i == _adIndex;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: active ? 18 : 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? AppColors.primary
+                              : AppColors.textSecondary.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(3),
                         ),
-                        child: _AdCard(ad: ad),
                       );
-                    },
+                    }),
                   ),
-                ),
-                const SizedBox(height: 10),
-                // Page indicator dots
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(kMockAds.length, (i) {
-                    final active = i == _adIndex;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: active ? 18 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: active
-                            ? AppColors.primary
-                            : AppColors.textSecondary.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    );
-                  }),
-                ),
-              ]),
-              const SizedBox(height: 20),
+                ]),
+                const SizedBox(height: 20),
+              ],
 
               // ── Points card ───────────────────────────────────────────
               Padding(
@@ -385,7 +422,8 @@ Future<void> _loadPoints(String userId) async {
                                   const Icon(Icons.hourglass_bottom_rounded,
                                       size: 11, color: Color(0xFFFBBF24)),
                                   const SizedBox(width: 4),
-                                  Text('${_formatPoints(_pointsExpire)} pts expiring',
+                                  Text(
+                                      '${_formatPoints(_pointsExpire)} pts expiring',
                                       style: const TextStyle(
                                           fontSize: 11,
                                           color: Color(0xFFFBBF24),
@@ -412,12 +450,14 @@ Future<void> _loadPoints(String userId) async {
                                   children: [
                                     Icon(Icons.calendar_view_week_rounded,
                                         size: 11,
-                                        color: Colors.white.withValues(alpha: 0.55)),
+                                        color: Colors.white
+                                            .withValues(alpha: 0.55)),
                                     const SizedBox(width: 4),
                                     Text('This week  ',
                                         style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.white.withValues(alpha: 0.55))),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.55))),
                                     Text(
                                       '${formatPoints(_weeklyPts.fold(0, (s, v) => s + v))} pts',
                                       style: const TextStyle(
@@ -583,134 +623,66 @@ class _WeeklyBarChart extends StatelessWidget {
   }
 }
 
-// ── Ad Card Widget ────────────────────────────────────────────────────────────
+/// ── Ad Card Widget ────────────────────────────────────────────────────────────
 class _AdCard extends StatelessWidget {
   final Map<String, dynamic> ad;
   const _AdCard({required this.ad});
 
   @override
   Widget build(BuildContext context) {
-    final gradient = [
-      Color(ad['gradientStart'] as int),
-      Color(ad['gradientEnd'] as int),
-    ];
-    final tagColor = Color(ad['tagColor'] as int);
+    final imageUrl = (ad['imageUrl'] as String?) ?? '';
 
     return GestureDetector(
       onTap: () {},
-      child: Container(
-        height: 160,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: gradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left — tag + title + subtitle + hint
-            Expanded(
-              flex: 6,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(ad['tag'] as String,
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: tagColor)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(ad['title'] as String,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          height: 1.3)),
-                  const SizedBox(height: 3),
-                  Text(ad['subtitle'] as String,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.65))),
-                  const Spacer(),
-                  Row(children: [
-                    Icon(Icons.local_offer_rounded,
-                        size: 11, color: Colors.white.withValues(alpha: 0.5)),
-                    const SizedBox(width: 4),
-                    Text('Tap to view offer',
-                        style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontWeight: FontWeight.w400)),
-                  ]),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            // Right — points badge + decorative icon
-            Expanded(
-              flex: 4,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.star_rounded,
-                            size: 12,
-                            color: Colors.white.withValues(alpha: 0.9)),
-                        const SizedBox(width: 4),
-                        Text(
-                            ad['points'] != null
-                                ? '${formatPoints((ad['points'] as num).toInt())} pts'
-                                : '2× pts',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white.withValues(alpha: 0.9))),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.card_giftcard_rounded,
-                    size: 56,
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: SizedBox(
+          height: 160,
+          width: double.infinity,
+          child: imageUrl.isEmpty
+              ? _placeholder()
+              : Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _placeholder(),
+                  loadingBuilder: (context, child, progress) => progress == null
+                      ? child
+                      : Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            _placeholder(),
+                            const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation(Colors.white70),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
         ),
       ),
     );
   }
+
+  Widget _placeholder() => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: Icon(Icons.card_giftcard_rounded,
+              size: 48, color: Colors.white.withValues(alpha: 0.25)),
+        ),
+      );
 }
 
 // ── Quick Action Widget ───────────────────────────────────────────────────────
@@ -784,7 +756,20 @@ class _TxTile extends StatelessWidget {
 
   String _fmtDate(DateTime d) {
     final local = d.toLocal();
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${local.day} ${months[local.month - 1]} ${local.year}';
   }
 
@@ -807,18 +792,25 @@ class _TxTile extends StatelessWidget {
       builder: (_) => SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            left: 24, right: 24, top: 16,
+            left: 24,
+            right: 24,
+            top: 16,
             bottom: MediaQuery.of(context).viewInsets.bottom + 28,
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 20),
             Container(
-              width: 64, height: 64,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
               child: Center(
                 child: tx.isExpired
                     ? Icon(Icons.timer_off_rounded, size: 30, color: color)
@@ -829,7 +821,8 @@ class _TxTile extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(tx.displayPoints,
-                  style: AppTextStyles.display.copyWith(fontSize: 38, color: color)),
+                  style: AppTextStyles.display
+                      .copyWith(fontSize: 38, color: color)),
             ),
             const SizedBox(height: 6),
             Container(
@@ -844,7 +837,9 @@ class _TxTile extends StatelessWidget {
                 const SizedBox(width: 5),
                 Text(_txTypeLabel(),
                     style: AppTextStyles.caption.copyWith(
-                        color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
               ]),
             ),
             const SizedBox(height: 20),
@@ -876,23 +871,42 @@ class _TxTile extends StatelessWidget {
                 ],
                 _HomeTxDivider(),
                 _HomeTxDetailRow(
-                    icon: Icons.swap_horiz_rounded, label: 'Transaction Type',
-                    value: _txTypeLabel(), valueColor: color),
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Transaction Type',
+                    value: _txTypeLabel(),
+                    valueColor: color),
                 _HomeTxDivider(),
                 _HomeTxDetailRow(
-                    icon: Icons.toll_rounded, label: 'Points',
-                    value: tx.displayPoints, valueColor: color, bold: true),
+                    icon: Icons.toll_rounded,
+                    label: 'Points',
+                    value: tx.displayPoints,
+                    valueColor: color,
+                    bold: true),
                 _HomeTxDivider(),
-                _HomeTxDetailRow(icon: Icons.calendar_today_rounded, label: 'Date', value: _fmtDate(tx.date)),
+                _HomeTxDetailRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Date',
+                    value: _fmtDate(tx.date)),
                 _HomeTxDivider(),
-                _HomeTxDetailRow(icon: Icons.access_time_rounded, label: 'Time', value: _fmtTime(tx.date)),
-                if (tx.billNo != null && tx.billNo!.isNotEmpty && tx.billNo != '-') ...[
+                _HomeTxDetailRow(
+                    icon: Icons.access_time_rounded,
+                    label: 'Time',
+                    value: _fmtTime(tx.date)),
+                if (tx.billNo != null &&
+                    tx.billNo!.isNotEmpty &&
+                    tx.billNo != '-') ...[
                   _HomeTxDivider(),
-                  _HomeTxDetailRow(icon: Icons.receipt_long_rounded, label: 'Document No', value: tx.billNo!),
+                  _HomeTxDetailRow(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Document No',
+                      value: tx.billNo!),
                 ],
                 if (tx.note != null && tx.note!.isNotEmpty) ...[
                   _HomeTxDivider(),
-                  _HomeTxDetailRow(icon: Icons.notes_rounded, label: 'Note', value: tx.note!),
+                  _HomeTxDetailRow(
+                      icon: Icons.notes_rounded,
+                      label: 'Note',
+                      value: tx.note!),
                 ],
               ]),
             ),
@@ -904,12 +918,14 @@ class _TxTile extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: AppColors.buttonGradient),
+                    gradient:
+                        const LinearGradient(colors: AppColors.buttonGradient),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   alignment: Alignment.center,
                   child: Text('Close',
-                      style: AppTextStyles.labelMedium.copyWith(color: Colors.white)),
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: Colors.white)),
                 ),
               ),
             ),
@@ -931,8 +947,22 @@ class _TxTile extends StatelessWidget {
             : tx.business);
     final local = tx.date.toLocal();
     final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    const _sm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final timeStr = '${local.day} ${_sm[local.month - 1]} ${local.year} · $h:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
+    const _sm = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    final timeStr =
+        '${local.day} ${_sm[local.month - 1]} ${local.year} · $h:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
 
     return GestureDetector(
       onTap: () => _showDetail(context),
@@ -959,11 +989,14 @@ class _TxTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: AppTextStyles.labelMedium, overflow: TextOverflow.ellipsis),
+                Text(name,
+                    style: AppTextStyles.labelMedium,
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 3),
                 Row(children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
@@ -973,7 +1006,9 @@ class _TxTile extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(_txTypeLabel(),
                           style: TextStyle(
-                              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: color)),
                     ]),
                   ),
                   const SizedBox(width: 6),
@@ -999,7 +1034,8 @@ class _TxTile extends StatelessWidget {
                 Text('pts',
                     style: TextStyle(
                         fontSize: 10,
-                        color: AppColors.textSecondary.withValues(alpha: 0.45))),
+                        color:
+                            AppColors.textSecondary.withValues(alpha: 0.45))),
                 const SizedBox(width: 2),
                 const Icon(Icons.chevron_right_rounded,
                     size: 12, color: AppColors.textSecondary),
@@ -1018,38 +1054,48 @@ class _HomeTxDetailRow extends StatelessWidget {
   final String label, value;
   final Color? valueColor;
   final bool bold;
-  const _HomeTxDetailRow({required this.icon, required this.label, required this.value, this.valueColor, this.bold = false});
+  const _HomeTxDetailRow(
+      {required this.icon,
+      required this.label,
+      required this.value,
+      this.valueColor,
+      this.bold = false});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: AppColors.textSecondary),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 110,
-          child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 110,
+              child: Text(label,
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary)),
+            ),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                    color: valueColor ?? AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: bold ? FontWeight.w700 : FontWeight.w500),
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            softWrap: true,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.labelMedium.copyWith(
-                color: valueColor ?? AppColors.textPrimary, fontSize: 13,
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w500),
-          ),
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class _HomeTxDivider extends StatelessWidget {
   @override
-  Widget build(BuildContext context) =>
-      Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 16), color: AppColors.border);
+  Widget build(BuildContext context) => Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      color: AppColors.border);
 }

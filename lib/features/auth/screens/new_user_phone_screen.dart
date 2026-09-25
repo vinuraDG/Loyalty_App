@@ -84,7 +84,7 @@ class _NewUserPhoneScreenState extends ConsumerState<NewUserPhoneScreen> {
                 const SizedBox(height: 6),
                 const Center(
                   child: Text(
-                    "We'll set up your LoyaltyHub account.",
+                    "We'll set up your MSC Loyalty App account.",
                     style: AppTextStyles.bodySmall,
                     textAlign: TextAlign.center,
                   ),

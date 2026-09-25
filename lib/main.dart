@@ -77,7 +77,7 @@ class _LoyaltyAppState extends State<LoyaltyApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'LoyaltyHub',
+    title: 'MSC Loyalty App',
     debugShowCheckedModeBanner: false,
     theme: appTheme,
     navigatorKey: navigatorKey,

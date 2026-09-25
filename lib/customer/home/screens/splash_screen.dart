@@ -82,42 +82,49 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: AppColors.bgDeep,
         body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: AppColors.splashGradient,
-            ),
-          ),
-          child: Center(
+          // Solid dark background so the logo pops instead of a gradient washing it out
+          color: AppColors.bgDeep,
+          child: SafeArea(
             child: AnimatedBuilder(
               animation: _ctrl,
               builder: (_, __) => FadeTransition(
                 opacity: _fade,
                 child: ScaleTransition(
                   scale: _scale,
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const AppLogo(size: 96),
-                    const SizedBox(height: 22),
-                    Text(
-                      'LoyaltyHub',
-                      style: AppTextStyles.h1
-                          .copyWith(fontSize: 32, letterSpacing: -1),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const AppLogo(size: 160),
+                        const SizedBox(height: 22),
+                        Text(
+                          'MSC Loyalty App',
+                          style: AppTextStyles.h1.copyWith(
+                            fontSize: 32,
+                            letterSpacing: -1,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'EARN · COLLECT · REDEEM',
+                          style: AppTextStyles.caption.copyWith(
+                            letterSpacing: 3,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 60),
+                        SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'EARN · COLLECT · REDEEM',
-                      style: AppTextStyles.caption.copyWith(letterSpacing: 3),
-                    ),
-                    const SizedBox(height: 60),
-                    SizedBox(
-                      width: 36, height: 36,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ]),
+                  ),
                 ),
               ),
             ),

@@ -1,5 +1,5 @@
 class AppConstants {
-  static const appName = 'LoyaltyHub';
+  static const appName = 'MSC Loyalty App';
   static const mockOtp = '1234';
 
   static const prefUserId     = 'userId';
@@ -20,8 +20,13 @@ class AppConstants {
   static const laundryPoints = 80;
   static const goldPoints    = 200;
 
-  static const baseUrl              = 'http://124.43.27.57:8080/';
+  static const baseUrl = 'http://loyalty.muthukaruppanchettiar.com:8080/';
   static const transactionCompanyId = 0; // Pass 0 to customer ledger calls to get all companies
+
+  // Legal pages. Backend currently returns 500 on both; update the paths
+  // here once the backend dev confirms the final URLs.
+  static const privacyUrl = '${baseUrl}privacy';
+  static const termsUrl   = '${baseUrl}terms';
 
   // The earn company's TransactionCompanyId — set at employee login from the
   // backend's TransactionCompanyId field. Used for EarnPoints, RedeemPoints,
@@ -40,6 +45,8 @@ class AppConstants {
 
   // ── Flip this ONE line to switch the entire app ───────────────────────────
   static const bool useMockServices = false; // false = real backend
+
+  static const bool kUseMockAds = true;
 
   // ── Set true while backend auth is not yet implemented ──────────────────
   // Set false once auth (Login) endpoint is working on the backend.

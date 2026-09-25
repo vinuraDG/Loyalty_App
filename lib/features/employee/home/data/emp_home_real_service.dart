@@ -524,7 +524,7 @@ class EmpHomeRealService implements IEmpHomeService {
       List<int> redeemIds = [];
       if (empId > 0) {
         try {
-          final cr = await _dio.get('Mobile/GetCompanyById',
+          final cr = await _dio.get('Common/GetCompanyById',
               queryParameters: {'CompanyId': empId});
           final val = cr.data is Map ? cr.data['Value'] : null;
           debugPrint(
