@@ -13,7 +13,7 @@ plugins {
 }
 
 android {
-    namespace = "com.eontech.mscloyalty"
+    namespace = "com.mscloyalty.app"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -27,7 +27,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.eontech.mscloyalty"
+        applicationId = "com.mscloyalty.app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
