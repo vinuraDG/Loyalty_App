@@ -144,7 +144,9 @@ class HomeApiService implements IHomeService {
     return '$base$path';
   }
 
-  /// Total points = earned − redeemed − expired, matching the Points History screen.
+  /// Total points = sum of PointBalance from Earn entries.
+  /// Backend pre-calculates PointBalance per batch after each redemption,
+  /// so this matches the profile and points-history screens exactly.
   @override
   Future<int> getTotalPoints(String userId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -155,18 +157,11 @@ class HomeApiService implements IHomeService {
       final list = await _fetchLedger(phone);
       int balance = 0;
       for (final entry in list) {
-        final m      = entry as Map<String, dynamic>;
-        final type   = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
-        final points = (double.tryParse(
-                (m['PointsValue'] ?? m['Points'] ?? 0).toString()) ?? 0).round();
-        if (type == 'earn') {
-          balance += points;
-        } else if (type == 'redeem') {
-          balance -= points;
-        } else if (type == 'expired' || type == 'expire' ||
-                   type == 'expiring' || type == 'pointsexpired') {
-          balance -= points;
-        }
+        final m    = entry as Map<String, dynamic>;
+        final type = (m['PointsTransactionType'] ?? '').toString().toLowerCase();
+        if (type != 'earn') continue;
+        balance += (double.tryParse(
+                (m['PointBalance'] ?? 0).toString()) ?? 0).round();
       }
       return balance.clamp(0, 999999999);
     } catch (_) {

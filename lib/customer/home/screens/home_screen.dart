@@ -12,6 +12,7 @@ import 'package:loyalty_app/customer/points/data/points_api_service.dart';
 import 'package:loyalty_app/models/transaction_model.dart';
 import 'package:loyalty_app/shared/widgets/app_widgets.dart';
 import 'package:loyalty_app/core/providers/refresh_provider.dart';
+import 'package:loyalty_app/data/customer_ledger_service.dart';
 import 'main_screen.dart';
 import 'notifications_screen.dart';
 
@@ -58,6 +59,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (state == AppLifecycleState.resumed) {
       final user = ref.read(currentUserProvider);
       if (user != null && mounted) {
+        CustomerLedgerService.instance.clearCache();
         _fetchHomeData(user.id);
         ref.read(authProvider.notifier).refreshEmailStatus();
       }

@@ -80,13 +80,22 @@ class EmpProfileApiService implements IEmpProfileService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final phone = prefs.getString(AppConstants.prefUserPhone) ?? '';
+    String bearerToken = ApiClient.instance.token;
+    if (bearerToken.isEmpty) {
+      bearerToken = prefs.getString(AppConstants.prefAuthToken) ?? '';
+    }
     try {
       final res = await _dio.post(
         'Mobile/ResetPassword',
-        options: Options(responseType: ResponseType.plain),
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: bearerToken.isNotEmpty
+              ? {'Authorization': 'Bearer $bearerToken'}
+              : null,
+        ),
         data: {
           'PhoneNumber': phone,
-          'Token':       currentPassword,
+          'Token':       '',
           'NewPassword': newPassword,
         },
       );
